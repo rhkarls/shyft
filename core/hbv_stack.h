@@ -148,7 +148,7 @@ namespace shyft {
 						"routing.velocity",
 						"routing.alpha",
 						"routing.beta",
-						"infil.Os"
+						"infiltration.Os"
 					};
 					if (i >= size())
 						throw runtime_error("hbv_stack Parameter Accessor:.get_name(i) Out of range.");

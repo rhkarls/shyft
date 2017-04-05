@@ -60,7 +60,7 @@ class ShyftApi(unittest.TestCase):
         self.verify_parameter_for_calibration(pthsk, pthsk_size,valid_names)
 
     def test_hbv_stack_param(self):
-        hbv_size = 20
+        hbv_size = 21
         hbv = hbv_stack.HbvParameter()
         self.assertIsNotNone(hbv)
         self.assertEqual(hbv.size(), hbv_size)
@@ -92,7 +92,8 @@ class ShyftApi(unittest.TestCase):
         "gm.dtf",
         "routing.velocity",
         "routing.alpha",
-        "routing.beta"
+        "routing.beta",
+        "infiltration.Os"
         ]
         self.verify_parameter_for_calibration(hbv, hbv_size, valid_names)
 
