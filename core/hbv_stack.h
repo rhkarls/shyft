@@ -170,7 +170,7 @@ namespace shyft {
 				typedef hbv_infiltration::state infiltration_state_t;
 				typedef hbv_tank::state tank_state_t;
 				state() {}
-				state(snow_state_t snow, soil_state_t soil, infiltration_state_t infil, tank_state_t tank) : snow(snow), soil(soil), infil(infil), tank(tank) {}
+				state(snow_state_t snow, soil_state_t soil, tank_state_t tank, infiltration_state_t infil=infiltration_state_t()) : snow(snow), soil(soil), infil(infil), tank(tank) {}
 				snow_state_t snow;
 				soil_state_t soil;
 				infiltration_state_t infil;

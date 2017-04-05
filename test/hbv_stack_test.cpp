@@ -20,7 +20,8 @@ namespace soil = shyft::core::hbv_soil;
 namespace tank = shyft::core::hbv_tank;
 namespace ae = shyft::core::hbv_actual_evapotranspiration;
 namespace pc = shyft::core::precipitation_correction;
-
+namespace gm = shyft::core::glacier_melt;
+namespace rt = shyft::core::routing;
 typedef TSPointTarget<point_timeaxis> catchment_t;
 
 namespace shyfttest {
@@ -68,7 +69,8 @@ TEST_CASE("test_call_stack") {
 	soil::parameter soil_param;
 	tank::parameter tank_param;
 	pc::parameter p_corr_param;
-
+    gm::parameter gm_param;
+    routing::uhg_parameter routing_param;
 	// Initialize the state vectors
 	infil::state infil_state = { 0.0 }; //How many states do I have and in which orfer
 	soil::state soil_state = { 50.0 };
@@ -82,8 +84,8 @@ TEST_CASE("test_call_stack") {
 	shyft::core::hbv_stack::all_response_collector response_collector(1000 * 1000, time_axis);
 	shyft::core::hbv_stack::state_collector state_collector(state_time_axis);
 
-	state state {snow_state, soil_state, infil_state, tank_state};
-	parameter parameter(pt_param, snow_param, ae_param, infil_param, soil_param, tank_param, p_corr_param);
+	state state {snow_state, soil_state, tank_state,infil_state };
+	parameter parameter(pt_param, snow_param, ae_param, soil_param, tank_param, p_corr_param, gm_param,routing_param,infil_param);
 	geo_cell_data geo_cell_data;
 	hbv_stack::run_hbv_stack<direct_accessor, response>(geo_cell_data, parameter, time_axis,0,0, temp,  //What is the difference between ptgsk & pthsk??
 		prec, wind_speed, rel_hum, radiation, state,
