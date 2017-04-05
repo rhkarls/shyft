@@ -303,6 +303,23 @@ class TimeSeries(unittest.TestCase):
             self.assertAlmostEqual(expected_value, ts1.value(i), 3, "expect integral f(t)*dt")
             self.assertAlmostEqual(expected_value, ts1_values[i], 3, "expect value vector equal as well")
 
+    def test_integral(self):
+        c = api.Calendar()
+        t0 = c.time(2016, 1, 1)
+        dt = api.deltahours(1)
+        n = 240
+        ta = api.TimeAxis(t0, dt, n)
+        fill_value = 1.0
+        ts = api.TimeSeries(ta=ta, fill_value=fill_value, point_fx=api.point_interpretation_policy.POINT_AVERAGE_VALUE)
+        ts_i1 = ts.integral(ta)
+        ts_i2 = api.integral(ts,ta)
+        ts_i1_values = ts_i1.values
+        for i in range(n):
+            expected_value = dt*fill_value
+            self.assertAlmostEqual(expected_value,ts_i1.value(i),4,"expect integral of each interval")
+            self.assertAlmostEqual(expected_value,ts_i2.value(i),4,"expect integral of each interval")
+            self.assertAlmostEqual(expected_value,ts_i1_values[i],4,"expect integral of each interval")
+
     def test_kling_gupta_and_nash_sutcliffe(self):
         """
         Test/verify exposure of the kling_gupta and nash_sutcliffe correlation functions
@@ -395,6 +412,19 @@ class TimeSeries(unittest.TestCase):
         ta_percentiles = api.TimeAxis(partition_t0, api.deltahours(24), 365)
         percentiles = api.percentiles(ts_partitions, ta_percentiles, wanted_percentiles)
         self.assertEqual(len(percentiles), len(wanted_percentiles))
+
+    def test_empty_ts(self):
+        a = api.TimeSeries()
+        self.assertEqual(a.size(), 0)
+        self.assertEqual(a.values.size(),0)
+        self.assertEqual(len(a.values.to_numpy()), 0)
+        self.assertFalse(a.total_period().valid())
+        try:
+            a.time_axis
+            self.assertFail("Expected exception")
+        except RuntimeError as re:
+            pass
+
 
     def test_ts_reference_and_bind(self):
         c = api.Calendar()

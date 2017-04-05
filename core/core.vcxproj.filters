@@ -131,6 +131,8 @@
     <ClInclude Include="hbv_infiltration.h">
       <Filter>methods</Filter>
     </ClInclude>
+    <ClInclude Include="dtss.h" />
+
   </ItemGroup>
   <ItemGroup>
     <Filter Include="methods">
