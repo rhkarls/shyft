@@ -40,12 +40,13 @@ namespace shyft {
 				parameter(pt_parameter_t pt,
 					snow_parameter_t snow,
 					ae_parameter_t ae,
-					infiltration_parameter_t infil,
+					
 					soil_parameter_t soil,
 					tank_parameter_t tank,
 					precipitation_correction_parameter_t p_corr,
                     glacier_parameter_t gm = glacier_parameter_t(),
-					routing_parameter_t routing=routing_parameter_t())
+					routing_parameter_t routing=routing_parameter_t(),
+                    infiltration_parameter_t infil=infiltration_parameter_t() )
 					: pt(pt), snow(snow), ae(ae), infil(infil), soil(soil), tank(tank), p_corr(p_corr),gm(gm),routing(routing)  { /*Do nothing */}
 
 				parameter()=default;
