@@ -11,7 +11,7 @@
       <Filter>experimental</Filter>
     </ClCompile>
     <ClCompile Include="utctime_utilities.cpp">
-      <Filter>time</Filter>
+      <Filter>optimizers\time</Filter>
     </ClCompile>
     <ClCompile Include="core_pch.cpp">
       <Filter>compiler_etc</Filter>
@@ -82,7 +82,7 @@
       <Filter>experimental</Filter>
     </ClInclude>
     <ClInclude Include="utctime_utilities.h">
-      <Filter>time</Filter>
+      <Filter>optimizers\time</Filter>
     </ClInclude>
     <ClInclude Include="inverse_distance.h">
       <Filter>interpolation</Filter>
@@ -128,6 +128,9 @@
     </ClInclude>
     <ClInclude Include="unit_conversion.h" />
     <ClInclude Include="routing.h" />
+    <ClInclude Include="hbv_infiltration.h">
+      <Filter>methods</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="methods">
@@ -145,9 +148,6 @@
     <Filter Include="experimental">
       <UniqueIdentifier>{21ba19cc-d2a8-48b9-8aa3-509b9bb7fbc5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="time">
-      <UniqueIdentifier>{bd2d4fab-8491-4526-891a-9156fb995e82}</UniqueIdentifier>
-    </Filter>
     <Filter Include="interpolation">
       <UniqueIdentifier>{68bd584f-6120-4323-80bd-66d558206266}</UniqueIdentifier>
     </Filter>
@@ -159,6 +159,9 @@
     </Filter>
     <Filter Include="serialization">
       <UniqueIdentifier>{8c1c0ee1-88a9-4160-9892-7527d60172b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizers\time">
+      <UniqueIdentifier>{bd2d4fab-8491-4526-891a-9156fb995e82}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

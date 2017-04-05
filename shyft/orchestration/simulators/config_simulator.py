@@ -167,6 +167,7 @@ class ConfigCalibrator(simulator.DefaultSimulator):
                     "ae": "actual_evapotranspiration", "gs": "gamma_snow", "ss": "skaugen_snow", "hs": "hbv_snow","gm":"glacier_melt",
                     "ae": "hbv_actual_evapotranspiration", "soil": "hbv_soil", "tank": "hbv_tank","routing":"routing"
                     }
+                    #"ae": "hbv_actual_evapotranspiration", "soil": "hbv_soil", "infiltration": "hbv_infiltration", "tank": "hbv_tank","routing":"routing"
         model_file = self.model_config_file
         model_dict = yaml.load(open(model_file))
         model_params = {}

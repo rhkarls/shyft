@@ -5,6 +5,7 @@
 #include "core/hbv_actual_evapotranspiration.h"
 #include "core/precipitation_correction.h"
 #include "core/hbv_snow.h"
+//#include "core/hbv_infiltration.h"
 #include "core/hbv_soil.h"
 #include "core/hbv_tank.h"
 #include "core/hbv_stack.h"

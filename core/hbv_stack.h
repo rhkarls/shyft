@@ -3,6 +3,7 @@
 #include "priestley_taylor.h"
 #include "hbv_snow.h"
 #include "hbv_actual_evapotranspiration.h"
+#include "hbv_infiltration.h"
 #include "hbv_soil.h"
 #include "hbv_tank.h"
 #include "precipitation_correction.h"
@@ -29,6 +30,7 @@ namespace shyft {
 				typedef priestley_taylor::parameter pt_parameter_t;
 				typedef hbv_snow::parameter snow_parameter_t;
 				typedef hbv_actual_evapotranspiration::parameter ae_parameter_t;
+				typedef hbv_infiltration::parameter infiltration_parameter_t;
 				typedef hbv_soil::parameter soil_parameter_t;
 				typedef hbv_tank::parameter tank_parameter_t;
 				typedef precipitation_correction::parameter precipitation_correction_parameter_t;
@@ -38,12 +40,13 @@ namespace shyft {
 				parameter(pt_parameter_t pt,
 					snow_parameter_t snow,
 					ae_parameter_t ae,
+					infiltration_parameter_t infil,
 					soil_parameter_t soil,
 					tank_parameter_t tank,
 					precipitation_correction_parameter_t p_corr,
                     glacier_parameter_t gm = glacier_parameter_t(),
 					routing_parameter_t routing=routing_parameter_t())
-					: pt(pt), snow(snow), ae(ae), soil(soil), tank(tank), p_corr(p_corr),gm(gm),routing(routing)  { /*Do nothing */}
+					: pt(pt), snow(snow), ae(ae), infil(infil), soil(soil), tank(tank), p_corr(p_corr),gm(gm),routing(routing)  { /*Do nothing */}
 
 				parameter()=default;
 				parameter(const parameter&)=default;
@@ -54,13 +57,14 @@ namespace shyft {
 				pt_parameter_t pt;						// I followed pt_gs_k but pt_hs_k differ
 				snow_parameter_t snow;
 				ae_parameter_t ae;
+				infiltration_parameter_t infil;
 				soil_parameter_t soil;
 				tank_parameter_t  tank;
 				precipitation_correction_parameter_t p_corr;
                 glacier_parameter_t gm;
                 routing_parameter_t routing;
 				///<calibration support, needs vector interface to params, size is the total count
-				size_t size() const { return 20; }
+				size_t size() const { return 21; }
 				///<calibration support, need to set values from ordered vector
 				void set(const vector<double>& p) {
 					if (p.size() != size())
@@ -86,6 +90,7 @@ namespace shyft {
 					routing.velocity = p[i++];
          	        routing.alpha = p[i++];
                		routing.beta  = p[i++];
+					infil.Os = p[i++];
 				}
 
 				///< calibration support, get the value of i'th parameter
@@ -111,6 +116,8 @@ namespace shyft {
 					case 17:return routing.velocity;
                     case 18:return routing.alpha;
                     case 19:return routing.beta;
+					case 20:return infil.Os;
+
 					default:
 						throw runtime_error("HBV_stack Parameter Accessor:.get(i) Out of range.");
 					}
@@ -139,7 +146,8 @@ namespace shyft {
                         "gm.dtf",
 						"routing.velocity",
 						"routing.alpha",
-						"routing.beta"
+						"routing.beta",
+						"infil.Os"
 					};
 					if (i >= size())
 						throw runtime_error("hbv_stack Parameter Accessor:.get_name(i) Out of range.");
@@ -158,13 +166,15 @@ namespace shyft {
 			struct state {
 				typedef hbv_snow::state snow_state_t;
 				typedef hbv_soil::state soil_state_t;
+				typedef hbv_infiltration::state infiltration_state_t;
 				typedef hbv_tank::state tank_state_t;
 				state() {}
-				state(snow_state_t snow, soil_state_t soil, tank_state_t tank) : snow(snow), soil(soil), tank(tank) {}
+				state(snow_state_t snow, soil_state_t soil, infiltration_state_t infil, tank_state_t tank) : snow(snow), soil(soil), infil(infil), tank(tank) {}
 				snow_state_t snow;
 				soil_state_t soil;
+				infiltration_state_t infil;
 				tank_state_t tank;
-				bool operator==(const state& x) const { return snow == x.snow && tank == x.tank && soil == x.soil; }
+				bool operator==(const state& x) const { return snow == x.snow && tank == x.tank && soil == x.soil && infil == x.infil; }
                 x_serialize_decl();
             };
 
@@ -178,11 +188,13 @@ namespace shyft {
 				typedef priestley_taylor::response  pt_response_t;
 				typedef hbv_snow::response snow_response_t;
 				typedef hbv_actual_evapotranspiration::response  ae_response_t;
+				typedef hbv_infiltration::response infiltration_response_t;
 				typedef hbv_soil::response soil_response_t;
 				typedef hbv_tank::response tank_response_t;
 				pt_response_t pt;
 				snow_response_t snow;
 				ae_response_t ae;
+				infiltration_response_t infil;
 				soil_response_t soil;
 				tank_response_t tank;
                 double gm_melt_m3s;
@@ -278,6 +290,7 @@ namespace shyft {
 				precipitation_correction::calculator p_corr(parameter.p_corr.scale_factor);
 				priestley_taylor::calculator pt(parameter.pt.albedo, parameter.pt.alpha);
 				hbv_snow::calculator<typename P::snow_parameter_t, typename S::snow_state_t> snow(parameter.snow, state.snow);
+				hbv_infiltration::calculator<typename P::infiltration_parameter_t> infil(parameter.infil);
 				hbv_soil::calculator<typename P::soil_parameter_t> soil(parameter.soil);
 				hbv_tank::calculator<typename P::tank_parameter_t> tank(parameter.tank);
 				R response;
@@ -306,7 +319,9 @@ namespace shyft {
 					    parameter.ae.lp, std::max(state.snow.sca,glacier_fraction), // a evap only on non-snow/non-glac area
                         period.timespan());
 
-                    soil.step(state.soil, response.soil, period.start, period.end, response.snow.outflow, response.ae.ae);
+					infil.step(state.infil, response.infil, period.start, period.end, response.snow.outflow);
+                    
+					soil.step(state.soil, response.soil, period.start, period.end, response.infil.Freal, response.ae.ae);
 
 					tank.step(state.tank, response.tank, period.start, period.end, response.soil.outflow);
 
@@ -314,6 +329,7 @@ namespace shyft {
                           std::max(0.0, prec - response.ae.ae)*total_lake_fraction // when it rains, remove ae. from direct response
                         + m3s_to_mmh(response.gm_melt_m3s, cell_area_m2) // the glacier also direct
                         + response.tank.outflow * land_fraction;
+						//Surface Runoff should come in here
                     response.charge_m3s =
                         + shyft::mmh_to_m3s(prec, cell_area_m2)
                         - shyft::mmh_to_m3s(response.ae.ae, cell_area_m2)

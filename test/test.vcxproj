@@ -129,6 +129,7 @@
     <ClCompile Include="glacier_melt_test.cpp" />
     <ClCompile Include="gridpp_test.cpp" />
     <ClCompile Include="hbv_actual_evapotranspiration_test.cpp" />
+    <ClCompile Include="hbv_infiltration_test.cpp" />
     <ClCompile Include="hbv_soil_test.cpp" />
     <ClCompile Include="hbv_stack_test.cpp" />
     <ClCompile Include="hbv_tank_test.cpp" />

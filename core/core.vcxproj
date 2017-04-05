@@ -115,6 +115,7 @@
     <ClInclude Include="dream_optimizer.h" />
     <ClInclude Include="experimental.h" />
     <ClInclude Include="hbv_actual_evapotranspiration.h" />
+    <ClInclude Include="hbv_infiltration.h" />
     <ClInclude Include="hbv_soil.h" />
     <ClInclude Include="hbv_stack.h" />
     <ClInclude Include="hbv_stack_cell_model.h" />

@@ -390,6 +390,29 @@ namespace shyft {
 		}
 	};
 
+	/*template <typename cell>
+	struct hbv_infiltration_cell_state_statistics {
+		shared_ptr<vector<cell>> cells;
+		hbv_infiltration_cell_state_statistics(shared_ptr<vector<cell>> cells) :cells(cells) {}
+
+		apoint_ts discharge(const vector<int>& catchment_indexes) const {
+			return apoint_ts(*shyft::core::cell_statistics::
+				sum_catchment_feature(*cells, catchment_indexes,
+					[](const cell& c) { return c.sc.infiltration; }));
+		}
+		vector<double> discharge(const vector<int>& catchment_indexes, size_t ith_timestep) const {
+			return shyft::core::cell_statistics::
+				catchment_feature(*cells, catchment_indexes,
+					[](const cell& c) { return c.sc.infiltration; }, ith_timestep);
+		}
+		double discharge_value(const vector<int>& catchment_indexes, size_t ith_timestep) const {
+			return shyft::core::cell_statistics::
+				sum_catchment_feature_value(*cells, catchment_indexes,
+					[](const cell& c) { return c.sc.infiltration; }, ith_timestep);
+		}
+	};*/
+
+
 	template <typename cell>											//To be checked & controlled
 	struct hbv_tank_cell_state_statistics {
 		shared_ptr<vector<cell>> cells;
@@ -889,6 +912,28 @@ namespace shyft {
 					[](const cell& c) { return c.rc.pe_output; }, ith_timestep);
 		}
 	};
+
+	/*template <typename cell>
+	struct hbv_infiltration_cell_response_statistics {
+		shared_ptr<vector<cell>> cells;
+		hbv_infiltration_cell_response_statistics(shared_ptr<vector<cell>> cells) :cells(cells) {}
+
+		apoint_ts output(const vector<int>& catchment_indexes) const {
+			return apoint_ts(*shyft::core::cell_statistics::
+				average_catchment_feature(*cells, catchment_indexes,
+					[](const cell& c) { return c.rc.infiltration_Freal; }));
+		}
+		vector<double> output(const vector<int>& catchment_indexes, size_t ith_timestep) const {
+			return shyft::core::cell_statistics::
+				catchment_feature(*cells, catchment_indexes,
+					[](const cell& c) { return c.rc.infiltration_Freal; }, ith_timestep);
+		}
+		double output_value(const vector<int>& catchment_indexes, size_t ith_timestep) const {
+			return shyft::core::cell_statistics::
+				average_catchment_feature_value(*cells, catchment_indexes,
+					[](const cell& c) { return c.rc.infiltration_Freal; }, ith_timestep);
+		}
+	};*/
 
 	template <typename cell>
 	struct hbv_soil_cell_response_statistics {

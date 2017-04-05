@@ -105,6 +105,9 @@
     <ClCompile Include="routing_test.cpp">
       <Filter>routing</Filter>
     </ClCompile>
+    <ClCompile Include="hbv_infiltration_test.cpp">
+      <Filter>methods</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="methods">

@@ -10,6 +10,7 @@
 #include "timeseries.h"
 #include "geo_cell_data.h"
 #include "hbv_snow.h"
+#include "hbv_infiltration.h"
 #include "hbv_soil.h"
 #include "hbv_tank.h"
 #include "gamma_snow.h"
@@ -236,6 +237,7 @@ template <class Archive>
 void shyft::core::land_type_fractions::serialize(Archive& ar, const unsigned int version) {
     ar
     & make_nvp("glacier_",glacier_)
+	//& make_nvp("imperviouse_surface_",imperviouse_surface_)
     & make_nvp("lake_",lake_)
     & make_nvp("reservoir_",reservoir_)
     & make_nvp("forest_",forest_)
@@ -267,6 +269,19 @@ void shyft::core::hbv_snow::state::serialize(Archive & ar, const unsigned int fi
     & make_nvp("swe",swe)
     & make_nvp("sca",sca)
     ;
+}
+template <class Archive>
+void shyft::core::hbv_infiltration::state::serialize(Archive & ar, const unsigned int file_version) {
+	ar
+	& make_nvp("O0", O0)
+	//& make_nvp("OR0", OR0)
+	//& make_nvp("K0", K0)
+	//& make_nvp("k", k)
+	//& make_nvp("Z", Z)
+	//& make_nvp("ponding", ponding)
+	//& make_nvp("ftest", ftest)
+	//& make_nvp("f",f)
+	;
 }
 template <class Archive>
 void shyft::core::hbv_soil::state::serialize(Archive & ar, const unsigned int file_version) {
@@ -316,6 +331,7 @@ template <class Archive>
 void shyft::core::hbv_stack::state::serialize(Archive & ar, const unsigned int file_version) {
     ar
         & make_nvp("snow",snow)
+		& make_nvp("infiltration", infil)
         & make_nvp("soil",soil)
         & make_nvp("tank",tank)
         ;
@@ -389,6 +405,7 @@ x_serialize_implement(shyft::timeseries::periodic_ts<shyft::time_axis::generic_d
 
 //-- export method and method-stack state
 x_serialize_implement(shyft::core::hbv_snow::state);
+x_serialize_implement(shyft::core::hbv_infiltration::state);
 x_serialize_implement(shyft::core::hbv_soil::state);
 x_serialize_implement(shyft::core::hbv_tank::state);
 x_serialize_implement(shyft::core::gamma_snow::state);
@@ -447,6 +464,7 @@ x_arch(shyft::core::routing_info);
 x_arch(shyft::core::geo_cell_data);
 
 x_arch(shyft::core::hbv_snow::state);
+x_arch(shyft::core::hbv_infiltration::state);
 x_arch(shyft::core::hbv_soil::state);
 x_arch(shyft::core::hbv_tank::state);
 x_arch(shyft::core::gamma_snow::state);

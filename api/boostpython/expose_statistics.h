@@ -23,6 +23,22 @@ namespace expose {
             ;
         }
 
+		//template<class cell>
+		//static void hbv_infiltration(const char *cell_name) {
+		//	char state_name[200]; sprintf(state_name, "%sHbvInfiltationStateStatistics", cell_name);
+		//	typedef typename shyft::api::hbv_infiltration_cell_state_statistics<cell>    sc_stat;
+
+		//	rts_(sc_stat::*discharge_ts)(cids_) const = &sc_stat::discharge;
+		//	vd_(sc_stat::*discharge_vd)(cids_, ix_) const = &sc_stat::discharge;
+		//	class_<sc_stat>(state_name, "HbvInfiltration response statistics", no_init)
+		//		.def(init<std::shared_ptr<std::vector<cell>> >(args("cells"), "construct Kirchner cell response statistics object"))
+		//		.def("discharge", discharge_ts, args("catchment_indexes"), "returns sum  for catcment_ids")
+		//		.def("discharge", discharge_vd, args("catchment_indexes", "i"), "returns  for cells matching catchments_ids at the i'th timestep")
+		//		.def("discharge_value", &sc_stat::discharge_value, args("catchment_indexes", "i"), "returns sum discharge[m3/s]  for cells matching catchments_ids at the i'th timestep")
+		//		;
+		//}
+
+
 		template<class cell>
 		static void hbv_soil(const char *cell_name) {
 			char state_name[200]; sprintf(state_name, "%sHbvSoilStateStatistics", cell_name);

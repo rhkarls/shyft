@@ -65,6 +65,14 @@ class ShyftApi(unittest.TestCase):
         self.assertIsNotNone(hbv)
         self.assertEqual(hbv.size(), hbv_size)
         valid_names = [
+        #"infiltration.O0"
+        #"infiltration.OR0"
+        #"infiltration.K0"
+        #"infiltration.k"
+        #"infiltration.Z"
+        #"infiltration.ponding"
+        #"infiltration.ftest"
+        #"infiltration.f"    
         "soil.fc",
         "soil.beta",
         "ae.lp",

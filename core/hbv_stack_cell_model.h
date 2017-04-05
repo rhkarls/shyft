@@ -32,6 +32,8 @@ namespace shyft {
                 pts_t snow_sca;
 				pts_t snow_swe;
 				pts_t ae_output;///< actual evap mm/h
+				pts_t infiltration_Freal;// 
+				pts_t infiltration_Runoff;//
 				pts_t soil_outflow; ///< Tank outflow given in [m^3/s] for the timestep
 				pts_t avg_discharge; ///< Tank outflow given in [m^3/s] for the timestep
                 pts_t charge_m3s; ///< = precip + glacier - act_evap - avg_discharge [m^3/s] for the timestep
@@ -40,8 +42,10 @@ namespace shyft {
 				all_response_collector() : destination_area(0.0) {}
 				all_response_collector(const double destination_area) : destination_area(destination_area) {}
 				all_response_collector(const double destination_area, const timeaxis_t& time_axis)
-					: destination_area(destination_area), pe_output(time_axis, 0.0), snow_outflow(time_axis, 0.0),glacier_melt(time_axis,0.0),snow_sca(time_axis,0.0),snow_swe(time_axis,0), ae_output(time_axis, 0.0),
-						soil_outflow(time_axis, 0.0), avg_discharge(time_axis, 0.0),charge_m3s(time_axis, 0.0) {}
+					: destination_area(destination_area), pe_output(time_axis, 0.0), snow_outflow(time_axis, 0.0), glacier_melt(time_axis, 0.0), snow_sca(time_axis, 0.0), snow_swe(time_axis, 0), ae_output(time_axis, 0.0),
+					soil_outflow(time_axis, 0.0), infiltration_Freal(time_axis, 0.0), infiltration_Runoff(time_axis, 0.0), avg_discharge(time_axis, 0.0), charge_m3s(time_axis, 0.0) {}
+					//: destination_area(destination_area), pe_output(time_axis, 0.0), snow_outflow(time_axis, 0.0),glacier_melt(time_axis,0.0),snow_sca(time_axis,0.0),snow_swe(time_axis,0), ae_output(time_axis, 0.0),
+						//soil_outflow(time_axis, 0.0), avg_discharge(time_axis, 0.0),charge_m3s(time_axis, 0.0) {}
 
 				/**\brief called before run to allocate space for results */
 				void initialize(const timeaxis_t& time_axis,int start_step,int n_steps, double area) {
@@ -52,7 +56,9 @@ namespace shyft {
                     ts_init(snow_sca, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
                     ts_init(snow_swe, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
                     ts_init(ae_output, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
-                    ts_init(soil_outflow, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
+                    ts_init(infiltration_Freal, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
+					ts_init(infiltration_Runoff, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
+					ts_init(soil_outflow, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
                     ts_init(avg_discharge, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
                     ts_init(charge_m3s, time_axis, start_step, n_steps, fx_policy_t::POINT_AVERAGE_VALUE);
 				}
@@ -73,6 +79,8 @@ namespace shyft {
                     snow_sca.set(idx, response.snow.snow_state.sca);
 					snow_swe.set(idx, response.snow.snow_state.swe);
 					ae_output.set(idx, response.ae.ae);
+					infiltration_Freal.set(idx, response.infil.Freal);
+					infiltration_Runoff.set(idx, response.infil.Runoff);
 					soil_outflow.set(idx, response.soil.outflow);//mm ?? //TODO: current mm/h. Want m3/s, but we get mm/h from soil output
 					avg_discharge.set(idx, mmh_to_m3s(response.total_discharge, destination_area)); // wants m3/s, outflow is given in mm/h, so compute the totals in  mm/s
                     charge_m3s.set(idx, response.charge_m3s);
@@ -89,6 +97,7 @@ namespace shyft {
 				bool collect_snow;
 				pts_t snow_sca;
 				pts_t snow_swe;
+				//should I do something here with the Runoff?
 
 				discharge_collector() : destination_area(0.0), collect_snow(false) {}
 				discharge_collector(const double destination_area) : destination_area(destination_area), collect_snow(false) {}
@@ -139,14 +148,27 @@ namespace shyft {
 				double destination_area;
 				pts_t snow_swe;
 				pts_t snow_sca;
+				pts_t infiltration_O0;
+				//pts_t infiltration_OR0;
+				//pts_t infiltration_K0;
+				//pts_t infiltration_k;
+				//pts_t infiltration_Z;
+				//pts_t infiltration_Ponding;
+				//pts_t infiltration_ftest;
+				//pts_t infiltration_f;
 				pts_t soil_moisture;
 				pts_t tank_uz;
 				pts_t tank_lz;
 
 				state_collector() : collect_state(false), destination_area(0.0) {}
 				state_collector(const timeaxis_t& time_axis)
-					: collect_state(false), destination_area(0.0), snow_swe(time_axis, 0.0), snow_sca(time_axis, 0.0),
-						soil_moisture(time_axis, 0.0), tank_uz(time_axis, 0.0), tank_lz(time_axis, 0.0) { /* Do nothing */}
+					//: collect_state(false), destination_area(0.0), snow_swe(time_axis, 0.0), snow_sca(time_axis, 0.0),
+					//infiltration_O0(time_axis, 0.0), infiltration_OR0(time_axis, 0.0), infiltration_K0(time_axis, 0.0),
+					//infiltration_k(time_axis, 0.0), infiltration_Z(time_axis, 0.0), infiltration_Ponding(time_axis, 0.0),
+					//infiltration_ftest(time_axis, 0.0), infiltration_f(time_axis, 0.0), soil_moisture(time_axis, 0.0), 
+					//tank_uz(time_axis, 0.0), tank_lz(time_axis, 0.0) { /* Do nothing */}
+					: collect_state(false), destination_area(0.0), snow_swe(time_axis, 0.0), infiltration_O0(time_axis, 0.0), snow_sca(time_axis, 0.0),
+					soil_moisture(time_axis, 0.0), tank_uz(time_axis, 0.0), tank_lz(time_axis, 0.0) { /* Do nothing */}
 				/** brief called before run, prepares state time-series
 				*
 				* with preallocated room for the supplied time-axis.
@@ -157,8 +179,16 @@ namespace shyft {
 					destination_area = area;
 					timeaxis_t ta = collect_state ? time_axis : timeaxis_t(time_axis.start(), time_axis.delta(), 0);
                     ts_init(snow_sca, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
-                    ts_init(snow_swe, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
-                    ts_init(soil_moisture, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					ts_init(snow_swe, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					ts_init(infiltration_O0, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_OR0, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_K0, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_k, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_Z, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_ponding, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_ftest, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					//ts_init(infiltration_f, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
+					ts_init(soil_moisture, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
                     ts_init(tank_uz, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
                     ts_init(tank_lz, ta, start_step, n_steps, fx_policy_t::POINT_INSTANT_VALUE);
 				}
@@ -170,6 +200,14 @@ namespace shyft {
 						soil_moisture.set(idx, state.soil.sm);
 						tank_uz.set(idx, state.tank.uz);
 						tank_lz.set(idx, state.tank.lz);
+						infiltration_O0.set(idx, state.infil.O0);
+						//infiltration_OR0.set(idx, state.infiltration.OR0);
+						//infiltration_K0.set(idx, state.infiltration.K0);
+						//infiltration_k.set(idx, state.infiltration.k);
+						//infiltration_Z.set(idx, state.infiltration.Z);
+						//infiltration_ponding.set(idx, state.infiltration.ponding);
+						//infiltration_ftest.set(idx, state.infiltration.ftest);
+						//infiltration_f.set(idx, state.infiltration.f);
 					}
 				}
 			};

@@ -15,6 +15,7 @@ using namespace shyfttest;
 
 namespace pt = shyft::core::priestley_taylor;
 namespace snow = shyft::core::hbv_snow;
+namespace infil = shyft::core::hbv_infiltration;
 namespace soil = shyft::core::hbv_soil;
 namespace tank = shyft::core::hbv_tank;
 namespace ae = shyft::core::hbv_actual_evapotranspiration;
@@ -63,13 +64,15 @@ TEST_CASE("test_call_stack") {
 	pt::parameter pt_param;
 	snow::parameter snow_param(s, a);
 	ae::parameter ae_param;
+	infil::parameter infil_param;
 	soil::parameter soil_param;
 	tank::parameter tank_param;
 	pc::parameter p_corr_param;
 
 	// Initialize the state vectors
-	soil::state soil_state = {50.0};
-	tank::state tank_state = {20.0, 10.0 };  // Check , I follow kirchner
+	infil::state infil_state = { 0.0 }; //How many states do I have and in which orfer
+	soil::state soil_state = { 50.0 };
+	tank::state tank_state = { 20.0, 10.0 };  // Check , I follow kirchner
 	snow::state snow_state(10.0, 0.5);
 
 	// Initialize response
@@ -79,8 +82,8 @@ TEST_CASE("test_call_stack") {
 	shyft::core::hbv_stack::all_response_collector response_collector(1000 * 1000, time_axis);
 	shyft::core::hbv_stack::state_collector state_collector(state_time_axis);
 
-	state state{snow_state,soil_state, tank_state};
-	parameter parameter(pt_param, snow_param, ae_param, soil_param, tank_param, p_corr_param);
+	state state {snow_state, soil_state, infil_state, tank_state};
+	parameter parameter(pt_param, snow_param, ae_param, infil_param, soil_param, tank_param, p_corr_param);
 	geo_cell_data geo_cell_data;
 	hbv_stack::run_hbv_stack<direct_accessor, response>(geo_cell_data, parameter, time_axis,0,0, temp,  //What is the difference between ptgsk & pthsk??
 		prec, wind_speed, rel_hum, radiation, state,
