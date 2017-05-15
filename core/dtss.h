@@ -1,5 +1,5 @@
 #pragma once
-#include "api/timeseries.h"
+#include "api/time_series.h"
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/shared_ptr.hpp>
 #include <boost/serialization/base_object.hpp>
@@ -106,16 +106,18 @@ namespace shyft {
                             bi.ts.bind(bts[i]);
                     }
                 }
+                // step 3: after the symbolic ts are read and bound, we iterate over the
+                //         expression tree and calls .do_bind() so that
+                //         the new information is taken into account and the expression tree are
+                //         ready for evaluate with everything const so threading is safe.
+                for (auto& ats : atsv)
+                    ats.do_bind();
             }
 
             ts_vector_t
             do_evaluate_ts_vector(core::utcperiod bind_period, ts_vector_t& atsv) {
                 do_bind_ts(bind_period, atsv);
-                ts_vector_t evaluated_tsv;
-                for (auto &ats : atsv) // TODO: in parallel
-                   evaluated_tsv.emplace_back(ats.time_axis(), ats.values(), ats.point_interpretation());
-
-                return evaluated_tsv;
+                return api::deflate_ts_vector<api::apoint_ts>(atsv);
             }
 
             ts_vector_t

@@ -73,10 +73,7 @@
       <Filter>optimizers</Filter>
     </ClInclude>
     <ClInclude Include="time_axis.h">
-      <Filter>timeseries</Filter>
-    </ClInclude>
-    <ClInclude Include="timeseries.h">
-      <Filter>timeseries</Filter>
+      <Filter>time_series</Filter>
     </ClInclude>
     <ClInclude Include="experimental.h">
       <Filter>experimental</Filter>
@@ -132,7 +129,12 @@
       <Filter>methods</Filter>
     </ClInclude>
     <ClInclude Include="dtss.h" />
-
+    <ClInclude Include="time_series.h">
+      <Filter>time_series</Filter>
+    </ClInclude>
+    <ClInclude Include="time_series_statistics.h">
+      <Filter>time_series</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="methods">
@@ -143,9 +145,6 @@
     </Filter>
     <Filter Include="optimizers">
       <UniqueIdentifier>{78462948-0cca-48de-87be-68b894e215d0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="timeseries">
-      <UniqueIdentifier>{13f6913a-d13d-40c2-9f91-4a3df6583322}</UniqueIdentifier>
     </Filter>
     <Filter Include="experimental">
       <UniqueIdentifier>{21ba19cc-d2a8-48b9-8aa3-509b9bb7fbc5}</UniqueIdentifier>
@@ -164,6 +163,9 @@
     </Filter>
     <Filter Include="optimizers\time">
       <UniqueIdentifier>{bd2d4fab-8491-4526-891a-9156fb995e82}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="time_series">
+      <UniqueIdentifier>{13f6913a-d13d-40c2-9f91-4a3df6583322}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
