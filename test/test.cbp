@@ -104,6 +104,9 @@
 		<Unit filename="hbv_actual_evapotranspiration_test.cpp">
 			<Option virtualFolder="methods/" />
 		</Unit>
+		<Unit filename="hbv_infiltration_test.cpp">
+			<Option virtualFolder="methods/" />
+		</Unit>
 		<Unit filename="hbv_snow_test.cpp">
 			<Option virtualFolder="methods/" />
 		</Unit>

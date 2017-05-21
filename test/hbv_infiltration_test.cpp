@@ -4,7 +4,7 @@
 
 
 using namespace shyft::core;
-TEST_SUITE("hbv_infiltration");
+TEST_SUITE("hbv_infiltration") {
 TEST_CASE("test_regression") {
 	hbv_infiltration::parameter p;
 	hbv_infiltration::calculator<hbv_infiltration::parameter> calc(p);
@@ -35,4 +35,4 @@ TEST_CASE("test_regression") {
 //	TS_ASSERT_DELTA(r.outflow, 4.4444e-5, 1.0e-6);
 //
 //}
-TEST_SUITE_END();
+}

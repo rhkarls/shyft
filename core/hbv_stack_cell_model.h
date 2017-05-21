@@ -32,7 +32,7 @@ namespace shyft {
                 pts_t snow_sca;
 				pts_t snow_swe;
 				pts_t ae_output;///< actual evap mm/h
-				pts_t infiltration_Freal;// 
+				pts_t infiltration_Freal;//
 				pts_t infiltration_Runoff;//
 				pts_t soil_outflow; ///< Tank outflow given in [m^3/s] for the timestep
 				pts_t avg_discharge; ///< Tank outflow given in [m^3/s] for the timestep
@@ -42,8 +42,18 @@ namespace shyft {
 				all_response_collector() : destination_area(0.0) {}
 				all_response_collector(const double destination_area) : destination_area(destination_area) {}
 				all_response_collector(const double destination_area, const timeaxis_t& time_axis)
-					: destination_area(destination_area), pe_output(time_axis, 0.0), snow_outflow(time_axis, 0.0), glacier_melt(time_axis, 0.0), snow_sca(time_axis, 0.0), snow_swe(time_axis, 0), ae_output(time_axis, 0.0),
-					soil_outflow(time_axis, 0.0), infiltration_Freal(time_axis, 0.0), infiltration_Runoff(time_axis, 0.0), avg_discharge(time_axis, 0.0), charge_m3s(time_axis, 0.0) {}
+					: destination_area(destination_area),
+					pe_output(time_axis, 0.0),
+					snow_outflow(time_axis, 0.0),
+					glacier_melt(time_axis, 0.0),
+					snow_sca(time_axis, 0.0),
+					snow_swe(time_axis, 0),
+					ae_output(time_axis, 0.0),
+					infiltration_Freal(time_axis, 0.0),
+					infiltration_Runoff(time_axis, 0.0),
+					soil_outflow(time_axis, 0.0),
+					avg_discharge(time_axis, 0.0),
+					charge_m3s(time_axis, 0.0) {}
 					//: destination_area(destination_area), pe_output(time_axis, 0.0), snow_outflow(time_axis, 0.0),glacier_melt(time_axis,0.0),snow_sca(time_axis,0.0),snow_swe(time_axis,0), ae_output(time_axis, 0.0),
 						//soil_outflow(time_axis, 0.0), avg_discharge(time_axis, 0.0),charge_m3s(time_axis, 0.0) {}
 
@@ -165,10 +175,16 @@ namespace shyft {
 					//: collect_state(false), destination_area(0.0), snow_swe(time_axis, 0.0), snow_sca(time_axis, 0.0),
 					//infiltration_O0(time_axis, 0.0), infiltration_OR0(time_axis, 0.0), infiltration_K0(time_axis, 0.0),
 					//infiltration_k(time_axis, 0.0), infiltration_Z(time_axis, 0.0), infiltration_Ponding(time_axis, 0.0),
-					//infiltration_ftest(time_axis, 0.0), infiltration_f(time_axis, 0.0), soil_moisture(time_axis, 0.0), 
+					//infiltration_ftest(time_axis, 0.0), infiltration_f(time_axis, 0.0), soil_moisture(time_axis, 0.0),
 					//tank_uz(time_axis, 0.0), tank_lz(time_axis, 0.0) { /* Do nothing */}
-					: collect_state(false), destination_area(0.0), snow_swe(time_axis, 0.0), infiltration_O0(time_axis, 0.0), snow_sca(time_axis, 0.0),
-					soil_moisture(time_axis, 0.0), tank_uz(time_axis, 0.0), tank_lz(time_axis, 0.0) { /* Do nothing */}
+					: collect_state(false),
+					destination_area(0.0),
+					snow_swe(time_axis, 0.0),
+					snow_sca(time_axis, 0.0),
+					infiltration_O0(time_axis, 0.0),
+					soil_moisture(time_axis, 0.0),
+					tank_uz(time_axis, 0.0),
+					tank_lz(time_axis, 0.0) { /* Do nothing */}
 				/** brief called before run, prepares state time-series
 				*
 				* with preallocated room for the supplied time-axis.
