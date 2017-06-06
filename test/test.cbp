@@ -12,7 +12,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="-nv -tc=test_ts_statistics_calculations" />
+				<Option parameters="-nv -tc=core_average_ts" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -71,6 +71,8 @@
 			<Add library="blas" />
 			<Add library="lapack" />
 			<Add library="dlib" />
+			<Add directory="$(#dlib.lib)" />
+			<Add directory="$(#boost.lib)" />
 			<Add directory="/usr/local/lib64" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
