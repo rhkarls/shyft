@@ -21,7 +21,7 @@ class AromeConcatDataRepositoryError(Exception):
 class AromeConcatDataRepository(interfaces.GeoTsRepository):
     _G = 9.80665  # WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, filename, nb_fc_to_drop=None, nb_fc_interval_to_concat=None, selection_criteria=None, padding=5000.):
+    def __init__(self, epsg, filename, nb_fc_to_drop=0, selection_criteria=None, padding=5000.):
         self.selection_criteria = selection_criteria
         #filename = filename.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
         filename = os.path.expandvars(filename)
@@ -33,7 +33,7 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
 
         self._filename = filename
         self.nb_fc_to_drop = nb_fc_to_drop  # index of first lead time: starts from 0
-        self.nb_fc_interval_to_concat = nb_fc_interval_to_concat  # given as number of forecast intervals
+        self.nb_fc_interval_to_concat = 1  # given as number of forecast intervals
         self.shyft_cs = "+init=EPSG:{}".format(epsg)
         self.padding = padding
         
@@ -46,6 +46,15 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
                                  "y_wind_10m": "y_wind",
                                  "windspeed_10m": "wind_speed",
                                  "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time": "radiation"}
+
+        self.var_units = {"air_temperature_2m": ['K'],
+                          "relative_humidity_2m": ['1'],
+                          "precipitation_amount_acc": ['kg/m^2'],
+                          "precipitation_amount": ['kg/m^2'],
+                          "x_wind_10m": ['m/s'],
+                          "y_wind_10m": ['m/s'],
+                          "windspeed_10m" : ['m/s'],
+                          "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time": ['W s/m^2']}
 
         self._shift_fields = ("precipitation_amount_acc","precipitation_amount",
                               "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time")
@@ -256,18 +265,19 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
         if concat: # make continuous timeseries
             self.fc_len_to_concat = self.nb_fc_interval_to_concat * self.fc_interval
             utc_period = v  # TODO: verify that fc_selection_criteria_v is of type api.UtcPeriod
+            time_after_drop = time + lead_times_in_sec[self.nb_fc_to_drop]
             # idx_min = np.searchsorted(time, utc_period.start, side='left')
-            idx_min = np.argmin(time <= utc_period.start) - 1  # raise error if result is -1
+            idx_min = np.argmin(time_after_drop <= utc_period.start) - 1  # raise error if result is -1
             #idx_max = np.searchsorted(time, utc_period.end, side='right')
-            idx_max = np.argmax(time >= utc_period.end)  # raise error if result is 0
+            idx_max = np.argmax(time_after_drop >= utc_period.end)  # raise error if result is 0
             if idx_min<0:
-                first_lead_time_of_last_fc = int(time[-1])
+                first_lead_time_of_last_fc = int(time_after_drop[-1])
                 if first_lead_time_of_last_fc <= utc_period.start:
                     idx_min = len(time)-1
                 else:
                     raise AromeConcatDataRepositoryError(
                         "The earliest time in repository ({}) is later than the start of the period for which data is "
-                        "requested ({})".format(UTC.to_string(int(time[0])), UTC.to_string(utc_period.start)))
+                        "requested ({})".format(UTC.to_string(int(time_after_drop[0])), UTC.to_string(utc_period.start)))
             if idx_max == 0:
                 last_lead_time_of_last_fc = int(time[-1] + lead_times_in_sec[-1])
                 if last_lead_time_of_last_fc < utc_period.end:
@@ -284,8 +294,9 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
             if utc_period.end > last_time:
                 nb_extra_intervals = int(0.5+(utc_period.end-last_time)/(self.fc_len_to_concat*self.fc_time_res))
         else:
-            self.fc_len_to_concat = len(lead_time)  # Take all lead_times for now
-            self.nb_fc_to_drop = 0  # Take all lead_times for now
+            #self.fc_len_to_concat = len(lead_time)  # Take all lead_times for now
+            #self.nb_fc_to_drop = 0  # Take all lead_times for now
+            self.fc_len_to_concat = len(lead_time) - self.nb_fc_to_drop
             if isinstance(v, api.UtcPeriod):
                 time_slice = ((time >= v.start)&(time <= v.end))
                 if not any(time_slice):
@@ -297,7 +308,7 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
             elif isinstance(v, dict):  # get the latest forecasts
                 t = v['forecasts_older_than']
                 n = v['number of forecasts']
-                idx = np.argmin(time < t) - 1
+                idx = np.argmin(time <= t) - 1
                 if idx < 0:
                     first_lead_time_of_last_fc = int(time[-1])
                     if first_lead_time_of_last_fc < t:
@@ -336,6 +347,12 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
             input_source_types.append("x_wind")
             input_source_types.append("y_wind")
 
+        unit_ok = {k:dataset.variables[k].units in self.var_units[k]
+                      for k in dataset.variables.keys() if self._arome_shyft_map.get(k, None) in input_source_types}
+        if not all(unit_ok.values()):
+            raise AromeConcatDataRepositoryError("The following variables have wrong unit: {}.".format(
+                ', '.join([k for k, v in unit_ok.items() if not v])))
+
         raw_data = {}
         x = dataset.variables.get("x", None)
         y = dataset.variables.get("y", None)
@@ -345,6 +362,14 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
         if not all([x, y, time, lead_time]):
             raise AromeConcatDataRepositoryError("Something is wrong with the dataset."
                                            " x/y coords or time not found.")
+        if not all([x, y, time]):
+            raise AromeConcatDataRepositoryError("Something is wrong with the dataset."
+                                           " x/y coords or time not found.")
+        if not all([var.units in ['km', 'm'] for var in [x, y]]) and x.units == y.units:
+            raise AromeConcatDataRepositoryError("The unit for x and y coordinates should be either m or km.")
+        coord_conv = 1.
+        if x.units == 'km':
+            coord_conv = 1000.
         data_cs = dataset.variables.get("crs", None)
         if data_cs is None:
             raise AromeConcatDataRepositoryError("No coordinate system information in dataset.")
@@ -364,7 +389,7 @@ class AromeConcatDataRepository(interfaces.GeoTsRepository):
             time_ext = np.concatenate((time_ext, time_extra))
             # print('Extra time:', time_ext)
 
-        x, y, m_xy, xy_slice = self._limit(x[:], y[:], data_cs.proj4, self.shyft_cs, ts_id)
+        x, y, m_xy, xy_slice = self._limit(x[:]*coord_conv, y[:]*coord_conv, data_cs.proj4, self.shyft_cs, ts_id)
         for k in dataset.variables.keys():
             if self._arome_shyft_map.get(k, None) in input_source_types:
 
