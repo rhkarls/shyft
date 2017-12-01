@@ -42,10 +42,6 @@ namespace shyft {
 			int year = static_cast<unsigned short>(100 * b + d - 4800 + (m / 10));
 			return YMDhms(year, month, day);
 		}
-		int inline calendar::day_number(utctime t) {
-			return (int)((UnixSecond + std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count()) / std::chrono::duration_cast<std::chrono::seconds>(DAY).count());
-		}
-		inline utctimespan calendar::hms_seconds(int h, int m, int s) { return deltahours(h) + deltaminutes(m) + std::chrono::seconds(s); }
 
         using namespace std;
         std::ostream& operator<<(std::ostream& os, const utcperiod& p) {

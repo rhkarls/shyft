@@ -308,8 +308,12 @@ struct calendar {
 	static unsigned long day_number(const YMDhms& ymd);
 
 	static  YMDhms from_day_number(unsigned long dayNumber);
-	static int  day_number(utctime t);
-	static  utctimespan hms_seconds(int h, int m, int s);
+	//static int  day_number(utctime t);
+	//static  utctimespan hms_seconds(int h, int m, int s);
+    static inline int day_number(utctime t) {
+        return (int)((UnixSecond + std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count()) / std::chrono::duration_cast<std::chrono::seconds>(DAY).count());
+    }
+    static inline utctimespan hms_seconds(int h, int m, int s) { return deltahours(h) + deltaminutes(m) + std::chrono::seconds(s); }
 
 	time_zone::tz_info_t_ tz_info;
 	/**\brief returns tz_info (helper for boost python really) */
