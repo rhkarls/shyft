@@ -184,7 +184,7 @@ public:
     scalar_type predict(
         const core::utctime t
     ) const {
-        krls_sample_type x_sample{ t*1./_dt };  // NB: utctime -> double conversion !!!
+        krls_sample_type x_sample{ t.time_since_epoch()*1./_dt };  // NB: utctime -> double conversion !!!
         return _krls(x_sample);
     }
     /** \brief Compute the mean-squared error (_mse_) over the time-series.

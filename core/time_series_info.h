@@ -31,7 +31,7 @@ namespace shyft {
             //--
             std::string name; ///< the 'unique' name of the ts, url-formatted?
             time_series::ts_point_fx point_fx = time_series::ts_point_fx::POINT_AVERAGE_VALUE; ///< how to interpret points, stair-case/linear
-            utctimespan delta_t = 0L;///< time-axis, fixed delta_t, or 0 if breakpoint
+			utctimespan delta_t = utctimespan{0};///< time-axis, fixed delta_t, or 0 if breakpoint
             std::string olson_tz_id; ///< time-axis, empty, or if delta_t g.t. hour,
             utcperiod data_period; ///< stored data period, if that gives meaning(not for expressions)
                                    // we could have:

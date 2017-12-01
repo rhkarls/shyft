@@ -73,7 +73,7 @@ namespace shyft {
             utctime t;
             utctimespan dt;
             size_t n;
-            fixed_dt( utctime start=no_utctime, utctimespan deltat=0, size_t n_periods=0 ) : t( start ), dt( deltat ), n( n_periods ) {}
+			fixed_dt(utctime start = no_utctime, utctimespan deltat = utctimespan{0}, size_t n_periods = 0) : t(start), dt(deltat), n(n_periods) {}
             utctimespan delta() const {return dt;}//BW compat
             utctime start() const {return t;} //BW compat
             size_t size() const {return n;}
@@ -96,14 +96,14 @@ namespace shyft {
             }
 
             size_t index_of( utctime tx ) const {
-                if( tx < t || dt == 0 ) return std::string::npos;
+				if (tx < t || dt == utctimespan{0}) return std::string::npos;
                 size_t r = ( tx - t ) / dt;
                 if( r < n ) return r;
                 return std::string::npos;
             }
             size_t open_range_index_of( utctime tx, size_t ix_hint=std::string::npos ) const {return n > 0 && ( tx >= t + utctimespan( n * dt ) ) ? n - 1 : index_of( tx );}
-            static fixed_dt full_range() {return fixed_dt( min_utctime, max_utctime, 2 );}  //Hmm.
-            static fixed_dt null_range() {return fixed_dt( 0, 0, 0 );}
+            static fixed_dt full_range() {return fixed_dt( min_utctime, max_utctime.time_since_epoch(), 2 );}  //Hmm.
+			static fixed_dt null_range() { return fixed_dt(no_utctime, utctimespan{0}, 0); }
             x_serialize_decl();
         };
 
@@ -113,7 +113,7 @@ namespace shyft {
         */
         struct calendar_dt : continuous<true> {
 
-            static constexpr utctimespan dt_h = 3600;
+			static constexpr utctimespan dt_h = utctimespan{ 3600 };
 
             shared_ptr<calendar> cal;
             utctime t;
@@ -575,7 +575,7 @@ namespace shyft {
                     size_t p_ix = i - main_ix * p.size();
                     auto pi = cta.period( main_ix );
                     return p.size() ?
-                           utcperiod( cta.cal->add( pi.start, p[p_ix].start, 1 ), cta.cal->add( pi.start, p[p_ix].end, 1 ) ) :
+                           utcperiod( cta.cal->add( pi.start, p[p_ix].start.time_since_epoch(), 1 ), cta.cal->add( pi.start, p[p_ix].end.time_since_epoch(), 1 ) ) :
                            pi;
                 }
                 throw out_of_range( "calendar_dt_p.period(i)" );
@@ -591,7 +591,7 @@ namespace shyft {
 
                 utctime t0 = cta.time( main_ix );
                 for( size_t i = 0; i < p.size(); ++i ) {  //important: p is assumed to have size like 5, 7 (workdays etc).
-                    utcperiod pi( cta.cal->add( t0, p[i].start, 1 ), cta.cal->add( t0, p[i].end, 1 ) );
+                    utcperiod pi( cta.cal->add( t0, p[i].start.time_since_epoch(), 1 ), cta.cal->add( t0, p[i].end.time_since_epoch(), 1 ) );
                     if( pi.contains( tx ) )
                         return p.size() * main_ix + i;
                     if( !period_containment ) {  // if just searching for the closest period back in time, then:
@@ -982,7 +982,7 @@ namespace shyft {
                 size_t n = static_cast<size_t>(a.cal->diff_units(pa.start, pb.end, a.dt, remainder));
 
                 // no offset
-                if ( remainder == 0 ) {
+				if (remainder == utctimespan{0}) {
                     if ( span_a.start != span_a.end ) {  // non-empty
                         if ( span_b.start != span_b.end ) {  // non-empty
                             return generic_dt(calendar_dt(a.get_calendar(), span_a.start, a.dt, n));
@@ -1161,11 +1161,11 @@ namespace shyft {
                 utctime t0 = max( pa.start, pb.start );
                 return fixed_dt( t0, a.dt, ( min( pa.end, pb.end ) - t0 ) / a.dt );
             } if( a.dt > b.dt ) {
-                if( ( a.dt % b.dt ) != 0 ) throw std::runtime_error( "combine(fixed_dt a,b) needs dt to align" );
+                if( ( a.dt.count() % b.dt.count() ) != 0 ) throw std::runtime_error( "combine(fixed_dt a,b) needs dt to align" );
                 utctime t0 = max( pa.start, pb.start );
                 return fixed_dt( t0, b.dt, ( min( pa.end, pb.end ) - t0 ) / b.dt );
             } else {
-                if( ( b.dt % a.dt ) != 0 )
+                if( ( b.dt.count() % a.dt.count() ) != 0 )
                     throw std::runtime_error( "combine(fixed_dt a,b) needs dt to align" );
                 utctime t0 = max( pa.start, pb.start );
                 return fixed_dt( t0, a.dt, ( min( pa.end, pb.end ) - t0 ) / a.dt );
@@ -1379,8 +1379,8 @@ namespace shyft {
 
 			time_axis_map(time_axis::fixed_dt const& src, time_axis::fixed_dt const&m) :src(src), m(m) {}
 			inline size_t src_index(size_t im) const {
-				auto r = utctime((utctime(im)*m.dt + m.t - src.t) / src.dt);// (mis)using utctime as signed int64 here
-				if (r < 0 || r >= (utctime)src.n)
+				auto r = (im*m.dt + (m.t - src.t)).count() / src.dt.count();
+				if (r < 0 || r >= src.n)
 					return std::string::npos;
 				return size_t(r);
 			}
@@ -1425,12 +1425,12 @@ namespace shyft {
 
 		/** return true if fixed time-axis a and b can be merged into one time-axis */
 		inline bool can_merge(const fixed_dt&a, const fixed_dt&b) {
-			return a.dt == b.dt && a.dt != 0 && a.n > 0 && b.n > 0 && continuous_merge(a.total_period(), b.total_period());
+			return a.dt == b.dt && a.dt != utctimespan{0} && a.n > 0 && b.n > 0 && continuous_merge(a.total_period(), b.total_period());
 		}
 
 		/** return true if calendar time-axis a and b can be merged into one time-axis */
 		inline bool can_merge(const calendar_dt& a, const calendar_dt& b) {
-			return a.dt == b.dt && a.dt != 0 && a.n > 0 && b.n > 0
+			return a.dt == b.dt && a.dt != utctimespan{0} && a.n > 0 && b.n > 0
 				&& equal_calendars(a.cal, b.cal)
 				&& continuous_merge(a.total_period(), b.total_period());
 		}

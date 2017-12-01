@@ -7,15 +7,46 @@
 namespace shyft {
     namespace core {
         // python exposure needs definition here (even if's a constant)
-			const utctimespan calendar::YEAR;//=365*24*3600L;
-			const utctimespan calendar::MONTH;//=30*24*3600L;
-			const utctimespan calendar::QUARTER;
-			const utctimespan calendar::WEEK;// = 7*24*3600L;
-			const utctimespan calendar::DAY;// =  1*24*3600L;
-			// these are just timespan constants with no calendar semantics
-			const utctimespan calendar::HOUR;// = 3600L;
-			const utctimespan calendar::MINUTE;// = 60L;
-			const utctimespan calendar::SECOND;// = 1L;
+	   // these do have calendar sematics(could/should be separate typed/enum instad)
+		const utctimespan calendar::YEAR = seconds(365 * 24 * 3600L);
+		const utctimespan calendar::QUARTER = seconds(3 * 30 * 24 * 3600L);
+		const utctimespan calendar::MONTH = seconds(30 * 24 * 3600L);
+		const utctimespan calendar::WEEK = seconds(7 * 24 * 3600L);
+		const utctimespan calendar::DAY = seconds(1 * 24 * 3600L);
+		const utctimespan calendar::HOUR_3 = seconds(3 * 3600L);
+		// these are just timespan constants with no calendar semantics
+		const utctimespan calendar::HOUR = seconds(3600L);
+		const utctimespan calendar::MINUTE = seconds(60L);
+		const utctimespan calendar::SECOND = seconds(1L);
+
+		const int calendar::UnixDay = 2440588;///< Calc::julian_day_number(ymd(1970,01,01));
+		const long long calendar::UnixSecond = 86400LL * UnixDay;///<Calc::julian_day_number(ymd(1970,01,01));
+																 // Snapped from boost gregorian_calendar.ipp
+		inline unsigned long calendar::day_number(const YMDhms& ymd) {
+			unsigned short a = static_cast<unsigned short>((14 - ymd.month) / 12);
+			unsigned short y = static_cast<unsigned short>(ymd.year + 4800 - a);
+			unsigned short m = static_cast<unsigned short>(ymd.month + 12 * a - 3);
+			unsigned long  d = ymd.day + ((153 * m + 2) / 5) + 365 * y + (y / 4) - (y / 100) + (y / 400) - 32045;
+			return d;
+		}
+
+		inline YMDhms calendar::from_day_number(unsigned long dayNumber) {
+			int a = dayNumber + 32044;
+			int b = (4 * a + 3) / 146097;
+			int c = a - ((146097 * b) / 4);
+			int d = (4 * c + 3) / 1461;
+			int e = c - (1461 * d) / 4;
+			int m = (5 * e + 2) / 153;
+			unsigned short day = static_cast<unsigned short>(e - ((153 * m + 2) / 5) + 1);
+			unsigned short month = static_cast<unsigned short>(m + 3 - 12 * (m / 10));
+			int year = static_cast<unsigned short>(100 * b + d - 4800 + (m / 10));
+			return YMDhms(year, month, day);
+		}
+		int inline calendar::day_number(utctime t) {
+			return (int)((UnixSecond + std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count()) / std::chrono::duration_cast<std::chrono::seconds>(DAY).count());
+		}
+		inline utctimespan calendar::hms_seconds(int h, int m, int s) { return deltahours(h) + deltaminutes(m) + std::chrono::seconds(s); }
+
         using namespace std;
         std::ostream& operator<<(std::ostream& os, const utcperiod& p) {
             os << p.to_string();
@@ -29,26 +60,24 @@ namespace shyft {
 
         string calendar::to_string(utctime t) const {
             char s[100];
-            switch(t) {
-                case no_utctime:sprintf(s, "no_utctime"); break;
-                case min_utctime:sprintf(s, "-oo"); break;
-                case max_utctime:sprintf(s, "+oo"); break;
-                default: {
-                    auto c = calendar_units(t);
-                    auto tz= tz_info->utc_offset(t);
-                    auto tz_hours= int(tz/deltahours(1));
-                    auto tz_minutes= int(abs(tz-tz_hours*deltahours(1))/deltaminutes(1));
-                    char tzs[100];
-                    if(tz) {
-                        if(tz_minutes)
-                            sprintf(tzs,"%+03d:%02d",tz_hours,tz_minutes);
-                        else
-                            sprintf(tzs,"%+03d",tz_hours);
-                    } else {
-                        strcpy(tzs,"Z");
-                    }
-                    sprintf(s, "%04d-%02d-%02dT%02d:%02d:%02d%s", c.year, c.month, c.day, c.hour, c.minute, c.second,tzs);
-                }break;
+			if (t == no_utctime) { sprintf(s, "no_utctime"); }
+			else if (t == min_utctime) { sprintf(s, "-oo"); }
+			else if (t == max_utctime) { sprintf(s, "+oo"); }
+			else {
+                auto c = calendar_units(t);
+                auto tz= tz_info->utc_offset(t);
+                auto tz_hours= int(tz/deltahours(1));
+                auto tz_minutes= int(abs(tz-tz_hours*deltahours(1))/deltaminutes(1));
+                char tzs[100];
+                if(tz.count()) {
+                    if(tz_minutes)
+                        sprintf(tzs,"%+03d:%02d",tz_hours,tz_minutes);
+                    else
+                        sprintf(tzs,"%+03d",tz_hours);
+                } else {
+                    strcpy(tzs,"Z");
+                }
+                sprintf(s, "%04d-%02d-%02dT%02d:%02d:%02d%s", c.year, c.month, c.day, c.hour, c.minute, c.second,tzs);
             }
             return string(s);
         }
@@ -86,7 +115,7 @@ namespace shyft {
             if (!c.is_valid_coordinates())
                 throw std::runtime_error("calendar.time with invalid YMDhms coordinates attempted");
 
-            utctime r= ((int(day_number(c)) - UnixDay)*DAY) + seconds(c.hour, c.minute, c.second);
+            utctime r= utctime(std::chrono::seconds((int(day_number(c)) - UnixDay)*86400L) + hms_seconds(c.hour, c.minute, c.second));
             auto utc_diff_1= tz_info->utc_offset(r);// detect if we are in the dst-shift hour
             auto utc_diff_2= tz_info->utc_offset(r-utc_diff_1);
             return (utc_diff_1==utc_diff_2)?r-utc_diff_1: r-utc_diff_2;
@@ -103,7 +132,7 @@ namespace shyft {
                 throw std::runtime_error("calendar.time with invalid YWdhms coordinates attempted");
 
             // figure out utc-time of week 1:
-            utctime t = int(day_number(YMDhms(c.iso_year, 1, 14)) - UnixDay)*DAY;
+            utctime t = utctime(chrono::seconds(3600*24LL*(day_number(YMDhms(c.iso_year, 1, 14)) - UnixDay)));
             auto jdn = day_number(t);
             auto cw = from_day_number(jdn);
             cw.month = 1;cw.day = 1;// round/trim down to year.1.1
@@ -113,7 +142,7 @@ namespace shyft {
                     w1_daynumber += 7;
             // then just add relative weeks days from that
             auto w_daynumber = w1_daynumber + 7 *(c.iso_week-1) + (c.week_day - 1);
-            utctime r = (int(w_daynumber) - UnixDay)*DAY + seconds(c.hour, c.minute, c.second);// make it local utc-time
+            utctime r = utctime(chrono::seconds( (int(w_daynumber) - UnixDay)*86400LL) + hms_seconds(c.hour, c.minute, c.second));// make it local utc-time
             // map it back to true utc-time (subtract the tz-offset at the time)
             auto utc_diff_1 = tz_info->utc_offset(r);// detect if we are in the dst-shift hour
             auto utc_diff_2 = tz_info->utc_offset(r - utc_diff_1);
@@ -123,13 +152,13 @@ namespace shyft {
 
         template <class C>
         static inline C& fill_in_hms_from_t(utctime t, C& r) {
-            utctime tj = calendar::UnixSecond + t;
-            utctime td = calendar::DAY*(tj / calendar::DAY);
-            utctimespan dx = tj - td;// n seconds this day.
-            r.hour = int(dx / calendar::HOUR);
-            dx -= r.hour*calendar::HOUR;
-            r.minute = int(dx / calendar::MINUTE);
-            r.second = int(dx % calendar::MINUTE);
+            long long tj = calendar::UnixSecond + chrono::duration_cast<chrono::seconds>(t.time_since_epoch()).count();
+            long long td = 86400LL*(tj / 86400LL);
+            long long dx = tj - td;// n seconds this day.
+            r.hour = int(dx / 3600);
+            dx -= r.hour*3600;
+            r.minute = int(dx / 60);
+            r.second = int(dx % 60);
             return r;
         }
 
@@ -204,58 +233,54 @@ namespace shyft {
         utctime calendar::trim(utctime t, utctimespan deltaT) const {
             if (t == no_utctime || t == min_utctime || t == max_utctime || deltaT==utctimespan(0))
                 return t;
-            switch (deltaT) {
-            case YEAR: {
+            if(deltaT==YEAR) {
                 auto c = calendar_units(t);
                 c.month = c.day = 1; c.hour = c.minute = c.second = 0;
                 return time(c);
-            }break;
-            case QUARTER: {
+            } 
+			if (deltaT== QUARTER) {
                 auto c = calendar_units(t);
                 return time(YMDhms(c.year, mq[c.month - 1], 1));
-            }break;
-            case MONTH: {
+            }
+            if(deltaT==MONTH) {
                 auto c = calendar_units(t);
                 c.day = 1; c.hour = c.minute = c.second = 0;
                 return time(c);
-            }break;
-            case DAY: {
+            }
+            if(deltaT==DAY) {
                 auto c = calendar_units(t);
                 c.hour = c.minute = c.second = 0;
                 return time(c);
-            }break;
             }
+            
             auto tz_offset=tz_info->utc_offset(t);
-            const utctime t0 = utctime(+3LL * DAY) + utctime(WEEK * 52L * 2000LL);// + 3 days to get to a isoweek monday, then add 2000 years to get a positive number
-            t += t0 + tz_offset;
-            t= deltaT*(t / deltaT) - t0 ;
+            t = floor(t+tz_offset,deltaT);
             return  t - tz_info->utc_offset(t);
         }
 
-        utctime calendar::add(utctime t, utctimespan deltaT, long n) const {
+        utctime calendar::add(utctime t, utctimespan deltaT, int64_t n) const {
             auto dt=n*deltaT;
-            switch (deltaT) {
-                case YEAR: {
+            if (deltaT==YEAR) {
                     auto c=calendar_units(t);
                     c.year += int(dt/YEAR);// gives signed number of units.
                     return time(c);
-                } break;
-                case QUARTER://just let it appear as 3xmonth
-                    deltaT = MONTH;
-                    n = 3 * n;
-                    // fall through to month
-                case MONTH:{
-                    auto c=calendar_units(t);
-                    // calculate number of years..
-                    int nyears= int(dt/MONTH/12); // with correct sign
-                    c.year +=  nyears; // done with years, now single step remaining months.
-                    int nmonths= n-nyears*12;// remaining months to deal with
-                    c.month += nmonths;// just add them
-                    if(c.month <1) {c.month+=12; c.year--;}// then repair underflow
-                    else if(c.month >12 ) {c.month -=12;c.year++;}// or overflow
-                    return time(c);
-                } break;
-                default: break;
+            }
+			if (deltaT == QUARTER || deltaT==MONTH) {
+				if (deltaT == QUARTER) {//just let it appear as 3xmonth
+					deltaT = MONTH;
+					n = 3 * n;
+					// fall through to month
+				}
+                
+                auto c=calendar_units(t);
+                // calculate number of years..
+                int nyears= int(dt/MONTH/12); // with correct sign
+                c.year +=  nyears; // done with years, now single step remaining months.
+                int nmonths= n-nyears*12;// remaining months to deal with
+                c.month += nmonths;// just add them
+                if(c.month <1) {c.month+=12; c.year--;}// then repair underflow
+                else if(c.month >12 ) {c.month -=12;c.year++;}// or overflow
+                return time(c);
             }
             utctime r = t + dt; //naive first estimate
             auto utc_diff_1=tz_info->utc_offset(t);
@@ -273,14 +298,14 @@ namespace shyft {
             //      ret r +( 1h - 2h), eg. sub one hour, and we get a 23h day.
         };
 
-        utctimespan calendar::diff_units(utctime t1, utctime t2, utctimespan deltaT, utctimespan &remainder) const {
-            if (t1 == no_utctime || t2 == no_utctime || deltaT == 0L) {
-                remainder = 0L;
-                return 0L;
+        int64_t calendar::diff_units(utctime t1, utctime t2, utctimespan deltaT, utctimespan &remainder) const {
+            if (t1 == no_utctime || t2 == no_utctime || deltaT.count() == 0L) {
+                remainder = utctimespan(0);
+                return 0;
             }
             int sgn=1;
             if(t1>t2) {sgn=-1;swap(t1,t2);}
-            utctimespan n_units= (t2-t1)/deltaT;// a *rough* estimate in case of dst or month/year
+            int64_t n_units= (t2-t1).count()/deltaT.count();// a *rough* estimate in case of dst or month/year
             // recall that this should give n_unit=1, remainder=0 for dst days 23h | 25h etc.
             // and that it should be complementary to the add(t,dt,n) function.
             if (deltaT < DAY) {
@@ -334,17 +359,17 @@ namespace shyft {
                 /**\brief convert a ptime to a utctime */
                 utctime to_utctime(ptime p) const {
                     time_duration diff(p - posix_t1970);
-                    return (diff.ticks() / diff.ticks_per_second());
+                    return utctime(chrono::seconds(diff.ticks() / diff.ticks_per_second()));
                 }
 
                 boost_tz_info(string tz_region_name,time_zone_ptr tzinfo):posix_t1970((date(1970,1,1))),tzinfo(tzinfo),tz_region_name(tz_region_name) {}
 
 
                 utctime dst_start(int year) const {
-                    return to_utctime(tzinfo->dst_local_start_time(year)) - tzinfo->base_utc_offset().total_seconds();
+                    return to_utctime(tzinfo->dst_local_start_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds());
                 }
                 utctime dst_end(int year) const {
-                    return to_utctime(tzinfo->dst_local_end_time(year)) - tzinfo->base_utc_offset().total_seconds() - tzinfo->dst_offset().total_seconds();
+                    return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds() - tzinfo->dst_offset().total_seconds());
                 }
                 utctimespan base_offset() const {
                     return utctimespan(tzinfo->base_utc_offset().total_seconds());

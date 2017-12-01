@@ -44,7 +44,7 @@ namespace shyft{
         struct point {
             utctime t;
             double v;
-            point(utctime t=0, double v=0.0) : t(t), v(v) { /* Do nothing */}
+            point(utctime t=no_utctime, double v=0.0) : t(t), v(v) { /* Do nothing */}
         };
 
         /** \brief point a and b are considered equal if same time t and value-diff less than EPS
@@ -1450,7 +1450,7 @@ namespace shyft{
 			operator std::string() {
 				std::ostringstream ret{ "rating_curve_parameters{", std::ios_base::ate };
 				for ( auto & it : curves )
-					ret << " " << it.first << ": [ " << static_cast<std::string>(it.second) << " ],";
+					ret << " " << it.first.time_since_epoch().count() << ": [ " << static_cast<std::string>(it.second) << " ],";
 				ret << " }";
 				return ret.str();
 			}
@@ -1647,10 +1647,10 @@ namespace shyft{
         time_shift_ts<typename std::decay<Ts>::type > time_shift( Ts &&ts, utctimespan dt) {return time_shift_ts< typename std::decay<Ts>::type >(std::forward<Ts>(ts),dt);}
 
         struct op_max {
-            double operator()(const double&a,const double&b) const {return max(a,b);}
+            double operator()(const double&a,const double&b) const {return std::max(a,b);}
         };
         struct op_min {
-            double operator()(const double&a,const double&b) const {return min(a,b);}
+            double operator()(const double&a,const double&b) const {return std::min(a,b);}
         };
 
         template <class A,class B, typename =

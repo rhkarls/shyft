@@ -116,7 +116,7 @@ namespace shyft {
                  * and the velocity parameter. The shape of the uhg is determined by alpha&beta parameters.
                  */
                 std::vector<double> uhg(utctimespan dt) const {
-                    double steps = (downstream.distance / parameter.velocity) / dt;// time = distance / velocity[s] // dt[s]
+                    double steps = (downstream.distance / parameter.velocity) /std::chrono::duration_cast<std::chrono::seconds>(dt).count();// time = distance / velocity[s] // dt[s]
                     int n_steps = int(steps + 0.5);
                     return make_uhg_from_gamma(n_steps, parameter.alpha, parameter.beta);
                 }

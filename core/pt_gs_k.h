@@ -331,7 +331,7 @@ namespace shyft {
                         temp, rad, prec, wind_speed_accessor.value(i), rel_hum,forest_fraction,altitude);
                 response.gm_melt_m3s = glacier_melt::step(parameter.gm.dtf, temp, geo_cell_data.area()*response.gs.sca, glacier_area_m2);
                 //                                     bare glacier     x  glacier fraction -> bare glacier fraction(direct response)
-                response.pt.pot_evapotranspiration = pt.potential_evapotranspiration(temp, rad, rel_hum)*calendar::HOUR; //mm/s -> mm/h
+                response.pt.pot_evapotranspiration = pt.potential_evapotranspiration(temp, rad, rel_hum)*3600; //mm/s -> mm/h
                 response.ae.ae = actual_evapotranspiration::calculate_step(state.kirchner.q, response.pt.pot_evapotranspiration,
                                   parameter.ae.ae_scale_factor, std::max(response.gs.sca,glacier_fraction), // a evap only on non-snow/non-glac area
                                   period.timespan());

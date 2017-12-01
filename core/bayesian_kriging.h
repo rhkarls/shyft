@@ -216,7 +216,7 @@ namespace shyft {
 
 	            //< Returns temperature gradient based on day of year for the supplied period, using midpoint
 	            const double temperature_gradient(utcperiod p) const {
-	                const double doy = (double)cal.day_of_year((p.start + p.end)/2);
+	                const double doy = (double)cal.day_of_year(utctime((p.start.time_since_epoch() + p.end.time_since_epoch())/2));
 	                return 1.18e-3*sin(6.2831/365*(doy + 79.0)) - 5.48e-3;
 	            }
 	            const double temperature_gradient_sd() const { return gradient_sd;}
