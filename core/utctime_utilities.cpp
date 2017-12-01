@@ -67,7 +67,7 @@ namespace shyft {
                 auto c = calendar_units(t);
                 auto tz= tz_info->utc_offset(t);
                 auto tz_hours= int(tz/deltahours(1));
-                auto tz_minutes= int(abs(tz-tz_hours*deltahours(1))/deltaminutes(1));
+                auto tz_minutes= int(abs((tz-tz_hours*deltahours(1))/deltaminutes(1)));
                 char tzs[100];
                 if(tz.count()) {
                     if(tz_minutes)
@@ -237,7 +237,7 @@ namespace shyft {
                 auto c = calendar_units(t);
                 c.month = c.day = 1; c.hour = c.minute = c.second = 0;
                 return time(c);
-            } 
+            }
 			if (deltaT== QUARTER) {
                 auto c = calendar_units(t);
                 return time(YMDhms(c.year, mq[c.month - 1], 1));
@@ -252,7 +252,7 @@ namespace shyft {
                 c.hour = c.minute = c.second = 0;
                 return time(c);
             }
-            
+
             auto tz_offset=tz_info->utc_offset(t);
             t = floor(t+tz_offset,deltaT);
             return  t - tz_info->utc_offset(t);
@@ -271,7 +271,7 @@ namespace shyft {
 					n = 3 * n;
 					// fall through to month
 				}
-                
+
                 auto c=calendar_units(t);
                 // calculate number of years..
                 int nyears= int(dt/MONTH/12); // with correct sign

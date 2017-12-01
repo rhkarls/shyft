@@ -213,7 +213,7 @@ public:
         std::size_t nan_count = 0u;
         scalar_type mse = 0.;
         std::size_t dim = std::min(offset + count*stride, ts.size());
-        const scalar_type scaling_f = 1./_dt;  // compute time scaling factor
+        const scalar_type scaling_f = 1./to_seconds(_dt);  // compute time scaling factor
 
         utctime tp;
         scalar_type pv;
@@ -223,7 +223,7 @@ public:
             pv = ts.value(i);
 
             if ( ! std::isnan(pv) ) {
-                x_sample(0) = static_cast<scalar_type>(tp*scaling_f);  // NB: utctime -> double conversion !!!
+                x_sample(0) = static_cast<scalar_type>(to_seconds(tp.time_since_epoch())*scaling_f);  // NB: utctime -> double conversion !!!
                 scalar_type diff_v = pv - _krls(x_sample);
                 mse += diff_v * diff_v;
             } else {
@@ -256,7 +256,7 @@ public:
         const std::size_t points
     ) const {
         std::vector<scalar_type> mse_vec( ts.size(), 0. );
-        const scalar_type scaling_f = 1./_dt;  // compute time scaling factor
+        const scalar_type scaling_f = 1./to_seconds(_dt);  // compute time scaling factor
 
         std::size_t count;
         scalar_type ts_v;
@@ -270,7 +270,7 @@ public:
                 ts_v = ts.value(j);
                 if ( ! std::isnan(ts_v) ) {
                     count += 1;
-                    x_sample(0) = static_cast<scalar_type>(scaling_f*ts.time(j));
+                    x_sample(0) = static_cast<scalar_type>(scaling_f*to_seconds(ts.time(j).time_since_epoch()));
                     // -----
                     diff_v = ts_v - _krls(x_sample);
                     mse_vec[i] += diff_v*diff_v;

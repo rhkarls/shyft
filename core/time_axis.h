@@ -181,13 +181,13 @@ namespace shyft {
             utcperiod total_period() const {
                 return n == 0
                     ? utcperiod(min_utctime, min_utctime)  // maybe just a non-valid period?
-                    : utcperiod(t, dt <= dt_h ? t + n*dt : cal->add(t, dt, long(n)));
+                    : utcperiod(t, dt <= dt_h ? utctime{ chrono::duration_cast<utctimespan>((t + n*dt).time_since_epoch() )} : cal->add(t, dt, long(n)));
             }
 
             utctime time(size_t i) const {
                 if ( i < n ) {
                     return dt <= dt_h
-                        ? t + i * dt
+                        ? utctime{ chrono::duration_cast<utctimespan>((t + i * dt).time_since_epoch())}
                         : cal->add(t, dt, long(i));
                 }
                 throw out_of_range("calendar_dt.time(i)");
@@ -1147,7 +1147,7 @@ namespace shyft {
             }
         }
 
- 
+
 
         /** \brief fast&efficient combine for two fixed_dt time-axis */
         inline fixed_dt combine( const fixed_dt& a, const fixed_dt& b )  {

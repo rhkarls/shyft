@@ -38,6 +38,49 @@
 #include "time_series_info.h"
 #include "predictions.h"
 // then include stuff you need like vector,shared, base_obj,nvp etc.
+// chrono support
+namespace boost {
+namespace archive {
+namespace sc = shyft::core;
+
+template<class Archive>
+void load(Archive& ar, sc::utctime& tp, unsigned) {
+	sc::utctimespan::rep dt;
+	ar & dt;
+	tp = sc::utctime(sc::utctimespan(dt));
+}
+
+template<class Archive>
+void save(Archive& ar, sc::utctime const& tp, unsigned) {
+	sc::utctimespan::rep dt=std::chrono::duration_cast<sc::utctimespan>(tp.time_since_epoch()).count();
+	ar & dt;
+}
+
+template<class Archive>
+inline void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
+	boost::serialization::split_free(ar, tp, version);
+}
+
+template<class Archive>
+void load(Archive& ar, sc::utctimespan& tp, unsigned) {
+	sc::utctimespan::rep dt;// = tp.count();
+	ar & dt;
+	tp = sc::utctimespan(dt);
+}
+
+template<class Archive>
+void save(Archive& ar, sc::utctimespan const& tp, unsigned) {
+	sc::utctimespan::rep dt = tp.count();
+	ar & dt;
+}
+
+template<class Archive>
+inline void serialize(Archive & ar, sc::utctimespan& tp, unsigned version) {
+	boost::serialization::split_free(ar, tp, version);
+}
+
+}
+}
 
 
 

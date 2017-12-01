@@ -42,8 +42,8 @@ inline utctime utctime_now() {return std::chrono::time_point_cast<utctimespan>(u
 
 inline bool is_valid(utctime t) {return t != no_utctime;}
 
-/** \brief computes floor of t vs utctimespan dt 
- * 
+/** \brief computes floor of t vs utctimespan dt
+ *
  * If dt is 0, t is returned
  * if dt< 0 then it computes ceil, (hmm)
  * \return floor of t vs dt as explained above
@@ -472,40 +472,22 @@ namespace archive {
 namespace sc = shyft::core;
 
 template<class Archive>
-void load(Archive& ar, sc::utctime& tp, unsigned) {
-	sc::utctimespan::rep dt;
-	ar & dt;
-	tp = sc::utctime(sc::utctimespan(dt));
-}
+void load(Archive& ar, sc::utctime& tp, unsigned);
 
 template<class Archive>
-void save(Archive& ar, sc::utctime const& tp, unsigned) {
-	sc::utctimespan::rep dt=std::chrono::duration_cast<sc::utctimespan>(tp.time_since_epoch()).count();
-	ar & dt;
-}
+void save(Archive& ar, sc::utctime const& tp, unsigned);
 
 template<class Archive>
-inline void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
-	boost::serialization::split_free(ar, tp, version);
-}
+void serialize(Archive & ar, sc::utctime& tp, unsigned version);
 
 template<class Archive>
-void load(Archive& ar, sc::utctimespan& tp, unsigned) {
-	sc::utctimespan::rep dt;// = tp.count();
-	ar & dt;
-	tp = sc::utctimespan(dt);
-}
+void load(Archive& ar, sc::utctimespan& tp, unsigned) ;
 
 template<class Archive>
-void save(Archive& ar, sc::utctimespan const& tp, unsigned) {
-	sc::utctimespan::rep dt = tp.count();
-	ar & dt;
-}
+void save(Archive& ar, sc::utctimespan const& tp, unsigned);
 
 template<class Archive>
-inline void serialize(Archive & ar, sc::utctimespan& tp, unsigned version) {
-	boost::serialization::split_free(ar, tp, version);
-}
+void serialize(Archive & ar, sc::utctimespan& tp, unsigned version);
 
 }
 }

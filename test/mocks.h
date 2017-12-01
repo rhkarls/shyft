@@ -46,9 +46,10 @@ namespace shyfttest {
 
 			template<class R>
 			void collect(size_t ix, const R& response) {
-				evap.emplace_back(time, response.pt.pot_evapotranspiration);
-				snow_storage.emplace_back(time, response.gs.storage);
-				avg_discharge.emplace_back(time, response.kirchner.q_avg);
+				utctime t{seconds(ix)};
+				evap.emplace_back(t, response.pt.pot_evapotranspiration);
+				snow_storage.emplace_back(t, response.gs.storage);
+				avg_discharge.emplace_back(t, response.kirchner.q_avg);
 			}
 
 			template<class R>
