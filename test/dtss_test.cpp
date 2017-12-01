@@ -48,233 +48,238 @@ dlib::logger dlog("dlib.log");
 
 TEST_SUITE("dtss") {
 
-TEST_CASE("dtss_lru_cache") {
-	using shyft::dtss::lru_cache;
-	using std::map;
-	using std::list;
-	using std::vector;
-	using std::string;
-	using std::back_inserter;
-	using shyft::api::apoint_ts;
-	using shyft::api::gta_t;
-	const auto stair_case=shyft::time_series::POINT_AVERAGE_VALUE;
-	lru_cache<string, apoint_ts, map > c(2);
+	TEST_CASE("dtss_lru_cache") {
+		using shyft::dtss::lru_cache;
+		using std::map;
+		using std::list;
+		using std::vector;
+		using std::string;
+		using std::back_inserter;
+		using shyft::api::apoint_ts;
+		using shyft::api::gta_t;
+		const auto stair_case = shyft::time_series::POINT_AVERAGE_VALUE;
+		lru_cache<string, apoint_ts, map > c(2);
 
-	apoint_ts r;
-	vector<string> mru;
-	gta_t ta(0, 1, 10);
+		apoint_ts r;
+		vector<string> mru;
+		gta_t ta(utctime{ deltahours(0) }, chrono::seconds(1), 10);
 
-	TEST_SECTION("empty_cache") {
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
+		TEST_SECTION("empty_cache") {
+			FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
+		}
+		TEST_SECTION("add_one_item") {
+			c.add_item("a", apoint_ts(ta, 1.0, stair_case));
+			FAST_CHECK_UNARY(c.try_get_item("a", r));
+			FAST_CHECK_EQ(ta.size(), r.time_axis().size());
+			FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
+		}
+		TEST_SECTION("add_second_item") {
+			c.add_item("b", apoint_ts(ta, 2.0, stair_case));
+			FAST_CHECK_UNARY(c.try_get_item("a", r));
+			FAST_CHECK_UNARY(c.try_get_item("b", r));
+			c.get_mru_keys(back_inserter(mru));
+			FAST_CHECK_EQ(string("b"), mru[0]);
+			FAST_CHECK_EQ(string("a"), mru[1]);
+		}
+		TEST_SECTION("mru_item_in_front") {
+			c.try_get_item("a", r);
+			mru.clear(); c.get_mru_keys(back_inserter(mru));
+			FAST_CHECK_EQ(string("a"), mru[0]);
+			FAST_CHECK_EQ(string("b"), mru[1]);
+		}
+		TEST_SECTION("excessive_lru_item_evicted_when_adding") {
+			c.add_item("c", apoint_ts(ta, 3.0, stair_case));
+			FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
+			FAST_CHECK_UNARY(c.try_get_item("c", r));
+			FAST_CHECK_UNARY(c.try_get_item("a", r));
+		}
+		TEST_SECTION("remove_item") {
+			c.remove_item("a");
+			FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
+		}
+		TEST_SECTION("ensure_items_added_are_first") {
+			c.add_item("d", apoint_ts(ta, 4.0, stair_case));
+			mru.clear(); c.get_mru_keys(back_inserter(mru));
+			FAST_CHECK_EQ(string("d"), mru[0]);
+			FAST_CHECK_EQ(string("c"), mru[1]);
+		}
+		TEST_SECTION("update_existing") {
+			c.try_get_item("c", r);//just to ensure "c" is in first position
+			c.add_item("d", apoint_ts(ta, 4.2, stair_case)); //update "d"
+			c.try_get_item("d", r);
+			FAST_CHECK_GT(r.value(0), 4.1);
+			mru.clear(); c.get_mru_keys(back_inserter(mru));
+			FAST_CHECK_EQ(string("d"), mru[0]);
+			FAST_CHECK_EQ(string("c"), mru[1]);
+		}
 	}
-	TEST_SECTION("add_one_item") {
-		c.add_item("a", apoint_ts(ta, 1.0, stair_case));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-		FAST_CHECK_EQ(ta.size(), r.time_axis().size());
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
+	TEST_CASE("dtss_ts_cache") {
+		using std::vector;
+		using std::string;
+		using shyft::core::utctime;
+		using shyft::core::deltahours;
+		using shyft::dtss::cache_stats;
+		using shyft::api::apoint_ts;
+		using shyft::api::gta_t;
+		using shyft::dtss::apoint_ts_frag;
+		using dtss_cache = shyft::dtss::cache<apoint_ts_frag, apoint_ts>;
+		const auto stair_case = shyft::time_series::POINT_AVERAGE_VALUE;
+		size_t max_ids = 10;
+
+		dtss_cache c(max_ids);
+
+		apoint_ts x;
+		utcperiod p{ utctime{chrono::seconds(0)},utctime{chrono::seconds(10)} };
+		FAST_CHECK_EQ(false, c.try_get("a", p, x));
+
+		utctime t0{ chrono::seconds(5) };
+		utctime t1{ chrono::seconds(10) };
+
+		utctimespan dt{ chrono::seconds(1) };
+		size_t n{ 3 };
+		apoint_ts ts_a{ gta_t{t0,dt,n},1.0,stair_case };
+		apoint_ts ts_a2{ gta_t{t1,dt,n},1.0,stair_case };
+
+		c.add("a", ts_a);
+		FAST_REQUIRE_EQ(true, c.try_get("a", utcperiod{ t0,t0 + dt }, x));
+		FAST_CHECK_EQ(1.0, x.value(0));
+
+		c.add("a", ts_a2);// test we can add twice, a fragment (replace)
+
+		FAST_REQUIRE_EQ(false, c.try_get("a", utcperiod{ t0,t0 + 10 * dt }, x));
+
+		auto s = c.get_cache_stats();
+		FAST_CHECK_EQ(s.hits, 2);
+		FAST_CHECK_EQ(s.misses, 1);
+		FAST_CHECK_EQ(s.coverage_misses, 1);
+		FAST_CHECK_EQ(s.point_count, 6);
+		FAST_CHECK_EQ(s.fragment_count, 2);
+		FAST_CHECK_EQ(s.id_count, 1);
+
+		c.clear_cache_stats();
+		c.flush();
+		s = c.get_cache_stats();
+		FAST_CHECK_EQ(s.hits, 0);
+		FAST_CHECK_EQ(s.misses, 0);
+		FAST_CHECK_EQ(s.coverage_misses, 0);
+		FAST_CHECK_EQ(s.point_count, 0);
+		FAST_CHECK_EQ(s.fragment_count, 0);
+		FAST_CHECK_EQ(s.id_count, 0);
+
+		c.add("a", ts_a2);
+
+		c.remove("a");
+		FAST_REQUIRE_EQ(false, c.try_get("a", utcperiod{ t0,t0 + dt }, x));
+
+		//-- test vector operations
+		// arrange n_ts
+		vector<string> ids;
+		vector<apoint_ts> tss;
+		size_t n_ts = 3;
+		gta_t mta{ t0,dt,n };
+		for (size_t i = 0; i < n_ts; ++i) {
+			ids.push_back(to_string(i));
+			tss.emplace_back(mta, double(i), stair_case);
+		}
+
+		c.add(ids, tss); // add a vector of ids|tss
+
+		auto mts = c.get(ids, mta.total_period());// get a vector of  ids back as map[id]=ts
+		FAST_REQUIRE_EQ(n_ts, mts.size());
+		for (size_t i = 0; i < n_ts; ++i) {
+			FAST_REQUIRE_UNARY(mts.find(ids[i]) != mts.end());
+			FAST_CHECK_EQ(mts[ids[i]].value(0), double(i)); // just check one value unique for ts.
+		}
+
+		auto ids2 = ids; ids2.push_back("not there");// ask for something that's not there
+		auto mts2 = c.get(ids2, mta.total_period());
+		FAST_REQUIRE_EQ(n_ts, mts.size());
+		for (size_t i = 0; i < n_ts; ++i) {
+			FAST_REQUIRE_UNARY(mts2.find(ids[i]) != mts.end());
+			FAST_CHECK_EQ(mts2[ids[i]].value(0), double(i)); // just check one value unique for ts.
+		}
+
+		c.remove(ids2); // remove by vector (even with elem not there)
+		s = c.get_cache_stats();
+		FAST_CHECK_EQ(s.point_count, 0);
+		FAST_CHECK_EQ(s.fragment_count, 0);
+		FAST_CHECK_EQ(s.id_count, 0);
+
 	}
-	TEST_SECTION("add_second_item") {
-		c.add_item("b", apoint_ts(ta, 2.0, stair_case));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-		FAST_CHECK_UNARY(c.try_get_item("b", r));
-		c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("b"), mru[0]);
-		FAST_CHECK_EQ(string("a"), mru[1]);
-	}
-	TEST_SECTION("mru_item_in_front") {
-		c.try_get_item("a", r);
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("a"), mru[0]);
-		FAST_CHECK_EQ(string("b"), mru[1]);
-	}
-	TEST_SECTION("excessive_lru_item_evicted_when_adding") {
-		c.add_item("c", apoint_ts(ta, 3.0, stair_case));
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
-		FAST_CHECK_UNARY(c.try_get_item("c", r));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-	}
-	TEST_SECTION("remove_item") {
-		c.remove_item("a");
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
-	}
-	TEST_SECTION("ensure_items_added_are_first") {
-		c.add_item("d", apoint_ts(ta, 4.0, stair_case));
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("d"), mru[0]);
-		FAST_CHECK_EQ(string("c"), mru[1]);
-	}
-	TEST_SECTION("update_existing") {
-		c.try_get_item("c", r);//just to ensure "c" is in first position
-		c.add_item("d", apoint_ts(ta, 4.2, stair_case)); //update "d"
-		c.try_get_item("d", r);
-		FAST_CHECK_GT(r.value(0), 4.1);
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("d"), mru[0]);
-		FAST_CHECK_EQ(string("c"), mru[1]);
-	}
-}
-TEST_CASE("dtss_ts_cache") {
-    using std::vector;
-    using std::string;
-    using shyft::core::utctime;
-    using shyft::core::deltahours;
-    using shyft::dtss::cache_stats;
-    using shyft::api::apoint_ts;
-    using shyft::api::gta_t;
-    using shyft::dtss::apoint_ts_frag;
-    using dtss_cache=shyft::dtss::cache<apoint_ts_frag,apoint_ts>;
-    const auto stair_case=shyft::time_series::POINT_AVERAGE_VALUE;
-    size_t max_ids=10;
+	TEST_CASE("dtss_mini_frag") {
+		using std::vector;
+		using std::string;
+		using std::min;
+		using std::max;
+		using shyft::core::utcperiod;
+		using shyft::core::utctime;
+		using shyft::dtss::mini_frag;
+		using shyft::time_axis::continuous_merge;
 
-    dtss_cache c(max_ids);
+		struct tst_frag {
+			static utcperiod mk_utcperiod(int f, int u) {
+				return utcperiod(utctime(chrono::seconds(f)), utctime(chrono::seconds(u)));
+			}
+			utcperiod p;
+			int id{ 0 };
+			tst_frag(int f, int u) :p(mk_utcperiod(f,u)) {}
+			tst_frag(int f, int u,int id) :p(mk_utcperiod(f, u)),id(id) {}
+			tst_frag(utctime f, utctime u) :p(f, u) {}
+			tst_frag(utctime f, utctime u, int id) :p(f, u), id(id) {}
+			utcperiod total_period() const { return p; }
+			size_t size() const { return size_t(chrono::duration_cast<chrono::seconds>(p.timespan()).count()); }
+			tst_frag merge(const tst_frag&o) const {
+				if (!continuous_merge(p, o.p))
+					throw runtime_error("Wrong merge op attempted");
+				return tst_frag{ min(o.p.start,p.start),max(o.p.end,p.end) };
+			}
+		};
 
-    apoint_ts x;
-    utcperiod p{0,10};
-    FAST_CHECK_EQ(false,c.try_get("a",p,x));
+		mini_frag<tst_frag> m;
 
-    utctime t0{5};
-    utctime t1{10};
-
-    utctimespan dt{1};
-    size_t n{3};
-    apoint_ts ts_a{gta_t{t0,dt,n},1.0,stair_case};
-    apoint_ts ts_a2{gta_t{t1,dt,n},1.0,stair_case};
-
-    c.add("a",ts_a);
-    FAST_REQUIRE_EQ(true,c.try_get("a",utcperiod{t0,t0+dt},x));
-    FAST_CHECK_EQ(1.0,x.value(0));
-
-    c.add("a",ts_a2);// test we can add twice, a fragment (replace)
-
-    FAST_REQUIRE_EQ(false,c.try_get("a",utcperiod{t0,t0+ 10*dt},x));
-
-    auto s=c.get_cache_stats();
-    FAST_CHECK_EQ(s.hits,2);
-    FAST_CHECK_EQ(s.misses,1);
-    FAST_CHECK_EQ(s.coverage_misses,1);
-    FAST_CHECK_EQ(s.point_count,6);
-    FAST_CHECK_EQ(s.fragment_count,2);
-    FAST_CHECK_EQ(s.id_count,1);
-
-    c.clear_cache_stats();
-    c.flush();
-    s = c.get_cache_stats();
-    FAST_CHECK_EQ(s.hits, 0);
-    FAST_CHECK_EQ(s.misses, 0);
-    FAST_CHECK_EQ(s.coverage_misses, 0);
-    FAST_CHECK_EQ(s.point_count, 0);
-    FAST_CHECK_EQ(s.fragment_count, 0);
-    FAST_CHECK_EQ(s.id_count, 0);
-
-    c.add("a", ts_a2);
-
-    c.remove("a");
-    FAST_REQUIRE_EQ(false,c.try_get("a",utcperiod{t0,t0+dt},x));
-
-    //-- test vector operations
-    // arrange n_ts
-    vector<string> ids;
-    vector<apoint_ts> tss;
-    size_t n_ts = 3;
-    gta_t mta{ t0,dt,n };
-    for (size_t i = 0; i<n_ts; ++i) {
-        ids.push_back(to_string(i));
-        tss.emplace_back(mta, double(i), stair_case);
-    }
-
-    c.add(ids, tss); // add a vector of ids|tss
-
-    auto mts = c.get(ids, mta.total_period());// get a vector of  ids back as map[id]=ts
-    FAST_REQUIRE_EQ(n_ts, mts.size());
-    for (size_t i = 0; i<n_ts; ++i) {
-        FAST_REQUIRE_UNARY(mts.find(ids[i])!=mts.end());
-        FAST_CHECK_EQ(mts[ids[i]].value(0), double(i)); // just check one value unique for ts.
-    }
-
-    auto ids2 = ids; ids2.push_back("not there");// ask for something that's not there
-    auto mts2 = c.get(ids2, mta.total_period());
-    FAST_REQUIRE_EQ(n_ts, mts.size());
-    for (size_t i = 0; i<n_ts; ++i) {
-        FAST_REQUIRE_UNARY(mts2.find(ids[i])!=mts.end());
-        FAST_CHECK_EQ(mts2[ids[i]].value(0), double(i)); // just check one value unique for ts.
-    }
-
-    c.remove(ids2); // remove by vector (even with elem not there)
-    s = c.get_cache_stats();
-    FAST_CHECK_EQ(s.point_count, 0);
-    FAST_CHECK_EQ(s.fragment_count, 0);
-    FAST_CHECK_EQ(s.id_count, 0);
-
-}
-TEST_CASE("dtss_mini_frag") {
-    using std::vector;
-    using std::string;
-    using std::min;
-    using std::max;
-    using shyft::core::utcperiod;
-    using shyft::core::utctime;
-    using shyft::dtss::mini_frag;
-    using shyft::time_axis::continuous_merge;
-
-    struct tst_frag {
-        utcperiod p;
-        int id{0};
-        tst_frag(utctime f,utctime u):p(f,u){}
-        tst_frag(utctime f,utctime u,int id):p(f,u),id(id){}
-        utcperiod total_period() const {return p;}
-        size_t size() const {return size_t(p.timespan());}
-        tst_frag merge(const tst_frag&o) const {
-            if(!continuous_merge(p,o.p))
-                throw runtime_error("Wrong merge op attempted");
-            return tst_frag{min(o.p.start,p.start),max(o.p.end,p.end)};
-        }
-    };
-
-    mini_frag<tst_frag> m;
-
-    FAST_CHECK_EQ(m.count_fragments(),0);
-    FAST_CHECK_EQ(m.estimate_size(),0);
-    FAST_CHECK_EQ(m.get_ix(utcperiod(0,10)),string::npos);
+		FAST_CHECK_EQ(m.count_fragments(), 0);
+		FAST_CHECK_EQ(m.estimate_size(), 0);
+		FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(0,10)), string::npos);
 
     m.add(tst_frag(5,10));// add first
     FAST_CHECK_EQ(m.count_fragments(),1);
     FAST_CHECK_EQ(m.estimate_size(),5);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{5,10}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(5,10)),0);
 
     m.add(tst_frag(4,5));// add merge element
     FAST_CHECK_EQ(m.count_fragments(),1);
     FAST_CHECK_EQ(m.estimate_size(),6);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{4,6}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(4,6)),0);
 
     m.add(tst_frag(1,3));// add before first
     FAST_CHECK_EQ(m.count_fragments(),2);
     FAST_CHECK_EQ(m.estimate_size(),8);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{4,6}),1);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{1,2}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(4,6)),1);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(1,2)),0);
 
     m.add(tst_frag(3,4));// add a piece that merge [0] [1]
     FAST_CHECK_EQ(m.count_fragments(),1);
     FAST_CHECK_EQ(m.estimate_size(),9);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{4,6}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(4,6)),0);
 
     m.add(tst_frag{11,12}); // append a frag at the end
     FAST_CHECK_EQ(m.count_fragments(),2);
     FAST_CHECK_EQ(m.estimate_size(),10);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{4,6}),0);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{11,12}),1);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{11,13}),string::npos);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{1,12}),string::npos);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(4,6)),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(11,12)),1);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(11,13)),string::npos);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(1,12)),string::npos);
 
     m.add(tst_frag{13,15}); // append a frag at the end
     FAST_CHECK_EQ(m.count_fragments(),3);
     FAST_CHECK_EQ(m.estimate_size(),12);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{13,14}),2);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{11,12}),1);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{5,6}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(13,14)),2);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(11,12)),1);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(5,6)),0);
 
     m.add(tst_frag{11,14});// append a frag that melts [1]..[2] into one
     FAST_CHECK_EQ(m.count_fragments(),2);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{11,15}),1);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(11,15)),1);
 
     m.add(tst_frag{0,20}); // append a frag that melts all into one
     FAST_CHECK_EQ(m.count_fragments(),1);
@@ -283,7 +288,7 @@ TEST_CASE("dtss_mini_frag") {
     m.add(tst_frag{0,20,1}); // append a marked frag that is exactly equal
     FAST_CHECK_EQ(m.count_fragments(),1);
     FAST_CHECK_EQ(m.estimate_size(),20);
-    FAST_CHECK_EQ(m.get_ix(utcperiod{0,10}),0);
+    FAST_CHECK_EQ(m.get_ix(tst_frag::mk_utcperiod(0,10)),0);
     FAST_CHECK_EQ(m.get_by_ix(0).id,1);// verify we got the marked in place
 
     m.add(tst_frag{21,23});// two frags
@@ -609,8 +614,8 @@ TEST_CASE("dtss_store_basics") {
             FAST_CHECK_EQ(o.time_axis(), r.time_axis());
 
             // read slice
-            core::utctime tb = (pta.time(2) + pta.time(1)) / 2;
-            core::utctime te = (pta.time(pta.size() - 1) + pta.time(pta.size() - 2)) / 2;
+            core::utctime tb = utctime((pta.time(2).time_since_epoch() + pta.time(1).time_since_epoch()) / 2);
+            core::utctime te = utctime((pta.time(pta.size() - 1).time_since_epoch() + pta.time(pta.size() - 2).time_since_epoch()) / 2);
             auto r2 = db.read(fn, utcperiod{ tb, te });
             FAST_CHECK_EQ(o.point_interpretation(), r2.point_interpretation());
             time_axis::point_dt exp{ std::vector<core::utctime>( &o.ta.p.t[1], &o.ta.p.t[o.ta.p.t.size()-1] ), o.ta.p.t[o.ta.p.t.size()-1] };

@@ -18,6 +18,7 @@ namespace prediction {
 namespace ta = shyft::time_axis;
 namespace ts = shyft::time_series;
 using utctime=shyft::core::utctime;
+using shyft::core::to_seconds;
 
 
 /** \brief A time-series predictor based on the krls algorithm with a rbf kernel, with dt-normalizing.
@@ -100,7 +101,7 @@ public:
         scalar_type diff_v, mse = 0.;
         std::size_t dim = std::min(offset + count*stride, ts.size());
         krls_sample_type x;
-        const scalar_type scaling_f = 1./_dt;  // compute time scaling factor
+        const scalar_type scaling_f = 1./to_seconds(_dt);  // compute time scaling factor
         train_point_fx = ts.point_interpretation();
         // training iteration
         core::utctime tp;
@@ -114,7 +115,7 @@ public:
                 pv = ts.value(i);
 
                 if ( ! std::isnan(pv) ) {
-                    x(0) = static_cast<scalar_type>(tp*scaling_f);  // NB: utctime -> double conversion !!!
+                    x(0) = static_cast<scalar_type>(to_seconds(tp.time_since_epoch())*scaling_f);  // NB: utctime -> double conversion !!!
                     _krls.train(x, pv);
 
                     diff_v = pv - _krls(x);
@@ -147,11 +148,11 @@ public:
     ) const {
         std::vector<scalar_type> predictions;
         predictions.reserve(ta.size());
-        const scalar_type scaling_f = 1./_dt;  // compute time scaling factor
+        const scalar_type scaling_f = 1./to_seconds(_dt);  // compute time scaling factor
 
         krls_sample_type x_sample;
         for ( std::size_t i = 0, dim = ta.size(); i < dim; ++i ) {
-            x_sample(0) = static_cast<scalar_type>(ta.time(i)*scaling_f);  // NB: utctime -> double conversion !!!
+            x_sample(0) = static_cast<scalar_type>(to_seconds(ta.time(i).time_since_epoch())*scaling_f);  // NB: utctime -> double conversion !!!
             predictions.emplace_back(_krls(x_sample));
         }
 

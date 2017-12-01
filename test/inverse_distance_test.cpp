@@ -25,7 +25,7 @@ TEST_CASE("test_temperature_model") {
 
 	geo_point p1(1000, 1000, 100);
 	Source   s1(p1, 10);
-	utctime  t0 = 3600L * 24L * 365L * 44L;
+	utctime  t0{ deltahours(24L * 365L * 44L) };
 
 	gc.add(s1, t0);
 	TS_ASSERT_DELTA(gc.compute(), p.default_gradient(), TEST_EPS); // should give default gradient if just one point
@@ -88,7 +88,7 @@ TEST_CASE("test_radiation_model") {
 
 	geo_point p1(1000, 1000, 100);
 	Source   s1(p1, 10);
-	utctime  t0 = 3600L * 24L * 365L * 44L;
+	utctime  t0{ deltahours(24L * 365L * 44L) };
 
 	gc.add(s1, t0);
 	TS_ASSERT_DELTA(gc.compute(), 1.0, TEST_EPS); // should give 1.0 gradient if just one point
@@ -121,7 +121,7 @@ TEST_CASE("test_precipitation_model") {
 
 	geo_point p1(1000, 1000, 100);
 	Source   s1(p1, 10);
-	utctime  t0 = 3600L * 24L * 365L * 44L;
+	utctime  t0{ deltahours(24L * 365L * 44L) };
 
 	gc.add(s1, t0);
 	TS_ASSERT_DELTA(gc.compute(), p.precipitation_scale_factor(), TEST_EPS);// should give 1.0 gradient if just one point
@@ -151,8 +151,8 @@ TEST_CASE("test_one_source_one_dest_calculation") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 1; // 24*10;
 	const int nx = 1;
 	const int ny = 1;
@@ -182,8 +182,8 @@ TEST_CASE("test_two_sources_one_dest_calculation") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 1;
 	const int nx = 1;
 	const int ny = 1;
@@ -221,8 +221,8 @@ TEST_CASE("test_using_finite_sources_only") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 1;
 	const int nx = 1;
 	const int ny = 1;
@@ -260,8 +260,8 @@ TEST_CASE("test_eliminate_far_away_sources") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 1;
 	const int nx = 1;
 	const int ny = 1;
@@ -298,8 +298,8 @@ TEST_CASE("test_using_up_to_max_sources") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 1;
 	const int nx = 1;
 	const int ny = 1;
@@ -335,8 +335,8 @@ TEST_CASE("test_handling_different_sources_pr_timesteps") {
 	//
 	// Arrange
 	//
-	utctime Tstart = 3600L * 24L * 365L * 44L;
-	utctimespan dt = 3600L;
+	utctime  Tstart{ deltahours(24L * 365L * 44L) };
+	utctimespan dt = deltahours(1);
 	int n = 2; // 24*10;
 	const int nx = 1;
 	const int ny = 1;
@@ -379,7 +379,8 @@ TEST_CASE("test_performance") {
     // Arrange
     //
     utctime Tstart = calendar().time(2000, 1, 1);
-    utctimespan dt = 3600L;
+	utctimespan dt = deltahours(1);
+
 #ifdef _DEBUG
     int n = 4;// just speed up test.
 #else

@@ -28,7 +28,7 @@ TEST_CASE("test_accumulation") {
     state s(nu, alpha, sca, swe, free_water, residual, nnn);
 
     // Model input
-    shyft::time_series::utctimespan dt = 60*60;
+	shyft::time_series::utctimespan dt = shyft::core::deltahours(1);
     double temp = -10.0;
     double prec = 10.0;
     double radiation = 0.0;
@@ -70,7 +70,7 @@ TEST_CASE("test_melt") {
     state s(nu, alpha, sca, swe, free_water, residual, nnn);
 
     // Model input
-    shyft::time_series::utctimespan dt = 24*60*60;
+	shyft::time_series::utctimespan dt{ std::chrono::seconds(24 * 60 * 60) };
     double temp = -10.0;
     double prec = 10.0;
     double radiation = 0.0;
@@ -136,7 +136,7 @@ TEST_CASE("test_lwc") {
     state s(nu, alpha, sca, swe, free_water, residual, nnn);
 
     // Model input
-    shyft::time_series::utctimespan dt = 24*60*60;
+	shyft::time_series::utctimespan dt{ std::chrono::seconds(24 * 60 * 60) };
     double temp = -10.0;
     double prec = 10.0;
     double radiation = 0.0;

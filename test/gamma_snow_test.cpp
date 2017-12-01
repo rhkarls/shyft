@@ -162,7 +162,7 @@ TEST_CASE("test_warm_winter_effect") {
     size_t num_days = 100;
 	bool verbose = getenv("SHYFT_VERBOSE") ? true : false;
     for (size_t i = 0; i < 24*num_days; ++i) {
-        gs.step(states, response, dt*24*232+i*dt, dt, param, temp, rad, prec, wind_speed, rel_hum,0.0,0.0);
+		gs.step(states, response, utctime{ dt * 24 * 232 + i*dt }, dt, param, temp, rad, prec, wind_speed, rel_hum, 0.0, 0.0);
 
 		if (verbose && (i % 10 == 0)) {
             std::cout << "Time step: " << i << ", ";
@@ -178,7 +178,7 @@ TEST_CASE("test_step") {
 
 	gs::calculator<gs::parameter, gs::state, gs::response> gs;
 	gs::parameter param;
-    shyft::time_series::utctime dt = shyft::core::deltahours(1);
+    utctimespan dt = deltahours(1);
 
 	gs::state states(0.0, 1.0, 0.0, 1.0 / (param.snow_cv*param.snow_cv), 10.0, -1.0, 0.0, 0.0);
 	gs::response response;
@@ -191,7 +191,7 @@ TEST_CASE("test_step") {
 
     const std::clock_t start = std::clock();
     for (size_t i=0; i<365; ++i) {
-        gs.step(states, response, i*dt, dt, param, i&1 ?temp:param.tx, rad, prec, wind_speed, rel_hum,0.0,0.0);
+		gs.step(states, response, utctime{ i*dt }, dt, param, i & 1 ? temp : param.tx, rad, prec, wind_speed, rel_hum, 0.0, 0.0);
     }
     const std::clock_t total = std::clock() - start;
     if(getenv("SHYFT_VERBOSE")) {
@@ -222,13 +222,13 @@ TEST_CASE("test_output_independent_of_timestep") {
         gs::response response1h;
         double output_hour=0;
         for(size_t i=0;i<3;++i) {
-            gs.step(state1h,response1h,i*dt,dt,param,temp,rad,prec,wind_speed,rel_hum,0.0,0.0);
+			gs.step(state1h, response1h, utctime{ i*dt }, dt, param, temp, rad, prec, wind_speed, rel_hum, 0.0, 0.0);
             output_hour+=response1h.outflow; // mm_h
         }
         output_hour/=3.0; // avg hour output
         gs::state state3h(initial_state);
         gs::response response3h;
-        gs.step(state3h,response3h,0*dt3h,dt3h,param,temp,rad,prec,wind_speed,rel_hum,0.0,0.0);
+		gs.step(state3h, response3h, utctime{ 0 * dt3h }, dt3h, param, temp, rad, prec, wind_speed, rel_hum, 0.0, 0.0);
         // require same output on the average, and same lwc
         TS_ASSERT_DELTA(output_hour,response3h.outflow,0.00001);
         TS_ASSERT_DELTA(state1h.lwc,state3h.lwc,0.000001);

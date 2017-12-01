@@ -136,7 +136,7 @@ namespace shyft {
                     vo.push_back(o_ts.value(i));
                 }
             }
-            ta_t txa(0,dt,vs.size());// just a fake time-axis to resolve nash_sutcliffe_goal function
+			ta_t txa(utctime(utctimespan{ 0 }), dt, vs.size());// just a fake time-axis to resolve nash_sutcliffe_goal function
             ts_t ss(txa,vs,ts_point_fx::POINT_AVERAGE_VALUE);
             ts_t os(txa,vo,ts_point_fx::POINT_AVERAGE_VALUE);
             return 1.0-nash_sutcliffe_goal_function(os,ss); // 1-E -> n.s

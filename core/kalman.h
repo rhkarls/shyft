@@ -110,7 +110,7 @@ namespace shyft {
 
                 ///< given any time, fold it into the 'day' and part (index) of day.
                 inline int fold_to_daily_observation(utctime t) const {
-                    return ((t/deltahours(1) + 200L*24*365) % 24)*p.n_daily_observations/24;// in short, add 200 years (ensure positve num before %)
+                    return (( t.time_since_epoch()/deltahours(1) + 200L*24*365) % 24)*p.n_daily_observations/24;// in short, add 200 years (ensure positve num before %)
                 }
 
                 /** \brief update the kalman::filter p with the observed_bias for
@@ -204,7 +204,7 @@ namespace shyft {
                     std::vector<double> bias_vector;bias_vector.reserve(time_axis.size());
                     shyft::core::calendar utc;
                     utctime pd_t0 = utc.trim(time_axis.time(0),shyft::core::calendar::DAY);
-                    utctime pd_dt = shyft::core::deltahours(24)/f.p.n_daily_observations;
+                    utctimespan pd_dt = shyft::core::deltahours(24)/f.p.n_daily_observations;
                     shyft::time_series::profile_description pd(pd_t0,pd_dt,arma::conv_to<std::vector<double>>::from(s.x));
                     shyft::time_series::profile_accessor<ta> pa(pd,time_axis,POINT_AVERAGE_VALUE);
 

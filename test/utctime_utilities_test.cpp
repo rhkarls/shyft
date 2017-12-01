@@ -8,7 +8,7 @@ using namespace shyft::core;
 TEST_SUITE("utctime_utilities") {
 
 TEST_CASE("test_utctime") {
-    calendar c(0);
+    calendar c(seconds(0));
     YMDhms unixEra(1970,01,01,00,00,00);
     YMDhms y_null;
 
@@ -17,8 +17,8 @@ TEST_CASE("test_utctime") {
     TS_ASSERT(c.time(YMDhms::max())==max_utctime);
     TS_ASSERT(c.time(YMDhms::min())==min_utctime);
 
-    TS_ASSERT_EQUALS(0L,c.time(unixEra));
-    YMDhms r=c.calendar_units(utctime(0L));
+	TS_ASSERT_EQUALS(utctime{}, c.time(unixEra));// is it default 0?
+    YMDhms r=c.calendar_units(utctime(seconds(0)));
     TS_ASSERT_EQUALS(r,unixEra);
 }
 TEST_CASE("test_utcperiod") {
@@ -66,7 +66,7 @@ TEST_CASE("test_calendar_trim") {
 TEST_CASE("test_calendar_timezone") {
     YMDhms unixEra(1970,01,01,00,00,00);
     calendar cet(deltahours(1));
-    TS_ASSERT_EQUALS(deltahours(-1),cet.time(unixEra));
+	TS_ASSERT_EQUALS(utctime{ deltahours(-1) }, cet.time(unixEra));
 }
 
 TEST_CASE("test_calendar_to_string") {

@@ -44,30 +44,32 @@ static bool test_if_equal( const TA& e, const TB& t ) {
 	if (!equivalent_time_axis(e, t)) // verify e and t produces the same periods
 		return false;
 	// now create a time-axis different from e and t, just to verify that equivalent_time_axis states it's false
-	time_axis::fixed_dt u(utctime(1234), deltahours(1), 21);
+	time_axis::fixed_dt u(utctime(seconds(1234)), deltahours(1), 21);
 
 	return !equivalent_time_axis(u,e) && !equivalent_time_axis(u,t);
 }
+using shyft::core::seconds;
 
 TEST_SUITE("time_axis") {
 
 TEST_CASE("time_axis_merge_fixed_dt") {
 	using namespace shyft::time_axis;
-	utctime t0{ 0 }, t3{ 3 }, t4{ 4 };
+	utctime t0{ seconds(0) }, t2{ seconds(2) },t3{ seconds(3) }, t4{ seconds(4) };
 	utctimespan dt{ 1 };
+	
 	FAST_CHECK_EQ(merge(fixed_dt{ t0,dt,4 }, fixed_dt{ t4,dt,4 }), fixed_dt{ t0,dt,8 });
 	FAST_CHECK_EQ(merge(fixed_dt{ t0,dt,4 }, fixed_dt{ t3,dt,4 }), fixed_dt{ t0,dt,7 });
 	FAST_CHECK_EQ(merge(fixed_dt{ t4,dt,4 }, fixed_dt{ t0,dt,4 }), fixed_dt{ t0,dt,8 });
 	FAST_CHECK_EQ(merge(fixed_dt{ t3,dt,4 }, fixed_dt{ t0,dt,4 }), fixed_dt{ t0,dt,7 });
-    CHECK_THROWS(merge(fixed_dt{ 0,1,4 }, fixed_dt{ 2,2,4 }));
-    CHECK_THROWS(merge(fixed_dt{ 0,1,0 }, fixed_dt{ 0,1,4 }));
-    CHECK_THROWS(merge(fixed_dt{ 0,1,3 }, fixed_dt{ 4,1,1 }));
+    CHECK_THROWS(merge(fixed_dt{ t0,dt,4 }, fixed_dt{ t2,2*dt,4 }));
+    CHECK_THROWS(merge(fixed_dt{ t0,dt,0 }, fixed_dt{ t0,dt,4 }));
+    CHECK_THROWS(merge(fixed_dt{ t0,dt,3 }, fixed_dt{ t4,dt,1 }));
 }
 TEST_CASE("time_axis_merge_calendar_dt") {
 	using namespace shyft::time_axis;
 	auto c = make_shared<calendar>("Europe/Oslo");
     auto u = make_shared<calendar>(deltahours(1));
-	utctime t0{ 0 }, t3{ 3*calendar::DAY }, t4{ 4*calendar::DAY };
+	utctime t0{ seconds(0) }, t3{ 3*calendar::DAY }, t4{ 4*calendar::DAY };
 	utctimespan dt{ calendar::DAY };
 	FAST_CHECK_EQ(merge(calendar_dt{ c,t0,dt,4 }, calendar_dt{ c,t4,dt,4 }), calendar_dt{ c,t0,dt,8 });
 	FAST_CHECK_EQ(merge(calendar_dt{ c,t0,dt,4 }, calendar_dt{ c,t3,dt,4 }), calendar_dt{ c,t0,dt,7 });
@@ -80,25 +82,27 @@ TEST_CASE("time_axis_merge_calendar_dt") {
 }
 TEST_CASE("time_axis_merge_point_dt") {
     using namespace shyft::time_axis;
-    test_if_equal(merge(point_dt{ {0,1,2},3 }, point_dt{ {3,4,5},6 }), point_dt{ {0,1,2,3,4,5},6 });// a-b perfect
-    test_if_equal(merge(point_dt{ { 0,1,2 },3 }, point_dt{ { 2,4,5 },6 }), point_dt{ { 0,1,2,4,5 },6 }); // a b overlap
-    test_if_equal(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 0,1,2 },3 }), point_dt{ { 0,1,2,3,4,5 },6 }); // a after b, perfect
-    test_if_equal(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 0,1,2 },10 }), point_dt{ { 0,1,2,3,4,5 },10 });// b-a-b-extend t_end
-    test_if_equal(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 0,1,2,6 },10 }), point_dt{ { 0,1,2,3,4,5,6 },10 });// b-a-b
-    test_if_equal(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 3 },10 }), point_dt{ { 3,4,5,6 },10 });// no points,just end
-    test_if_equal(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 3 },4 }), point_dt{ { 3,4,5,6 },10 });// b with no contrib
-    CHECK_THROWS(merge(point_dt{ { 3,4,5 },6 }, point_dt{ { 7 },10 }));// not mergable
-    CHECK_THROWS(merge(point_dt{ { 3,4,5 },6 }, point_dt{ }));// not mergable
+	utctime t0{ seconds(0) }, t1{ seconds(1) }, t2{ seconds(2) }, t3{ seconds(3) }, t4{ seconds(4) }, t5{ seconds(5) }, t6{ seconds(6) }, t7{ seconds(7) }, t10{ seconds(10) };
+    test_if_equal(merge(point_dt{ {t0,t1,t2},t3 }, point_dt{ {t3,t4,t5},t6 }), point_dt{ {t0,t1,t2,t3,t4,t5},t6 });// a-b perfect
+    test_if_equal(merge(point_dt{ { t0,t1,t2 },t3 }, point_dt{ { t2,t4,t5 },t6 }), point_dt{ { t0,t1,t2,t4,t5 },t6 }); // a b overlap
+    test_if_equal(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t0,t1,t2 },t3 }), point_dt{ { t0,t1,t2,t3,t4,t5 },t6 }); // a after b, perfect
+    test_if_equal(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t0,t1,t2 },t10 }), point_dt{ { t0,t1,t2,t3,t4,t5 },t10 });// b-a-b-extend t_end
+    test_if_equal(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t0,t1,t2,t6 },t10 }), point_dt{ { t0,t1,t2,t3,t4,t5,t6 },t10 });// b-a-b
+    test_if_equal(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t3 },t10 }), point_dt{ { t3,t4,t5,t6 },t10 });// no points,just end
+    test_if_equal(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t3 },t4 }), point_dt{ { t3,t4,t5,t6 },t10 });// b with no contrib
+    CHECK_THROWS(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ { t7 },t10 }));// not mergable
+    CHECK_THROWS(merge(point_dt{ { t3,t4,t5 },t6 }, point_dt{ }));// not mergable
 }
 TEST_CASE("time_axis_merge_generic_dt") {
     using namespace shyft::time_axis;
     auto c = make_shared<calendar>("Europe/Oslo");
-    utctime t0{ 0 }, t4{ 4 * calendar::DAY };
+    utctime t0{ seconds(0) }, t4x{ 4 * calendar::DAY };
     utctimespan dt{ calendar::DAY };
-    FAST_CHECK_EQ(merge(generic_dt{ fixed_dt{ t0,dt,4 } }, generic_dt{ fixed_dt{ t4,dt,4 } }), generic_dt{ fixed_dt{ t0,dt,8 } });
-    test_if_equal(merge(generic_dt{ point_dt{ { 0,1,2 },3 } }, generic_dt{ point_dt{ { 3,4,5 },6 } }), generic_dt{ point_dt{ { 0,1,2,3,4,5 },6 } });// a-b perfect
-    FAST_CHECK_EQ(merge(generic_dt{ calendar_dt{ c,t0,dt,4 } }, generic_dt{ calendar_dt{ c,t4,dt,4 } }), generic_dt{ calendar_dt{ c,t0,dt,8 } });
-    test_if_equal(merge(generic_dt{ calendar_dt{ c,t0,dt,4 } }, generic_dt{ fixed_dt{t4,dt,1 } }),generic_dt{point_dt{{0,dt,dt*2,dt*3,dt*4},dt*5}} );
+	utctime  t1{ seconds(1) }, t2{ seconds(2) }, t3{ seconds(3) }, t4{ seconds(4) }, t5{ seconds(5) }, t6{ seconds(6) }, t7{ seconds(7) }, t10{ seconds(10) };
+	FAST_CHECK_EQ(merge(generic_dt{ fixed_dt{ t0,dt,4 } }, generic_dt{ fixed_dt{ t4x,dt,4 } }), generic_dt{ fixed_dt{ t0,dt,8 } });
+    test_if_equal(merge(generic_dt{ point_dt{ { t0,t1,t2 },t3 } }, generic_dt{ point_dt{ { t3,t4,t5 },t6 } }), generic_dt{ point_dt{ { t0,t1,t2,t3,t4,t5 },t6 } });// a-b perfect
+    FAST_CHECK_EQ(merge(generic_dt{ calendar_dt{ c,t0,dt,4 } }, generic_dt{ calendar_dt{ c,t4x,dt,4 } }), generic_dt{ calendar_dt{ c,t0,dt,8 } });
+    test_if_equal(merge(generic_dt{ calendar_dt{ c,t0,dt,4 } }, generic_dt{ fixed_dt{t4x,dt,1 } }),generic_dt{point_dt{{t0,t0+dt,t0+dt*2,t0+dt*3,t0+dt*4},t0+dt*5}} );
 }
 
 TEST_CASE("test_all") {
@@ -116,17 +120,17 @@ TEST_CASE("test_all") {
     //
     TS_ASSERT_EQUALS( n, (int)expected.size() );
     TS_ASSERT_EQUALS( utcperiod( start, start + n * dt ), expected.total_period() );
-    TS_ASSERT_EQUALS( string::npos, expected.index_of( start - 1 ) );
-    TS_ASSERT_EQUALS( string::npos, expected.open_range_index_of( start - 1 ) );
+    TS_ASSERT_EQUALS( string::npos, expected.index_of( start - seconds(1)) );
+    TS_ASSERT_EQUALS( string::npos, expected.open_range_index_of( start - seconds(1)) );
     TS_ASSERT_EQUALS( string::npos, expected.index_of( start + n * dt ) );
     TS_ASSERT_EQUALS( n - 1,(int) expected.open_range_index_of( start + n * dt ) );
     for( int i = 0; i < n; ++i ) {
         TS_ASSERT_EQUALS( start + i * dt, expected.time( i ) );
         TS_ASSERT_EQUALS( utcperiod( start + i * dt, start + ( i + 1 )*dt ), expected.period( i ) );
         TS_ASSERT_EQUALS( i,(int) expected.index_of( start + i * dt ) );
-        TS_ASSERT_EQUALS( i,(int) expected.index_of( start + i * dt + dt - 1 ) );
+        TS_ASSERT_EQUALS( i,(int) expected.index_of( start + i * dt + dt - seconds(1)) );
         TS_ASSERT_EQUALS( i, (int)expected.open_range_index_of( start + i * dt ) );
-        TS_ASSERT_EQUALS( i,(int) expected.open_range_index_of( start + i * dt + dt - 1 ) );
+        TS_ASSERT_EQUALS( i,(int) expected.open_range_index_of( start + i * dt + dt - seconds(1)) );
     }
     //
     // STEP 1: construct all the other types of time-axis, with equal content, but represented differently
@@ -136,7 +140,8 @@ TEST_CASE("test_all") {
     for( int i = 0; i < n; ++i )tp.push_back( start + i * dt );
     time_axis::point_dt p_dt( tp, start + n * dt );
     vector<utcperiod> sub_period;
-    for( int i = 0; i < 3; ++i ) sub_period.emplace_back( i * dt, ( i + 1 )*dt );
+	utctime t0x{ seconds(0) };
+    for( int i = 0; i < 3; ++i ) sub_period.emplace_back( t0x + i*dt, t0x + (i + 1)*dt );
     time_axis::calendar_dt_p c_dt_p( utc, start, 3 * dt, n / 3, sub_period );
     vector<utcperiod> periods;
     for( int i = 0; i < n; ++i ) periods.emplace_back( start + i * dt, start + ( i + 1 )*dt );
@@ -193,7 +198,7 @@ TEST_CASE("test_all") {
 
     // create sparse time-axis samples
     vector<utcperiod> sparse_sub_period;
-    for( int i = 0; i < 3; ++i )  sparse_sub_period.emplace_back( i * dt + deltahours( 1 ), ( i + 1 )*dt - deltahours( 1 ) );
+    for( int i = 0; i < 3; ++i )  sparse_sub_period.emplace_back(t0x+ i * dt + deltahours( 1 ), t0x + ( i + 1 )*dt - deltahours( 1 ) );
     vector<utcperiod> sparse_period;
     for( int i = 0; i < n; ++i ) sparse_period.emplace_back( start + i * dt + deltahours( 1 ), start + ( i + 1 )*dt - deltahours( 1 ) );
 
@@ -209,9 +214,10 @@ TEST_CASE("test_all") {
     TS_ASSERT( test_if_equal( sparse_c_dt_p, time_axis::combine( c_dt_p, sparse_period_list ) ) ); // combine to a dense should give the sparse result
     //final tests: verify that if we combine two sparse time-axis, we get the distinct set of the periods.
     {
-        time_axis::period_list ta1( {utcperiod( 1, 3 ), utcperiod( 5, 7 ), utcperiod( 9, 11 )} );
-        time_axis::period_list ta2( {utcperiod( 0, 2 ), utcperiod( 4, 10 ), utcperiod( 11, 12 )} );
-        time_axis::period_list exp( {utcperiod( 1, 2 ), utcperiod( 5, 7 ), utcperiod( 9, 10 )} );
+		utctime t0{ seconds(0) }, t1{ seconds(1) }, t2{ seconds(2) }, t3{ seconds(3) }, t4{ seconds(4) }, t5{ seconds(5) }, t7{ seconds(7) },t9{ seconds(9) }, t10{ seconds(10) }, t11{ seconds(11) }, t12{ seconds(12) };
+        time_axis::period_list ta1( {utcperiod( t1, t3 ), utcperiod( t5, t7 ), utcperiod( t9,t11 )} );
+        time_axis::period_list ta2( {utcperiod( t0, t2 ), utcperiod( t4, t10 ), utcperiod( t11, t12 )} );
+        time_axis::period_list exp( {utcperiod( t1, t2 ), utcperiod( t5, t7 ), utcperiod( t9, t10 )} );
         TS_ASSERT( test_if_equal( exp, time_axis::combine( ta1, ta2 ) ) );
 
     }
@@ -265,7 +271,7 @@ TEST_CASE("time_axis_extend") {
                     FAST_REQUIRE_EQ(res.f, ta::fixed_dt(t0, dt, split_after));
                 }
                 SUBCASE("split before") {
-                    ta::generic_dt res = ta::extend(axis, empty, t0 - 1);
+                    ta::generic_dt res = ta::extend(axis, empty, t0 - seconds(1));
                     FAST_REQUIRE_EQ(res.f, empty);
                 }
             }
@@ -280,7 +286,7 @@ TEST_CASE("time_axis_extend") {
                     FAST_REQUIRE_EQ(res.f, ta::fixed_dt(t0 + dt * split_after, dt, n - split_after));
                 }
                 SUBCASE("split before") {
-                    ta::generic_dt res = ta::extend(empty, axis, t0 - 1);
+                    ta::generic_dt res = ta::extend(empty, axis, t0 - seconds(1));
                     FAST_REQUIRE_EQ(res.f, axis);
                 }
             }
@@ -395,7 +401,8 @@ TEST_CASE("time_axis_extend") {
 
         std::shared_ptr<core::calendar> cal = std::make_shared<core::calendar>(utc);
         core::utctime t0 = cal->time(2017, 4, 1);
-        core::utctimespan dt = core::calendar::DAY;
+		core::utctime t0x{ seconds(0) };
+		core::utctimespan dt = core::calendar::DAY;
         size_t n = 30;
 
         ta::calendar_dt
@@ -404,7 +411,7 @@ TEST_CASE("time_axis_extend") {
 
         SUBCASE("empty time-axes") {
             SUBCASE("both empty") {
-                ta::generic_dt res = ta::extend(empty, empty, 0);
+                ta::generic_dt res = ta::extend(empty, empty, t0x);
 
                 FAST_REQUIRE_EQ(res.gt, ta::generic_dt::CALENDAR);
                 FAST_REQUIRE_EQ(res.c, empty);
@@ -582,7 +589,8 @@ TEST_CASE("time_axis_extend") {
         std::shared_ptr<core::calendar> utc_ptr = std::make_shared<core::calendar>(utc);
 
         core::utctime t0 = utc.time(2017, 1, 1);
-        core::utctimespan dt_30m = 30 * core::calendar::MINUTE;
+		core::utctime t0x{ seconds(0) };
+		core::utctimespan dt_30m = 30 * core::calendar::MINUTE;
         core::utctimespan dt_h = core::calendar::HOUR;
         size_t n = 50;
 
@@ -593,7 +601,7 @@ TEST_CASE("time_axis_extend") {
             ta::calendar_dt non_empty(utc_ptr, t0, dt_h, n);
 
             SUBCASE("empty with empty") {
-                ta::generic_dt res = ta::extend(empty_fdt, empty_pdt, 0);
+                ta::generic_dt res = ta::extend(empty_fdt, empty_pdt, t0x);
                 FAST_REQUIRE_EQ(res.gt, ta::generic_dt::POINT);
                 FAST_CHECK_EQ(res.p.size(), 0);
             }

@@ -154,7 +154,7 @@ TEST_CASE("cell_builder_test::test_io_performance") {
 	TS_ASSERT_DIFFERS(disc.size(), 0u);
 	TS_ASSERT_EQUALS(rad.size(), 1u);
 	auto dt = shyft::core::utctime_now() - t0;
-	TS_ASSERT_LESS_THAN(dt, 10);
+	TS_ASSERT_LESS_THAN(dt, shyft::core::seconds(10));
 }
 
 template<class ts_t>
@@ -397,7 +397,7 @@ TEST_CASE("cell_builder_test::test_read_and_run_region_model") {
         c.geo.routing.distance = hydro_distance;// all set to 1000 meter
     }
     double n_timesteps_delay = 7.0;// make the uhg approx 7 time steps long (3hourx 7 ~ 21 hours)
-    rm.get_region_parameter().routing.velocity = hydro_distance / dt/ n_timesteps_delay;
+    rm.get_region_parameter().routing.velocity = hydro_distance / ec::to_seconds(dt)/ n_timesteps_delay;
 
     // now we can pull out the routed flow (delayed and smoothed)
     auto routed_flow = rm.river_output_flow_m3s(common_river_id);

@@ -24,13 +24,13 @@ namespace core {
 	* Also considered: moving to std::chrono, would enable a strict time arithmetic regime, of little advantage in this
 	* context, and at the cost of compile time (also consider the python/api part).
     */
-using clock = std::chrono::steady_clock;
+using utc_clock = std::chrono::steady_clock;
 using utctimespan = std::chrono::microseconds;
 using seconds = std::chrono::seconds;
 using deltahours = std::chrono::hours;
 using deltaminutes = std::chrono::minutes;
 
-using utctime = std::chrono::time_point<clock,utctimespan>;// clock::time_point<chrono::milliseconds>;
+using utctime = std::chrono::time_point<utc_clock,utctimespan>;// clock::time_point<chrono::milliseconds>;
 const utctime max_utctime	= utctime::max();	/// max 64bit int
 const utctime min_utctime	= utctime(- utctime::min().time_since_epoch());  /// min 64bit int
 const utctime no_utctime = utctime::min();
@@ -38,7 +38,7 @@ const utctime no_utctime = utctime::min();
 /** \brief current utctime
  *  \return current systemclock utctime
  */
-inline utctime utctime_now() {return std::chrono::time_point_cast<utctimespan>(clock::now()); }
+inline utctime utctime_now() {return std::chrono::time_point_cast<utctimespan>(utc_clock::now()); }
 
 inline bool is_valid(utctime t) {return t != no_utctime;}
 
@@ -58,6 +58,8 @@ inline utctime floor(utctime t, utctimespan dt) noexcept {
 	auto r = lldiv(num, den);
 	return utctime(utctimespan(r.rem ? den*(r.quot - 1) : den*r.quot));
 }
+
+inline double to_seconds(const utctimespan &dt) { return double(dt.count()) / std::chrono::duration_cast<utctimespan>(std::chrono::seconds(1)).count(); }
 
 /** \brief utcperiod is defined
  *  as period on the utctime space, like
@@ -303,11 +305,11 @@ struct calendar {
 	static const long long UnixSecond;///<Calc::julian_day_number(ymd(1970,01,01));
 
 	// Snapped from boost gregorian_calendar.ipp
-	static inline unsigned long day_number(const YMDhms& ymd);
+	static unsigned long day_number(const YMDhms& ymd);
 
-	static inline YMDhms from_day_number(unsigned long dayNumber);
-	static int inline day_number(utctime t);
-	static inline utctimespan hms_seconds(int h, int m, int s);
+	static  YMDhms from_day_number(unsigned long dayNumber);
+	static int  day_number(utctime t);
+	static  utctimespan hms_seconds(int h, int m, int s);
 
 	time_zone::tz_info_t_ tz_info;
 	/**\brief returns tz_info (helper for boost python really) */
@@ -465,6 +467,48 @@ namespace time_zone {
 }
 }
 //-- serialization support: expose class keys
+namespace boost {
+namespace archive {
+namespace sc = shyft::core;
+
+template<class Archive>
+void load(Archive& ar, sc::utctime& tp, unsigned) {
+	sc::utctimespan::rep dt;
+	ar & dt;
+	tp = sc::utctime(sc::utctimespan(dt));
+}
+
+template<class Archive>
+void save(Archive& ar, sc::utctime const& tp, unsigned) {
+	sc::utctimespan::rep dt=std::chrono::duration_cast<sc::utctimespan>(tp.time_since_epoch()).count();
+	ar & dt;
+}
+
+template<class Archive>
+inline void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
+	boost::serialization::split_free(ar, tp, version);
+}
+
+template<class Archive>
+void load(Archive& ar, sc::utctimespan& tp, unsigned) {
+	sc::utctimespan::rep dt;// = tp.count();
+	ar & dt;
+	tp = sc::utctimespan(dt);
+}
+
+template<class Archive>
+void save(Archive& ar, sc::utctimespan const& tp, unsigned) {
+	sc::utctimespan::rep dt = tp.count();
+	ar & dt;
+}
+
+template<class Archive>
+inline void serialize(Archive & ar, sc::utctimespan& tp, unsigned version) {
+	boost::serialization::split_free(ar, tp, version);
+}
+
+}
+}
 x_serialize_export_key(shyft::core::utcperiod);
 x_serialize_export_key(shyft::core::time_zone::tz_info_t);
 x_serialize_export_key(shyft::core::time_zone::tz_table);

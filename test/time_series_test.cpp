@@ -78,7 +78,7 @@ class ts_source {
     utctimespan dt;
     size_t n;
 public:
-    ts_source(utctime start = no_utctime, utctimespan dt = 0, size_t n = 0) : start(start), dt(dt), n(n) {}
+	ts_source(utctime start = no_utctime, utctimespan dt = utctimespan{ 0 }, size_t n = 0) : start(start), dt(dt), n(n) {}
     utcperiod total_period() const { return utcperiod(start, start + n*dt); }
     size_t size() const { return n; }
     utctimespan delta() const { return dt; }
@@ -316,8 +316,8 @@ TEST_SUITE("time_series") {
     TEST_CASE("test_point_timeaxis") {
         time_axis::point_dt ts0; //zero points
         TS_ASSERT_EQUALS(ts0.size(),0u);
-        TS_ASSERT_EQUALS(ts0.index_of(12),std::string::npos);
-        vector<utctime> t2= {3600*1}; //just one point
+		TS_ASSERT_EQUALS(ts0.index_of(utctime{ seconds(12) }), std::string::npos);
+		vector<utctime> t2 = { utctime{deltahours(1)} }; //just one point
         try {
             time_axis::point_dt ts1(t2);
             TS_ASSERT(false);
@@ -326,16 +326,17 @@ TEST_SUITE("time_series") {
         } catch (const exception & ) {
 
         }
-        vector<utctime> t= {3600*1,3600*2,3600*3};
+		utctime t0{ seconds(0) }; utctimespan dt=deltahours(1);
+        vector<utctime> t= {t0+1*dt,t0+2*dt,t0+3*dt};
         time_axis::point_dt tx(t);
         TS_ASSERT_EQUALS(tx.size(),2u);// number of periods, - two .. (unless we redefined the last to be last point .. +oo)
         TS_ASSERT_EQUALS(tx.period(0),utcperiod(t[0],t[1]));
         TS_ASSERT_EQUALS(tx.period(1),utcperiod(t[1],t[2]));
-        TS_ASSERT_EQUALS(tx.index_of(-3600),std::string::npos);//(1),utcperiod(t[1],t[2]);
+        TS_ASSERT_EQUALS(tx.index_of(t0-dt),std::string::npos);//(1),utcperiod(t[1],t[2]);
         TS_ASSERT_EQUALS(tx.index_of(t[0]),0u);
-        TS_ASSERT_EQUALS(tx.index_of(t[1]-1),0u);
-        TS_ASSERT_EQUALS(tx.index_of(t[2]+1),std::string::npos);
-        TS_ASSERT_EQUALS(tx.open_range_index_of(t[2]+1),1u);
+        TS_ASSERT_EQUALS(tx.index_of(t[1]-seconds(1)),0u);
+        TS_ASSERT_EQUALS(tx.index_of(t[2]+ seconds(1)),std::string::npos);
+        TS_ASSERT_EQUALS(tx.open_range_index_of(t[2]+ seconds(1)),1u);
 
 
     }
@@ -354,7 +355,7 @@ TEST_SUITE("time_series") {
         }
         TS_ASSERT_EQUALS(tx.open_range_index_of(t0+(n+1)*dt),n-1);
         TS_ASSERT_EQUALS(tx.index_of(t0+(n+1)*dt),string::npos);
-        TS_ASSERT_EQUALS(tx.index_of(t0-1),string::npos);
+        TS_ASSERT_EQUALS(tx.index_of(t0- seconds(1)),string::npos);
 
     }
 
@@ -518,7 +519,7 @@ TEST_SUITE("time_series") {
         vector<point> points_0;
         vector<point> points_10;
         for(utctime t=t0; t<10*dt+t0; t+=dt)
-            points_10.push_back(point(t,double(t-t0)/dt) );
+            points_10.push_back(point(t,to_seconds(t-t0)/to_seconds(dt)) );
 
         // other corner cases and behaviour testing for the ix
         utcperiod full_period(t0,t0+3*dt);
@@ -611,7 +612,7 @@ TEST_SUITE("time_series") {
         vector<point> points_0;
         vector<point> points_10;
         for (utctime t = t0; t < 10 * dt + t0; t += dt)
-            points_10.push_back(point(t, double(t - t0) / dt));
+            points_10.push_back(point(t, to_seconds(t - t0) /to_seconds( dt) ));
 
         // other corner cases and behaviour testing for the ix
         utcperiod full_period(t0, t0 + 3 * dt);
@@ -675,14 +676,15 @@ TEST_SUITE("time_series") {
             time_series::accumulate_accessor<decltype(ts),decltype(ta)> a_default(ts,ta);
             time_series::accumulate_accessor<decltype(ts),decltype(ta)> a_nan(ts,ta,extension_policy::USE_NAN);
             time_series::accumulate_accessor<decltype(ts),decltype(ta)> a_0(ts,ta,extension_policy::USE_ZERO);
-            CHECK(a_default.value(ta.size()-1)==doctest::Approx(deltahours(1)*(1.0+2.0+2.5+2.5)));
-            CHECK(a_0.value(ta.size()-1)==doctest::Approx(deltahours(1)*(1.0+2.0+2.5)));
+            CHECK(a_default.value(ta.size()-1)==doctest::Approx(to_seconds(deltahours(1))*(1.0+2.0+2.5+2.5)));
+            CHECK(a_0.value(ta.size()-1)==doctest::Approx(to_seconds(deltahours(1))*(1.0+2.0+2.5)));
             CHECK(!std::isfinite(a_nan.value(ta.size()-1)));
         }
     }
 
     TEST_CASE("test_point_timeseries_with_point_timeaxis") {
-        vector<utctime> times= {3600*1,3600*2,3600*3,3600*4};
+		utctime t0{ seconds(0) };
+        vector<utctime> times= {t0 + deltahours(1),t0 + deltahours(2),t0 + deltahours(3),t0 + deltahours(4)};
         vector<double> points= {1.0,2.0,3.0};
         point_ts<time_axis::point_dt> ps(time_axis::point_dt(times),points);
         TS_ASSERT_EQUALS(ps.size(),3u);
@@ -695,8 +697,8 @@ TEST_SUITE("time_series") {
         using namespace shyfttest::mock;
         const size_t n = 10;
         vector<utctime> ta_times(n);
-        const utctime T0 = 0;
-        const utctime T1 = 100;
+		const utctime T0{ seconds(0) };
+		const utctime T1{ seconds(100) };
         for (size_t i = 0; i < n; ++i)
             ta_times[i] = T0 + (T1 - T0)*i/(n - 1);
         time_axis::point_dt time_axis(ta_times);
@@ -777,7 +779,7 @@ TEST_SUITE("time_series") {
         {
             typedef time_axis::calendar_dt_p ta_t;
             typedef point_ts<ta_t> ts_t;
-            vector<utcperiod> sub_periods({utcperiod(deltaminutes(10),deltaminutes(20))});
+			vector<utcperiod> sub_periods({ utcperiod(utctime{deltaminutes(10)},utctime{deltaminutes(20)}) });
             ta_t ta(make_shared<calendar>(),start,dt,n,sub_periods);
             auto  a = make_shared<ts_t>(ta,a_value);
             ts_t b(ta,b_value); // test by-value as well as shared_ptr<TS>
@@ -848,8 +850,9 @@ TEST_SUITE("time_series") {
     }
 	TEST_CASE("test_api_ts_stair_nan_after_end") {
 		using namespace shyft::api;
-		apoint_ts ts{ gta_t{0, 1, 3}, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
-		auto a = ts.average(gta_t{ 0,1,4 });
+		utctime t0{ seconds(0) };
+		apoint_ts ts{ gta_t{t0, seconds(1), 3}, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
+		auto a = ts.average(gta_t{ t0,seconds(1),4 });
 		auto av = a.values();
 		for (size_t i = 0; i < a.size() - 1; ++i) {
 			FAST_CHECK_EQ(a.value(i) , doctest::Approx(1.0));
@@ -867,16 +870,17 @@ TEST_SUITE("time_series") {
 		auto av = a.values();
 		for (size_t i = 0; i < a.size(); ++i) {
             FAST_CHECK_EQ(a.value(i),av[i]);
-			FAST_CHECK_EQ(av[i], doctest::Approx(deltahours(3)));
+			FAST_CHECK_EQ(av[i], doctest::Approx(to_seconds(deltahours(3))));
 		}
 	}
 
 	TEST_CASE("extend_calendar_and_fixed_dt") {
 		using namespace shyft::api;
 		auto utc = make_shared<calendar>();
-		apoint_ts a{ gta_t{ 0, 1, 3 }, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
-		apoint_ts b{ gta_t{ utc,0, 1, 10 }, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
-		auto c = a.extend(b, extend_ts_split_policy::EPS_LHS_LAST,extend_ts_fill_policy::EPF_LAST,0L,0.0);
+		utctime t0;
+		apoint_ts a{ gta_t{ t0, seconds(1), 3 }, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
+		apoint_ts b{ gta_t{ utc,t0, seconds(1), 10 }, 1.0, shyft::time_series::POINT_AVERAGE_VALUE };
+		auto c = a.extend(b, extend_ts_split_policy::EPS_LHS_LAST, extend_ts_fill_policy::EPF_LAST, utctime{}, 0.0);
 		FAST_CHECK_EQ(c.time_axis().size(), 10);
 
 	}
@@ -1258,14 +1262,15 @@ TEST_SUITE("time_series") {
             utctime t0;
             std::array<double, 8> profile;
 
-            int map_index(utctime t) const {
-                t -= t0;
-                if (t < 0 || period < t) {
-                    t = fmod(t, period);
+            int map_index(utctime tt) const {
+				double t = to_seconds(tt.time_since_epoch());
+                t -= to_seconds(t0.time_since_epoch());
+                if (t < 0 || to_seconds(period) < t) {
+                    t = fmod(t, to_seconds(period));
                     if (t < 0)
-                        t += period;
+                        t += to_seconds(period);
                 }
-                return round(double(t) / double(dt));
+                return round(double(t) / double(to_seconds(dt)));
             }
 
             double operator() (utctime t) const {
@@ -1286,9 +1291,9 @@ TEST_SUITE("time_series") {
 
         // Test stair and folding
         TS_ASSERT_DELTA(fun(t0 - dt), profile[7], 1e-9);
-        TS_ASSERT_DELTA(fun(t0 + dt/2 - 1), profile[0], 1e-9);
+        TS_ASSERT_DELTA(fun(t0 + dt/2 - seconds(1)), profile[0], 1e-9);
         TS_ASSERT_DELTA(fun(t0 + dt/2), profile[1], 1e-9);
-        TS_ASSERT_DELTA(fun(t0 - dt/2 - 1), profile[7], 1e-9);
+        TS_ASSERT_DELTA(fun(t0 - dt/2 - seconds(1)), profile[7], 1e-9);
         TS_ASSERT_DELTA(fun(t0 - dt/2), profile[0], 1e-9);
     }
 
@@ -1369,13 +1374,13 @@ TEST_SUITE("time_series") {
         utctimespan tsum;
         size_t last_ix = 0;
         auto y1 = accumulate_value(a, ta.period(0), last_ix, tsum, true);
-        TS_ASSERT_DELTA(0.5*deltahours(1), y1, 0.0001);
+        TS_ASSERT_DELTA(0.5*to_seconds(deltahours(1)), y1, 0.0001);
         TS_ASSERT_EQUALS(tsum, deltahours(1));
         auto y2 = accumulate_value(a, utcperiod(ta.time(0), ta.time(2)), last_ix, tsum, true);
-        TS_ASSERT_DELTA(1.0*deltahours(2), y2, 0.0001);
+        TS_ASSERT_DELTA(1.0*to_seconds(deltahours(2)), y2, 0.0001);
         TS_ASSERT_EQUALS(tsum, deltahours(2));
         auto y3 = accumulate_value(a, utcperiod(ta.time(0), ta.time(6)), last_ix, tsum, true,false);// last part of accumulation is nan, so 4 flattens out
-        TS_ASSERT_DELTA(2.0*deltahours(4)+4.0*deltahours(1), y3, 0.0001);
+        TS_ASSERT_DELTA(2.0*to_seconds(deltahours(4))+4.0*to_seconds(deltahours(1)), y3, 0.0001);
         // besides, since average_value and friends uses accumulate_value, this function is pretty well tested from those tests.
     }
 
@@ -1395,12 +1400,12 @@ TEST_SUITE("time_series") {
         TS_ASSERT_DELTA(0.0, aa.value(0), 0.001);
         TS_ASSERT_DELTA(0.0, ats.value(0), 0.001);
         // simple test at ix=1:
-        TS_ASSERT_DELTA(0.5*deltahours(1), aa.value(1), 0.001);
-        TS_ASSERT_DELTA(0.5*deltahours(1), ats.value(1), 0.001);
+        TS_ASSERT_DELTA(0.5*to_seconds(deltahours(1)), aa.value(1), 0.001);
+        TS_ASSERT_DELTA(0.5*to_seconds(deltahours(1)), ats.value(1), 0.001);
         // now the ts have some extra feature through it's f(t), operator()
-        TS_ASSERT_DELTA(0.25*deltaminutes(30), ats(t + deltaminutes(30)), 0.0001);
+        TS_ASSERT_DELTA(0.25*to_seconds(deltaminutes(30)), ats(t + deltaminutes(30)), 0.0001);
         // the accessor should be smart, trying to re-use prior computation, I verify the result here,
-        TS_ASSERT_DELTA(1.0*deltahours(2), aa.value(2), 0.0001);// and using step-debug to verify it's really doing the right thing
+        TS_ASSERT_DELTA(1.0*to_seconds(deltahours(2)), aa.value(2), 0.0001);// and using step-debug to verify it's really doing the right thing
     }
     TEST_CASE("core_average_ts") {
         calendar utc;

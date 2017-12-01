@@ -323,7 +323,7 @@ namespace shyft {
                 }
 
                 std::vector<double> cell_uhg(const C& c, utctimespan dt) const {
-                    double steps = (c.geo.routing.distance / c.parameter->routing.velocity)/dt;// time = distance / velocity[s] // dt[s]
+                    double steps = (c.geo.routing.distance / c.parameter->routing.velocity)/to_seconds(dt);// time = distance / velocity[s] // dt[s]
                     int n_steps = int(steps + 0.5);
                     return make_uhg_from_gamma(n_steps, c.parameter->routing.alpha, c.parameter->routing.beta);//std::vector<double>{0.1,0.5,0.2,0.1,0.05,0.030,0.020};
                 }

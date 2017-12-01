@@ -383,7 +383,8 @@ namespace shyft {
 				struct scale_computer {
 					static  bool is_source_based() { return false; }
 					explicit scale_computer(const P&) {}
-					void add(const S &, utctime) {}
+					template<class idx_t>
+					void add(const S &, idx_t) {}
 					double compute() const { return 1.0; }
 					void clear() {}
 				};
@@ -410,7 +411,8 @@ namespace shyft {
 
 					double precipitation_gradient;
 					explicit scale_computer(const P& p) : precipitation_gradient(p.precipitation_scale_factor()) {}
-					void add(const S &, utctime) {}
+					template<class idx_tt>
+					void add(const S &, idx_tt) {}
 					double compute() const { return precipitation_gradient; }
 					void clear() {}
 				};
@@ -433,7 +435,8 @@ namespace shyft {
 				struct scale_computer {
 					static bool is_source_based() { return false; }
 					explicit scale_computer(const P&) {}
-					void add(const S &, utctime) {}
+					template<class idx_t>
+					void add(const S &, idx_t) {}
 					double compute() const { return 1.0; }
 					void clear() {}
 				};
@@ -454,7 +457,8 @@ namespace shyft {
 				struct scale_computer {
 					static  bool is_source_based() { return false; }
 					explicit scale_computer(const P&) {}
-					void add(const S &, utctime) {}
+					template<class idx_t>
+					void add(const S &, idx_t) {}
 					double compute() const { return 1.0; }
 					void clear() {}
 				};

@@ -11,7 +11,7 @@
 namespace shyft {
     namespace qm {
         using namespace std;
-
+		using shyft::core::to_seconds;
         /**\brief quantile_index generates a pr. time-step index for order by value
         * \tparam tsa_t time-series accessor type that fits to tsv_t::value_type and ta_t, thread-safe fast access to the value aspect
         *               of the time-series for each period in the specified time-axis
@@ -312,7 +312,7 @@ namespace shyft {
                             interpolation_period.end == time_axis.time(t))) {
                         core::utctime start = interpolation_period.start;
                         core::utctime end = interpolation_period.end;
-                        double interp_weight = (static_cast<double>(time_axis.time(t) - start)/(end - start));
+                        double interp_weight = (static_cast<double>(to_seconds(time_axis.time(t) - start))/to_seconds(end - start));
                         for (size_t i = 0; i < num_pri_cases; ++i)
                             output[pri_idx_v[t][i]].set(t,(1.0 - interp_weight)*quantile_vals[i] + interp_weight*pri_accessor_vec[pri_idx_v[t][i]].value(t));
                     } else {

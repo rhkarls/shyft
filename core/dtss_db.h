@@ -309,7 +309,7 @@ public:
 		ts_info i;
 		i.name = fn;
 		i.point_fx = h.point_fx;
-		i.modified = utctime(fs::last_write_time(ffp));
+		i.modified = utctime(std::chrono::seconds(fs::last_write_time(ffp)));
 		i.data_period = h.data_period;
 		// consider time-axis type info, dt.. as well
 		return i;
@@ -703,7 +703,7 @@ private:
 			switch (old_header.ta_type) {
 			case time_axis::generic_dt::FIXED:
 			{
-				if (old_ta.f.dt != ats.ta.f.dt || (old_ta.f.t - ats.ta.f.t) % old_ta.f.dt != 0) {
+				if (old_ta.f.dt != ats.ta.f.dt || (old_ta.f.t - ats.ta.f.t) % old_ta.f.dt != utctimespan{ 0 }) {
 					throw std::runtime_error("dtss_store: cannot merge unaligned fixed_dt");
 				}
 			} break;
@@ -712,7 +712,7 @@ private:
 				if (ats.ta.c.cal->tz_info->tz.tz_name == old_ta.c.cal->tz_info->tz.tz_name) {
 					core::utctimespan remainder;
 					ats.ta.c.cal->diff_units(old_ta.c.t, ats.ta.c.t, old_ta.c.dt, remainder);
-					if (old_ta.c.dt != ats.ta.c.dt || remainder != 0) {
+					if (old_ta.c.dt != ats.ta.c.dt || remainder != utctimespan{ 0 }) {
 						throw std::runtime_error("dtss_store: cannot merge unaligned calendar_dt");
 					}
 				} else {
@@ -825,8 +825,8 @@ private:
 				read(fh, static_cast<void *>(&ta.p.t_end), sizeof(core::utctime));
 				read(fh, static_cast<void *>(ta.p.t.data()), sizeof(core::utctime)*h.n);
 			} else {
-				core::utctime f_time = 0;
-				std::vector<core::utctime> tmp(h.n, 0.);
+				core::utctime f_time{ deltahours(0)};
+				std::vector<core::utctime> tmp(h.n, f_time);
 				read(fh, static_cast<void *>(&f_time), sizeof(core::utctime));
 				read(fh, static_cast<void *>(tmp.data()), sizeof(core::utctime)*h.n);
 				// -----

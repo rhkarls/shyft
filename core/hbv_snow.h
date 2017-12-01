@@ -225,7 +225,7 @@ namespace shyft {
                     double snow,rain;
                     if( temp < p.tx ) {snow=prec;rain= 0.0;}
                     else              {snow= 0.0;rain=prec;}
-                    double step_in_days = (t1 - t0)/86400.0;
+                    double step_in_days = to_seconds(t1 - t0)/86400.0;
                     swe += snow + sca*rain;
                     if (swe < 0.1) {
                         r.outflow = total_water;

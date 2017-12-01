@@ -120,8 +120,8 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
             while(!s_finite) {
                 ++s;
                 if(s+1>=n) {// we are out of points searching for non-nan
-                    if(t_sum)
-                        r[i] = avg? area/t_sum: area;
+                    if(t_sum.count())
+                        r[i] = avg? area/to_seconds(t_sum): area;
                     return r;//-> we are completely done
                 }
                 s_p=ts.get(s); // we need only value here.. could optimize
@@ -130,8 +130,8 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
             // ok! here we got one finite point, possibly with one more after
 
         if(s_p.t >= p.end) { // are we out of this interval? skip to next ta.period
-            if(t_sum)
-                r[i] = avg? area/t_sum: area;// stash this result if any
+            if(t_sum.count())
+                r[i] = avg? area/to_seconds(t_sum): area;// stash this result if any
             continue;
         }
 
@@ -140,8 +140,8 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
         advance_e_point: // we loop into this point at the end of compute partition below
                 e= s+1;// get next point from s
                 if(e==n) {// we are at the end, and left-value of s is nan
-                    if(t_sum)
-                        r[i] = avg? area/t_sum: area;//stash result if any
+                    if(t_sum.count())
+                        r[i] = avg? area/to_seconds(t_sum): area;//stash result if any
                     return r;// -> we are completely done
                 }
                 e_p = ts.get(e);
@@ -149,8 +149,8 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
                 if(e_finite) {// yahoo! two points, we can then..
                     // compute equation for the line f(t) = a*t + b
                     // given points s_p and e_p
-                    a = (e_p.v - s_p.v)/double(e_p.t - s_p.t);
-                    b = s_p.v - a*double(s_p.t);
+                    a = (e_p.v - s_p.v)/double((e_p.t - s_p.t).count());
+                    b = s_p.v - a*double(s_p.t.time_since_epoch().count());
                 } else {
                     s=e;// got nan, restart search s_finite
                     s_finite=false;//
@@ -163,10 +163,10 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
             auto e_t = min(e_p.t,p.end); // recall that the points can be anywhere
             // then compute non-nan area and non-nan t_sum
             utctimespan dt{e_t-s_t};
-            area +=  (a*(s_t + e_t)*0.5 + b)*dt;// avg.value * dt
+            area +=  (a*(s_t.time_since_epoch().count() + e_t.time_since_epoch().count())*0.5 + b)*dt.count();// avg.value * dt
             t_sum += dt;
             if(e_p.t >= p.end) { // are we done in this time-step ?
-                r[i] = avg? area/t_sum: area;// stash result
+                r[i] = avg? area/to_seconds(t_sum): area;// stash result
                 continue; // using same s, as it could extend into next p
             }
             // else advance start to next point, that is; the current end-point
@@ -208,8 +208,8 @@ vector<double> accumulate_stair_case(const TA&ta, const TS& ts, bool avg) {
             while(!s_finite) {
                 ++s;
                 if(s>=n) {// we are out of points searching for non-nan
-                    if(t_sum)
-                        r[i] = avg? area/t_sum: area;
+                    if(t_sum.count())
+                        r[i] = avg? area/to_seconds(t_sum): area;
                     return r;//-> we are completely done
                 }
                 s_p=ts.get(s); // we need only value here.. could optimize
@@ -218,8 +218,8 @@ vector<double> accumulate_stair_case(const TA&ta, const TS& ts, bool avg) {
             // ok! here we got one finite point, possibly with one more after
 
         if(s_p.t >= p.end) { // are we out of this interval? skip to next ta.period
-            if(t_sum)
-                r[i] = avg? area/t_sum: area;// stash this result if any
+            if(t_sum.count())
+                r[i] = avg? area/to_seconds(t_sum): area;// stash this result if any
             continue;
         }
         //---- find end-point of a partition
@@ -235,14 +235,14 @@ vector<double> accumulate_stair_case(const TA&ta, const TS& ts, bool avg) {
         auto s_t = max(s_p.t,p.start);// clip to interval p
         auto e_t = min(e_p.t,p.end); // recall that the points can be anywhere
         utctimespan dt{e_t-s_t};
-        area +=  s_p.v*dt;
+        area +=  s_p.v*to_seconds(dt);
         t_sum += dt;
         if ( e_p.t <= p.end && s+1 <n) {// should&can we advance s
             s_p=e_p;
             s_finite=e_finite;
             ++s;
             if(e_p.t == p.end) {
-                r[i] = avg? area/t_sum: area;// stash result
+                r[i] = avg? area/to_seconds(t_sum): area;// stash result
                 continue;// skip to next interval
             }
             if(s_finite)
@@ -251,7 +251,7 @@ vector<double> accumulate_stair_case(const TA&ta, const TS& ts, bool avg) {
                 goto search_s_finite;
         }
         // keep s, next interval.
-        r[i] = avg? area/t_sum: area;// stash result
+        r[i] = avg? area/to_seconds(t_sum): area;// stash result
 
         if(s+1>=n && p.end >= tp.end)
            return r;// finito
@@ -268,7 +268,7 @@ vector<double> old_accumulate_linear(const TA&ta, const TS& ts, bool avg) {
     if(avg) {
         for(size_t i=0;i<ta.size();++i) {
             double v = accumulate_value(ts,ta.period(i),ix_hint,t_sum,true,true);
-            r.emplace_back(t_sum?v/double(t_sum):shyft::nan);
+            r.emplace_back(t_sum.count()?v/to_seconds(t_sum):shyft::nan);
         }
     } else {
         for(size_t i=0;i<ta.size();++i) {
@@ -290,7 +290,7 @@ vector<double> old_accumulate_stair_case(const TA&ta, const TS& ts, bool avg) {
 			if (p.end > tp.end) p.end = tp.end;
 			if (p.start < tp.end) {
 				double v = accumulate_value(ts, p, ix_hint, t_sum, false, false);
-				r.emplace_back(t_sum ? v / double(t_sum) : shyft::nan);
+				r.emplace_back(t_sum.count() ? v / to_seconds(t_sum) : shyft::nan);
 			}  else
 				r.emplace_back(shyft::nan);
             ;
@@ -320,7 +320,8 @@ using namespace std;
 template<class F>
 void test_linear_fx(F&& acc_fn) {
     utctimespan dt{deltahours(1)};
-    fixed_dt ta{0,dt,6};
+	utctime t0x{ deltahours(0) };
+    fixed_dt ta{t0x,dt,6};
     ts_point_fx linear{POINT_INSTANT_VALUE};
     point_ts<decltype(ta)> ts{ta,vector<double>{1.0,2.0,shyft::nan,4.0,3.0,6.0},linear};
 	TEST_SECTION("own_axis_average") {
@@ -336,26 +337,26 @@ void test_linear_fx(F&& acc_fn) {
 	TEST_SECTION("own_axis_integral") {
         auto r = acc_fn(ta,ts,false);
         FAST_REQUIRE_EQ(r.size(),ta.size());
-        CHECK(r[0]==doctest::Approx(1.5*dt));
+        CHECK(r[0]==doctest::Approx(1.5*to_seconds(dt)));
         FAST_CHECK_UNARY(!isfinite(r[1]));
         FAST_CHECK_UNARY(!isfinite(r[2]));
-        CHECK(r[3]==doctest::Approx(3.5*dt));
-        CHECK(r[4]==doctest::Approx(4.5*dt));
+        CHECK(r[3]==doctest::Approx(3.5*to_seconds(dt)));
+        CHECK(r[4]==doctest::Approx(4.5*to_seconds(dt)));
         FAST_CHECK_UNARY(!isfinite(r[5]));
     }
 	TEST_SECTION("zero_axis") {
-        fixed_dt zta{0,dt,0};
+        fixed_dt zta{t0x,dt,0};
         auto r=acc_fn(zta,ts,true);
         FAST_CHECK_EQ(r.size(),0);
     }
 	TEST_SECTION("zero_ts") {
-        point_ts<decltype(ta)> zts(fixed_dt{0,dt,0},1.0,linear);
+        point_ts<decltype(ta)> zts(fixed_dt{t0x,dt,0},1.0,linear);
         auto r=acc_fn(ta,zts,true);
         FAST_CHECK_EQ(r.size(),ta.size());
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
     }
 	TEST_SECTION("axis_before") {
-        fixed_dt bta{-10000,dt,1};
+		fixed_dt bta{ utctime{seconds(-10000)},dt,1 };
         auto r=acc_fn(bta,ts,true);
         FAST_CHECK_EQ(r.size(),bta.size());
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
@@ -367,7 +368,7 @@ void test_linear_fx(F&& acc_fn) {
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
     }
 	TEST_SECTION("aligned_x2_axis") {
-        fixed_dt ta2(0,2*dt,ta.size()/2);
+        fixed_dt ta2(t0x,2*dt,ta.size()/2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.5));
@@ -375,7 +376,7 @@ void test_linear_fx(F&& acc_fn) {
         CHECK(r[2]==doctest::Approx(4.5));
     }
 	TEST_SECTION("aligned_/2_axis") {
-        fixed_dt ta2(0,dt/2,ta.size()*2-2);
+        fixed_dt ta2(t0x,dt/2,ta.size()*2-2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.25));
@@ -390,13 +391,13 @@ void test_linear_fx(F&& acc_fn) {
         CHECK(r[9]==doctest::Approx(0.5*(4.5+6.0)));
     }
 	TEST_SECTION("aligned_one_interval") {
-        fixed_dt ta2 {0,ta.total_period().timespan(),1};
+        fixed_dt ta2 {t0x,ta.total_period().timespan(),1};
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx((1.5+3.5+4.5)/3.0));
     }
 	TEST_SECTION("un_aligned_/2_axis_begins_in_interval") {
-        fixed_dt ta2(+dt/4,dt/2,ta.size()*2);
+		fixed_dt ta2(utctime{ +dt / 4 }, dt / 2, ta.size() * 2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.500));
@@ -413,7 +414,7 @@ void test_linear_fx(F&& acc_fn) {
         FAST_CHECK_UNARY(!isfinite(r[11]));
     }
 	TEST_SECTION("un_aligned_/2_axis_begins_before_interval") {
-        fixed_dt ta2(-dt/4,dt/2,ta.size()*2-2);
+		fixed_dt ta2(utctime{ -dt / 4 }, dt / 2, ta.size() * 2 - 2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.125));
@@ -428,24 +429,24 @@ void test_linear_fx(F&& acc_fn) {
         CHECK(r[9]==doctest::Approx(4.500));
     }
 	TEST_SECTION("out_of_points_searching_for_start") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,5},vector<double>{shyft::nan,1.0,1.0,shyft::nan,shyft::nan},linear);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,5},vector<double>{shyft::nan,1.0,1.0,shyft::nan,shyft::nan},linear);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.0));
         FAST_CHECK_UNARY(!isfinite(r[1]));
     }
 	TEST_SECTION("just_nans") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,5},vector<double>{shyft::nan,shyft::nan,shyft::nan,shyft::nan,shyft::nan},linear);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,5},vector<double>{shyft::nan,shyft::nan,shyft::nan,shyft::nan,shyft::nan},linear);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         FAST_CHECK_UNARY(!isfinite(r[0]));
         FAST_CHECK_UNARY(!isfinite(r[1]));
     }
 	TEST_SECTION("just_one_value_in_source") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,1},vector<double>{1.0},linear);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,1},vector<double>{1.0},linear);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         FAST_CHECK_UNARY(!isfinite(r[0]));
@@ -459,7 +460,8 @@ void test_linear_fx(F&& acc_fn) {
 template<class F>
 void test_stair_case_fx(F&& acc_fn) {
     utctimespan dt{deltahours(1)};
-    fixed_dt ta{0,dt,6};
+	utctime t0x{ seconds(0) };
+    fixed_dt ta{t0x,dt,6};
     ts_point_fx stair_case{POINT_AVERAGE_VALUE};
     point_ts<decltype(ta)> ts{ta,vector<double>{1.0,2.0,shyft::nan,4.0,3.0,6.0},stair_case};
 	TEST_SECTION("own_axis_average") {
@@ -475,42 +477,42 @@ void test_stair_case_fx(F&& acc_fn) {
 	TEST_SECTION("own_axis_integral") {
         auto r = acc_fn(ta,ts,false);
         FAST_REQUIRE_EQ(r.size(),ta.size());
-        CHECK(r[0]==doctest::Approx(1.0*dt));
-        CHECK(r[1]==doctest::Approx(2.0*dt));
+        CHECK(r[0]==doctest::Approx(1.0*to_seconds(dt)));
+        CHECK(r[1]==doctest::Approx(2.0*to_seconds(dt)));
         FAST_CHECK_UNARY(!isfinite(r[2]));
-        CHECK(r[3]==doctest::Approx(4.0*dt));
-        CHECK(r[4]==doctest::Approx(3.0*dt));
-        CHECK(r[5]==doctest::Approx(6.0*dt));
+        CHECK(r[3]==doctest::Approx(4.0*to_seconds(dt)));
+        CHECK(r[4]==doctest::Approx(3.0*to_seconds(dt)));
+        CHECK(r[5]==doctest::Approx(6.0*to_seconds(dt)));
     }
 	TEST_SECTION("zero_axis") {
-        fixed_dt zta{0,dt,0};
+        fixed_dt zta{t0x,dt,0};
         auto r= acc_fn(zta,ts,true);
         FAST_CHECK_EQ(r.size(),0);
     }
 	TEST_SECTION("zero_ts") {
-        point_ts<decltype(ta)> zts(fixed_dt{0,dt,0},1.0,stair_case);
+        point_ts<decltype(ta)> zts(fixed_dt{t0x,dt,0},1.0,stair_case);
         auto r= acc_fn(ta,zts,true);
         FAST_CHECK_EQ(r.size(),ta.size());
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
     }
 	TEST_SECTION("one_point_ts") {
-        point_ts<decltype(ta)> zts(fixed_dt{0,dt,1},1.0,stair_case);
+        point_ts<decltype(ta)> zts(fixed_dt{t0x,dt,1},1.0,stair_case);
         auto r= acc_fn(ta,zts,true);
         FAST_CHECK_EQ(r.size(),ta.size());
         CHECK(r[0]==doctest::Approx(1.0));
         for(size_t i=1;i<r.size();++i) FAST_CHECK_UNARY(!isfinite(r[i]));
     }
 	TEST_SECTION("last_interval_handling") {
-        point_ts<decltype(ta)> ots(fixed_dt{0,dt*(utctimespan)ta.size(),1},1.0,stair_case);
+        point_ts<decltype(ta)> ots(fixed_dt{t0x,dt*ta.size(),1},1.0,stair_case);
         auto r=acc_fn(ta,ots,false);
         FAST_CHECK_EQ(r.size(),ta.size());
         for(size_t i=0;i<ta.size();++i) {
-            FAST_CHECK_EQ(r[i],doctest::Approx(dt));
+            FAST_CHECK_EQ(r[i],doctest::Approx(to_seconds(dt)));
         }
         
     }
 	TEST_SECTION("axis_before") {
-        fixed_dt bta{-10000,dt,1};
+		fixed_dt bta{ utctime{seconds(-10000)},dt,1 };
         auto r= acc_fn(bta,ts,true);
         FAST_CHECK_EQ(r.size(),bta.size());
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
@@ -522,7 +524,7 @@ void test_stair_case_fx(F&& acc_fn) {
         for(const auto&v:r) FAST_CHECK_UNARY(!isfinite(v));
     }
 	TEST_SECTION("aligned_x2_axis") {
-        fixed_dt ta2(0,2*dt,ta.size()/2);
+        fixed_dt ta2(t0x,2*dt,ta.size()/2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.5));
@@ -530,7 +532,7 @@ void test_stair_case_fx(F&& acc_fn) {
         CHECK(r[2]==doctest::Approx(4.5));
     }
 	TEST_SECTION("aligned_/2_axis") {
-        fixed_dt ta2(0,dt/2,ta.size()*2-2);
+        fixed_dt ta2(t0x,dt/2,ta.size()*2-2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.00));
@@ -545,13 +547,13 @@ void test_stair_case_fx(F&& acc_fn) {
         CHECK(r[9]==doctest::Approx(3.00));
     }
 	TEST_SECTION("aligned_one_interval") {
-        fixed_dt ta2 {0,ta.total_period().timespan(),1};
+        fixed_dt ta2 {t0x,ta.total_period().timespan(),1};
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx((1+2+4+3+6)/5.0));
     }
 	TEST_SECTION("un_aligned_/2_axis_begins_in_interval") {
-        fixed_dt ta2(+dt/4,dt/2,ta.size()*2);
+		fixed_dt ta2(utctime{ +dt / 4 }, dt / 2, ta.size() * 2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.000));
@@ -570,7 +572,7 @@ void test_stair_case_fx(F&& acc_fn) {
         //FAST_CHECK_UNARY(!isfinite(r[11]));
     }
 	TEST_SECTION("un_aligned_/2_axis_begins_before_interval") {
-        fixed_dt ta2(-dt/4,dt/2,ta.size()*2-2);
+		fixed_dt ta2(utctime{ -dt / 4 }, dt / 2, ta.size() * 2 - 2);
         auto r = acc_fn(ta2,ts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.000));
@@ -585,24 +587,24 @@ void test_stair_case_fx(F&& acc_fn) {
         CHECK(r[9]==doctest::Approx(3.000));
     }
 	TEST_SECTION("out_of_points_searching_for_start") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,5},vector<double>{shyft::nan,1.0,1.0,shyft::nan,shyft::nan},stair_case);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,5},vector<double>{shyft::nan,1.0,1.0,shyft::nan,shyft::nan},stair_case);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.0));
         FAST_CHECK_UNARY(!isfinite(r[1]));
     }
 	TEST_SECTION("just_nans") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,5},vector<double>{shyft::nan,shyft::nan,shyft::nan,shyft::nan,shyft::nan},stair_case);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,5},vector<double>{shyft::nan,shyft::nan,shyft::nan,shyft::nan,shyft::nan},stair_case);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         FAST_CHECK_UNARY(!isfinite(r[0]));
         FAST_CHECK_UNARY(!isfinite(r[1]));
     }
 	TEST_SECTION("just_one_value_in_source") {
-        point_ts<fixed_dt> nts(fixed_dt{0,dt,1},vector<double>{1.0},stair_case);
-        fixed_dt ta2{0,dt*4,2};
+        point_ts<fixed_dt> nts(fixed_dt{t0x,dt,1},vector<double>{1.0},stair_case);
+        fixed_dt ta2{t0x,dt*4,2};
         auto r = acc_fn(ta2,nts,true);
         FAST_REQUIRE_EQ(r.size(),ta2.size());
         CHECK(r[0]==doctest::Approx(1.0));
@@ -633,13 +635,14 @@ TEST_SUITE("time_series") {
         size_t n_ts = 1000;//~100 MB for each 1000 ts.
         utctimespan dt_h{ deltahours(1) };
         utctimespan dt_h24{ 24 * dt_h };
-        fixed_dt ta_h{ 0,dt_h,n };
+		utctime t0x{ deltahours(0) };
+        fixed_dt ta_h{ t0x,dt_h,n };
         ts_point_fx linear{ POINT_INSTANT_VALUE };
         vector<ts_t> tsv;
         for (size_t i = 0; i<n_ts; ++i) tsv.emplace_back(ta_h, double(i), linear);
 
         // time ts->vector
-        fixed_dt ta_h24(0, dt_h24, n / 24);
+        fixed_dt ta_h24(t0x, dt_h24, n / 24);
         double s = 0.0;
         auto t0 = timing::now();
         for (size_t i = 0; i < n_ts; ++i) {

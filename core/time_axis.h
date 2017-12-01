@@ -1294,10 +1294,10 @@ namespace shyft {
             while( ia < ea && ib < eb ) {  // while both do have contributions
                 utcperiod p_ia = intersection( a.period( ia ), tp );
                 utcperiod p_ib = intersection( b.period( ib ), tp );
-                if( p_ia.timespan() == 0 ) {++ia; continue;}  // no contribution from a, skip to next a
-                if( p_ib.timespan() == 0 ) {++ib; continue;}  // no contribution from b, skip to next b
+				if (p_ia.timespan() == utctimespan{ 0 }) { ++ia; continue; }  // no contribution from a, skip to next a
+                if( p_ib.timespan() == utctimespan{ 0 }) {++ib; continue;}  // no contribution from b, skip to next b
                 utcperiod p_i = intersection( p_ia, p_ib );  // compute the intersection
-                if( p_i.timespan() == 0 ) {  // no overlap|intersection
+                if( p_i.timespan() == utctimespan{ 0 }) {  // no overlap|intersection
                     if( p_ia.start < p_ib.start ) ++ia;  //advance the left-most interval
                     else if( p_ib.start < p_ia.start ) ++ib;
                     else {++ia; ++ib;} //TODO: should not be possible ? since it's not overlapping start cant be equal(except one is empty period)
@@ -1466,7 +1466,7 @@ namespace shyft {
 			if (!continuous_merge(a_p, b_p)) throw runtime_error(string("attempt to merge disjoint non-overlapping time-axis"));
 			merge_info r;
 			if (a_p.start > b_p.start) { // a starts after b, so b contribute before a starts
-				r.b_n = b.index_of(a_p.start - 1)+1;
+				r.b_n = b.index_of(a_p.start - utctimespan{ 1 }) + 1;
 			}
 			if (a_p.end < b_p.end) { // a ends before b ends, so b extends the result
 				r.a_i = b.index_of(a_p.end); // check if b.time(i) is >= a_p.end, if not increment i.

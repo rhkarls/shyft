@@ -278,6 +278,8 @@ namespace shyft {
                   * updates the state and response upon return.
                   * \param s state of type S,in/out, ref template parameters
                   * \param r result of type R, output only, ref. template parameters
+				  * \param t utctime, start time of time-step
+				  * \param udt utctimespan, lenght of time-step
                   * \param T temperature degC, considered constant over timestep dt
                   * \param rad radiation ..
                   * \param prec precipitation in mm/h
@@ -286,7 +288,7 @@ namespace shyft {
                   * \param forest_fraction 0..1, influences calculation of effective snow_cv
                   * \param altitude 0..x [m], influences calculation of effective_snow_cv
                   */
-                void step(S& s, R& r, shyft::time_series::utctime t, shyft::time_series::utctimespan dt,
+                void step(S& s, R& r, shyft::time_series::utctime t, shyft::time_series::utctimespan udt,
                           const P& p, const double T, const double rad, const double prec_mm_h,
                           const double wind_speed, const double rel_hum, const double forest_fraction,const double altitude) const {
                     // Some special cases treated first for efficiency
@@ -295,9 +297,10 @@ namespace shyft {
                     double sdc_melt_mean = s.sdc_melt_mean;
                     double acc_melt = s.acc_melt;
                     double iso_pot_energy = s.iso_pot_energy;
-                    const double prec = prec_mm_h*dt/calendar::HOUR;
+					double dt_s = std::chrono::duration_cast<std::chrono::seconds>(udt).count();
+                    const double prec = prec_mm_h*dt_s/3600.0;
 
-                    if( p.is_start_melt_season(t, dt))
+                    if( p.is_start_melt_season(t, udt))
                         acc_melt = iso_pot_energy = 0.0;
 
 
@@ -336,7 +339,7 @@ namespace shyft {
                     const double max_albedo = p.max_albedo;
                     const double snow_cv = p.effective_snow_cv(forest_fraction,altitude);
                     const double albedo_range = max_albedo -  min_albedo;
-                    const double dt_in_days = dt/double(calendar::DAY);
+					const double dt_in_days = to_seconds(udt) / 86400;
                     const double slow_albedo_decay_rate = 0.5*albedo_range*dt_in_days/p.slow_albedo_decay_rate;
                     const double fast_albedo_decay_rate = pow(2.0, -dt_in_days/p.fast_albedo_decay_rate);
 
@@ -363,13 +366,13 @@ namespace shyft {
                     effect += 0.98*sigma*pow(vapour_pressure/T_k, 6.87e-2)*pow(T_k, 4);
 
                     if (T > 0.0 && snow < gamma_snow::tol) // Why not if (rain > 0.0)?
-                        effect += rain*T*water_heat/(double)dt;
+                        effect += rain*T*water_heat/(double)dt_s;
                     if (T <= 0.0 && rain < gamma_snow::tol)
-                        effect += snow*T*ice_heat/(double)dt;
+                        effect += snow*T*ice_heat/(double)dt_s;
 
                     if (p.calculate_iso_pot_energy) {
                         double iso_effect = effect - BB0 + turb*(T + 1.7*(vapour_pressure - 6.12));
-                        iso_pot_energy += iso_effect*(double)dt/melt_heat;
+                        iso_pot_energy += iso_effect*(double)dt_s/melt_heat;
                     }
 
                     double sst = std::min(0.0, 1.16*T - 2.09);
@@ -383,7 +386,7 @@ namespace shyft {
                     surface_heat = p.surface_magnitude*ice_heat*sst*0.5;  // New surface heat; always nonpositive since sst <= 0.
                     delta_sh += surface_heat;
 
-                    double energy = effect*(double)dt;
+                    double energy = effect*(double)dt_s;
                     if (delta_sh > 0.0) energy -= delta_sh;                 // Surface energy is a sink, but not a source
 
                     double potential_melt = std::max(0.0, energy/melt_heat);          // Potential snowmelt in mm.
@@ -487,7 +490,7 @@ namespace shyft {
                     // Store updated response variables
                     r.sca = sca;
                     r.storage = storage;
-                    r.outflow = outflow*calendar::HOUR/dt;
+                    r.outflow = outflow*3600/dt_s;
                 }
             }; // End GammaSnow
         }

@@ -211,7 +211,7 @@ namespace shyft {
                     x_tmp = log(q); // Log transform
 
                     double t0 = 0.0;
-                    double t1 = double(T1 - T0)/deltahours(1); // Units in kirchner are mm/hour.
+                    double t1 = to_seconds(T1 - T0)/3600.0; // Units in kirchner are mm/hour.
                     dense_stepper.initialize(x_tmp, t0, t1 - t0);
                     average_computer.initialize(q, t0);
                     double current_time = dense_stepper.current_time();

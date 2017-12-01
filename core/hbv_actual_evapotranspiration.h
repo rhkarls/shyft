@@ -30,10 +30,7 @@ namespace shyft {
 			inline double calculate_step(const double soil_moisture,
 				const double pot_evapo,
 				const double lp,
-				const double snow_fraction,
-				const utctime dt) {
-				//double actevap;
-
+				const double snow_fraction) noexcept{
 				return (1.0 - snow_fraction)*(soil_moisture < lp ? pot_evapo*(soil_moisture / lp):pot_evapo);
 				}
 		};

@@ -14,7 +14,7 @@ namespace shyfttest {
         double w = 2*3.1415/(24.0*3600.0);
         double p = - 2*3.1415*8/24;// cross zero at 8, max at 14
         double a = 2.0;// amplitude deg/C day/night
-        utctime t0=0;// 1970.
+		utctime t0{ deltahours(0) };// 1970.
         calendar utc;
 
         double bias_offset_day_pattern[8]={2.0,1.9,1.8,1.7,1.8,1.8,1.9,2.0};
@@ -30,7 +30,7 @@ namespace shyfttest {
         }
         ///< this is the observation
         double observation(utctime t) const {
-            return mean + a*sin( w *(t-t0)+ p);
+            return mean + a*sin( w *to_seconds(t-t0) + p);
         }
         double bias(utctime t) const {
             static std::default_random_engine generator;

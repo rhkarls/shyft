@@ -131,7 +131,7 @@ TEST_CASE("test_interpolation") {
         //- now use the weights to compute grid-values given observation values.
         arma::mat obs_values(1, obs.size(), arma::fill::none);
         for (int_t c = 0;c < obs.size();c++)
-            obs_values(0, c) = obs[c].value(0);
+			obs_values(0, c) = obs[c].value(utctime{ deltahours(0) });
         auto grid_values = (obs_values * weights).eval();
         grid_values.reshape(10, 10);
         // verify specific places:

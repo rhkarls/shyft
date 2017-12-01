@@ -162,7 +162,7 @@ namespace shyft {
                     s.residual = std::min(0.0, prec + s.residual);
 
                     // Simple degree day model physics
-                    const double step_in_days = dt/86400.0;
+                    const double step_in_days = to_seconds(dt)/86400.0;
                     const double snow = T < p.tx ? corr_prec : 0.0;
                     const double rain = T < p.tx ? 0.0 : corr_prec;
 

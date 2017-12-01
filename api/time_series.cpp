@@ -416,7 +416,7 @@ namespace shyft{
 			// some very rudimentary argument checks:
 			if (n_partitions < 1)
 				throw std::runtime_error("n_partitions should be > 0");
-			if (partition_interval <= 0)
+			if (partition_interval <= utctimespan{ 0 })
 				throw std::runtime_error("partition_interval should be > 0, typically Calendar::YEAR|MONTH|WEEK|DAY");
 			auto mk_raw_time_shift = [](const apoint_ts& ts, utctimespan dt)->apoint_ts {
 				return apoint_ts(std::make_shared<shyft::api::time_shift_ts>(ts, dt));
@@ -776,9 +776,9 @@ namespace shyft{
         ats_vector max(ats_vector const &a, ats_vector const & b) { return a.max(b); }
         apoint_ts  ats_vector::forecast_merge(utctimespan lead_time,utctimespan fc_interval) const {
             //verify arguments
-            if(lead_time < 0)
+			if (lead_time < utctimespan{0})
                 throw runtime_error("lead_time parameter should be 0 or a positive number giving number of seconds into each forecast to start the merge slice");
-            if(fc_interval <=0)
+            if(fc_interval <= utctimespan{ 0 })
                 throw runtime_error("fc_interval parameter should be positive number giving number of seconds between first time point in each of the supplied forecast");
             for(size_t i=1;i<size();++i) {
                 if( (*this)[i-1].total_period().start + fc_interval > (*this)[i].total_period().start) {
@@ -794,9 +794,9 @@ namespace shyft{
         double ats_vector::nash_sutcliffe(apoint_ts const &obs,utctimespan t0_offset,utctimespan dt, int n) const {
             if(n<0)
                 throw runtime_error("n, number of intervals, must be specified as > 0");
-            if(dt<=0)
+            if(dt<= utctimespan{ 0 })
                 throw runtime_error("dt, average interval, must be specified as > 0 s");
-            if(t0_offset<0)
+            if(t0_offset<utctimespan{ 0 })
                 throw runtime_error("lead_time,t0_offset,must be specified  >= 0 s");
             return time_series::nash_sutcliffe(*this,obs,t0_offset,dt,(size_t)n);
         }
@@ -804,9 +804,9 @@ namespace shyft{
         ats_vector ats_vector::average_slice(utctimespan t0_offset,utctimespan dt, int n) const {
             if(n<0)
                 throw runtime_error("n, number of intervals, must be specified as > 0");
-            if(dt<=0)
+            if(dt<= utctimespan{ 0 })
                 throw runtime_error("dt, average interval, must be specified as > 0 s");
-            if(t0_offset<0)
+            if(t0_offset<utctimespan{ 0 })
                 throw runtime_error("lead_time,t0_offset,must be specified  >= 0 s");
             ats_vector r;
             for(size_t i=0;i<size();++i) {
@@ -967,7 +967,7 @@ namespace shyft{
 
             // try linear interpolation between previous--next *valid* value
             const size_t n =ts->size();
-            if(i==0 || i+1>=n || p.max_timespan == 0)
+            if(i==0 || i+1>=n || p.max_timespan == utctimespan{ 0 })
                 return shyft::nan; // lack possible previous.. next value-> nan
             size_t j=i;
             while(j--) { // find previous *valid* point
@@ -983,9 +983,9 @@ namespace shyft{
                             return shyft::nan;// exceed configured max time span ->nan
                         double x1= ts->value(k);//
                         if(p.is_ok_quality(x1)) { // got a next  point
-                            double a= (x1-x0)/(t1-t0);
-                            double b= x0 - a*t0;// x= a*t + b -> b= x- a*t
-                            double xt= a*t + b;
+                            double a= (x1-x0)/(t1-t0).count();
+                            double b= x0 - a*t0.time_since_epoch().count();// x= a*t + b -> b= x- a*t
+                            double xt= a*t.time_since_epoch().count() + b;
                             return xt;
                         }
                     }
@@ -1011,9 +1011,9 @@ namespace shyft{
             if(!isfinite(x1))
                 return shyft::nan;//  next point is nan ->nan
             utctime t1= ts->time(i+1);
-            double a= (x1 - x0)/(t1 - t0);
-            double b= x0 - a*t0;
-            return a*t + b; // otherwise linear interpolation
+            double a= (x1 - x0)/(t1 - t0).count();
+            double b= x0 - a*t0.time_since_epoch().count();
+            return a*t.time_since_epoch().count() + b; // otherwise linear interpolation
         }
 
         vector<double> qac_ts::values() const {

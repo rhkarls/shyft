@@ -51,7 +51,7 @@ TEST_CASE("test_call_stack") {
     utctime t1 = t0 + n_ts_points*dt;
     shyfttest::create_time_series(temp, prec, rel_hum, wind_speed, radiation, t0, dt, n_ts_points);
 
-    utctime model_dt = deltahours(24);
+    utctimespan model_dt = deltahours(24);
     vector<utctime> times;
     for (utctime i=t0; i <= t1; i += model_dt)
         times.emplace_back(i);

@@ -43,16 +43,14 @@ namespace shyft {
 			 * \param potential_evapotranspiration
 			 * \param scale_factor typically 1.5
 			 * \param snow_fraction 0..1 - only snow free areas have evapotranspiration in this model
-			 * \param dt delta_t \note currently not used in computation
 			 * \return calculated actual evapotranspiration
 			 *
 			 */
-
 			inline double calculate_step(const double water_level,
 				const double potential_evapotranspiration,
 				const double scale_factor,
-				const double snow_fraction,
-				const utctime dt) {
+				const double snow_fraction
+				) noexcept {
 				return potential_evapotranspiration*(1.0 - std::exp(-water_level*3.0/ scale_factor))*(1.0 - snow_fraction);
 			}
 		};

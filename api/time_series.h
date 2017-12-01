@@ -488,7 +488,7 @@ namespace shyft {
                 if (i>ta.size())
                     return nan;
                 size_t ix_hint = (i*ts->size()) / ta.size();// assume almost fixed delta-t.
-                utctimespan tsum = 0;
+				utctimespan tsum{0};
                 return accumulate_value(*ts, ta.period(i), ix_hint,tsum, ts->point_interpretation() == ts_point_fx::POINT_INSTANT_VALUE);
             }
             virtual double value_at(utctime t) const {
@@ -605,7 +605,7 @@ namespace shyft {
         struct time_shift_ts:ipoint_ts {
             std::shared_ptr<ipoint_ts> ts;
             gta_t ta;
-            utctimespan dt=0;// despite ta time-axis, we need it
+			utctimespan dt{0};// despite ta time-axis, we need it
 
             time_shift_ts()=default;
 
@@ -621,7 +621,7 @@ namespace shyft {
                 if(!ts->needs_bind())
 					local_do_bind();
             }
-            time_shift_ts(const std::shared_ptr<ipoint_ts> &ts, utctime adt )
+            time_shift_ts(const std::shared_ptr<ipoint_ts> &ts, utctimespan adt )
                 :ts(ts),dt(adt){
                 if(!ts->needs_bind())
 					local_do_bind();
@@ -1003,7 +1003,7 @@ namespace shyft {
          *
          */
         struct qac_parameter {
-            utctimespan max_timespan{max_utctime};///< max time span to fix
+            utctimespan max_timespan{utctimespan::max()};///< max time span to fix
             double min_x{shyft::nan};    ///< x < min_x                 -> nan
             double max_x{shyft::nan};    ///< x > max_x                 -> nan
             qac_parameter()=default;

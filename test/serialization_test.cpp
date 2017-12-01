@@ -123,7 +123,9 @@ TEST_CASE("test_serialization") {
     time_series::point_ts<time_axis::fixed_dt> ts(ta,1.0,time_series::ts_point_fx::POINT_AVERAGE_VALUE);
     auto ts2 = serialize_loop(ts);
     TS_ASSERT(is_equal(ts,ts2));
-    time_axis::point_dt tap(vector<utctime>{0,3600},3600*2);
+	utctime t0{ seconds(0) };
+	utctimespan dt{ seconds(3600) };
+    time_axis::point_dt tap(vector<utctime>{t0,t0+dt},t0+2*dt);
     auto tsp=make_shared<time_series::point_ts<time_axis::point_dt>>(tap,2.0,time_series::ts_point_fx::POINT_INSTANT_VALUE);
     auto tsp2 = serialize_loop(tsp);
     TS_ASSERT(is_equal(*tsp,*tsp2));

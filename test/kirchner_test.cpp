@@ -19,8 +19,10 @@ TEST_CASE("test_single_solve") {
     double q2 = 1.0;
     double qa1 = 0.0;
     double qa2 = 0.0;
-    k.step(0, 1, q1, qa1, P, E);
-    k.step(0, 1, q2, qa2, P, E);
+	utctime t0{ deltahours(0) };
+	utctime t1{ std::chrono::seconds(1) };
+    k.step(t0, t1, q1, qa1, P, E);
+    k.step(t0, t1, q2, qa2, P, E);
     TS_ASSERT_DELTA(q1, q2, shyfttest::EPS);
     TS_ASSERT_DELTA(qa1, qa2, shyfttest::EPS);
 }
@@ -32,9 +34,11 @@ TEST_CASE("test_solve_from_zero_q") {
     double E = 0.0;
     double q_state = 0.0;
     double q_response=0.0;
-    // after a number of iterations, the output should equal the input
+	utctime t0{ deltahours(0) };
+	utctime t3600{ deltahours(1) };
+	// after a number of iterations, the output should equal the input
     for(int i=0;i<10000000;i++) {
-        k.step(0, 3600, q_state, q_response, P, E);
+        k.step(t0, t3600, q_state, q_response, P, E);
         if(fabs(q_state -P) < 0.001 && fabs(q_response-P)<0.001 )
             break;
     }
@@ -53,9 +57,11 @@ TEST_CASE("test_hard_case") {
     double atol = 1.0e-2;
     double rtol = 1.0e-4;
 	bool verbose = getenv("SHYFT_VERBOSE")!=nullptr;
-    for (size_t i = 0; i < 10; ++i) {
+	utctime t0{ deltahours(0) };
+	utctime t3600{ deltahours(1) };
+	for (size_t i = 0; i < 10; ++i) {
         calculator<kirchner::trapezoidal_average, parameter> k(atol, rtol, p);
-        k.step(0, deltahours(1), q, q_a, P, E);
+        k.step(t0, t3600, q, q_a, P, E);
         if(verbose) std::cout << "r_tol = " << rtol << ", a_tol = " << atol << ", q = " << q << ", q_a = "<< q_a << std::endl;
         atol /= 2.0;
         rtol /= 2.0;
@@ -75,9 +81,12 @@ TEST_CASE("test_simple_average_loads") {
     double Q, Q_avg;
     const double P = 0.0; // Zero precipitation makes the ode system quite simple to solve
     const double E = 0.2;
+	utctime t0{ deltahours(0) };
+	utctime t1{ seconds(1) };
+
     for (size_t i=0; i < n_x*n_y; ++i) {
         Q = 1.0;
-        k.step(0, 1, Q, Q_avg, P, E);
+        k.step(t0, t1, Q, Q_avg, P, E);
         sum_q += Q;
         sum_qa += Q_avg;
     }
@@ -99,9 +108,12 @@ TEST_CASE("test_composite_average_loads") {
     double Q, Q_avg;
     const double P = 0.0; // Zero precipitation makes the ode system quite simple to solve
     const double E = 0.2;
+	utctime t0{ deltahours(0) };
+	utctime t3600{ deltahours(1) };
+
     for (size_t i=0; i < n_x*n_y; ++i) {
         Q = 1.0;
-        k.step(0, deltahours(1), Q, Q_avg, P, E);
+        k.step(t0, t3600, Q, Q_avg, P, E);
         sum_q += Q;
         sum_qa += Q_avg;
     }
