@@ -637,11 +637,11 @@ namespace shyft{
             }
             profile_accessor() {}
             /** map utctime t to the index of the profile value array/function */
-            utctimespan map_index(utctime t) const { return ((t - profile.t0) / profile.dt) % profile.size(); }
+            size_t map_index(utctime t) const { return (size_t) ((t - profile.t0) / profile.dt) % profile.size(); }
             /** map utctime t to the profile pattern section,
              *  the profile is repeated n-section times to cover the complete time-axis
              */
-            utctimespan section_index(utctime t) const { return (t - profile.t0) / profile.duration(); }
+            size_t section_index(utctime t) const { return (t - profile.t0) / profile.duration(); }
 
             /** returns the value at time t, taking the point_interpretation policy
              * into account and provide the linear interpolated value between two points
@@ -669,16 +669,12 @@ namespace shyft{
                 return p1*(1.0-w1) + p2*w1;
             }
             double value(size_t i) const {
-#if 0
                 auto p = ta.period(i);
                 size_t ix = index_of(p.start); // the perfect hint, matches exactly needed ix
 				utctimespan t_sum{ 0 };
 				double v=accumulate_value(*this, p, ix, t_sum, ts_point_fx::POINT_INSTANT_VALUE == fx_policy, false);
-				double s = double(t_sum.count()) / std::chrono::duration_cast<utctimespan>(std::chrono::seconds(1));
+				double s = to_seconds(t_sum);
 				return v / s;
-#else
-				return 0.0;
-#endif
 			}
             // provided functions to the average_value<..> function
             size_t size() const { return profile.size() * (1 + ta.total_period().timespan() / profile.duration()); }
