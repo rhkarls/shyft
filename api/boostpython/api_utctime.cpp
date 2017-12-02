@@ -1,12 +1,12 @@
 #include "boostpython_pch.h"
-
+#include <boost/python/implicit.hpp>
 #include "core/utctime_utilities.h"
 
 namespace expose {
     using namespace shyft::core;
     using namespace boost::python;
     using namespace std;
-
+	namespace py = boost::python;
     typedef std::vector<utcperiod> UtcPeriodVector;
 
 
@@ -17,7 +17,7 @@ namespace expose {
 
         std::string (shyft::core::calendar::*to_string_t)(shyft::core::utctime) const= &calendar::to_string;//selects correct ptr.
         std::string (calendar::*to_string_p)(utcperiod) const =&calendar::to_string;
-        utctimespan (calendar::*diff_units)(utctime,utctime,utctimespan) const=&calendar::diff_units;
+        int64_t (calendar::*diff_units)(utctime,utctime,utctimespan) const=&calendar::diff_units;
         utctime (calendar::*time_YMDhms)(YMDhms) const = &calendar::time;
         utctime (calendar::*time_YWdhms)(YWdhms) const = &calendar::time;
         utctime (calendar::*time_6)(int,int,int,int,int,int) const = &calendar::time;
@@ -267,7 +267,62 @@ namespace expose {
     static bool is_npos(size_t n) {
         return n==string::npos;
     }
+
+	struct utctimespan_ext {
+		static utctimespan* create_default() {
+			return new utctimespan{ 0 };
+		}
+		static utctimespan* create_from_int(int sec) {
+			return new utctimespan(seconds(sec));
+		}
+		static utctimespan* create_from_double(double sec) {
+			return new utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+		}
+	};
+
+	static void e_utctimespan() {
+		class_<utctimespan>("UtcTimeSpan", doc_intro(""),no_init)
+			.def("__init__", make_constructor(&utctimespan_ext::create_default,
+					default_call_policies()
+				),
+				doc_intro("construct a 0 time-span")
+			)
+			.def("__init__", make_constructor(&utctimespan_ext::create_from_int,
+				default_call_policies(),
+				(py::arg("sec"))
+				),
+				doc_intro("construct a from seconds as integer")
+				doc_parameters()
+				doc_parameter("sec", "int", "seconds")
+			)
+			.def("__init__", make_constructor(&utctimespan_ext::create_from_double,
+				default_call_policies(),
+				(py::arg("sec"))
+				),
+				doc_intro("construct a from seconds as number, where fractions is fractions of second")
+				doc_intro("- the resulting time-span preserves 1 micro-second digits")
+				doc_parameters()
+				doc_parameter("sec", "int", "seconds")
+			)
+			.def("count",&utctimespan::count,(py::arg("self")),doc_intro("return timespan micro seconds count"))
+			.def(self==self)
+			.def(self != self)
+			.def(self + self)
+			.def(self - self)
+			.def(self / self)
+			.def(self * int())
+			.def(int()*self )
+			.def(-self)
+			;
+
+		//implicitly_convertible<utctimespan, int>();
+		//implicitly_convertible<int,utctimespan>();
+	}
+
+
     static void e_utctime() {
+		class_<utctime>("UtcTime", doc_intro("utctime is a timepoint"))
+			;
         def("utctime_now",utctime_now,"returns utc-time now as seconds since 1970s");
         def("deltahours",deltahours,args("n"),"returns timespan equal to specified n hours");
         def("deltaminutes",deltaminutes,args("n"),"returns timespan equal to specified n minutes");
@@ -279,6 +334,7 @@ namespace expose {
         current.attr("npos")=string::npos;
     }
     void calendar_and_time() {
+		e_utctimespan();
         e_utctime();
         e_utcperiod();
         e_calendar();

@@ -15,16 +15,15 @@ namespace expose {
 		class_<response>("HbvActualEvapotranspirationResponse")
 			.def_readwrite("ae", &response::ae)
 			;
-		def("ActualEvapotranspirationCalculate_step", calculate_step, args("soil-moisture", "potential_evapotranspiration", "lp", "snow_fraction", "dt"),
-			" actual_evapotranspiration calculates actual evapotranspiration, returning same unit as input pot.evap\n"
-			" based on supplied parameters\n"
-			"\n"
-			" * param water_level[mm]\n"
-			" * param potential_evapotranspiration[mm/x]\n"
-			" * param soil_moisture threshold, lp typically 150[mm]\n"
-			" * param snow_fraction 0..1\n"
-			" * return calculated actual evapotranspiration[mm/x]\n"
-			"\n"
+		def("ActualEvapotranspirationCalculate_step", calculate_step, args("soil-moisture", "potential_evapotranspiration", "lp", "snow_fraction"),
+			doc_intro(" actual_evapotranspiration calculates actual evapotranspiration, returning same unit as input pot.evap")
+			doc_intro(" based on supplied parameters")
+			doc_parameters()
+			doc_parameter("water_level", "float"," unit [mm]")
+			doc_parameter("potential_evapotranspiration","float","unit[mm/x]")
+			doc_parameter("soil_moisture threshold","float","typically 150[mm]")
+			doc_parameter("lp","float","param snow_fraction 0..1")
+			doc_returns("calculated actual evapotranspiration","float","unit[mm/x]")
 		);
 	}
 }

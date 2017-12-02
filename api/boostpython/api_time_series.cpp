@@ -27,6 +27,7 @@ namespace expose {
 
 
     static void expose_ats_vector() {
+#if 1
         using namespace shyft::api;
         typedef ats_vector(ats_vector::*m_double)(double)const;
         typedef ats_vector(ats_vector::*m_ts)(apoint_ts const&)const;
@@ -48,12 +49,13 @@ namespace expose {
             )
             .def(vector_indexing_suite<ats_vector>())
             .def(init<ats_vector const&>(args("clone_me")))
-            .def("values_at",&ats_vector::values_at_time,args("t"),
+            .def("values_at",&ats_vector::values_at_time,(py::arg("self"),py::arg("t")),
                  doc_intro("Computes the value at specified time t for all time-series")
                  doc_parameters()
                  doc_parameter("t","int","seconds since epoch 1970 UTC")
             )
-            .def("percentiles",&ats_vector::percentiles,args("time_axis","percentiles"),
+
+            .def("percentiles",&ats_vector::percentiles,(py::arg("self"),py::arg("time_axis"),py::arg("percentiles")),
                 doc_intro("Calculate the percentiles, NIST R7, excel,R definition, of the timeseries")
                 doc_intro("over the specified time-axis.")
                 doc_intro("The time-series point_fx interpretation is used when performing")
@@ -119,7 +121,7 @@ namespace expose {
                 doc_parameter("delta_t","int","number of seconds to time-shift, positive values moves forward")
 				doc_returns("tsv","TsVector",	"a new time-series, that appears as time-shifted version of self")
 			)
-            .def("extend_ts", &ats_vector::extend_ts, (py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime(0), py::arg("fill_value") = shyft::nan),
+			.def("extend_ts", &ats_vector::extend_ts, (py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime{}, py::arg("fill_value") = shyft::nan),
                 doc_intro("create a new ats_vector where all time-series are extended by ts")
                 doc_parameters()
                 doc_parameter("ts", "TimeSeries", "time-series to extend each time-series in self with")
@@ -129,7 +131,7 @@ namespace expose {
                 doc_parameter("fill_value", "float", "value to fill any gap with if fill_policy == EPF_FILL")
                 doc_returns("new_ts_vec" ,"TsVector", "a new time-series vector where all time-series in self have been extended by ts")
             )
-            .def("extend_ts", &ats_vector::extend_vec, (py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime(0), py::arg("fill_value") = shyft::nan),
+			.def("extend_ts", &ats_vector::extend_vec, (py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime{}, py::arg("fill_value") = shyft::nan),
                 doc_intro("create a new ats_vector where all ts' are extended by the matching ts from ts_vec")
                 doc_parameters()
                 doc_parameter("ts_vec", "TsVector", "time-series vector to extend time-series in self with")
@@ -139,12 +141,13 @@ namespace expose {
                 doc_parameter("fill_value", "float", "value to fill any gap with if fill_policy == EPF_FILL")
                 doc_returns("new_ts_vec" ,"TsVector", "a new time-series vector where all time-series in self have been extended by the corresponding time-series in ts_vec")
             )
-            .def("min",(m_double)&ats_vector::min,args("number"),"returns min of vector and a number")
+			.def("min",(m_double)&ats_vector::min,args("number"),"returns min of vector and a number")
             .def("min", (m_ts)&ats_vector::min, args("ts"), "returns min of ts-vector and a ts")
             .def("min", (m_tsv)&ats_vector::min, args("tsv"), "returns min of ts-vector and another ts-vector")
             .def("max", (m_double)&ats_vector::max, args("number"), "returns max of vector and a number")
             .def("max", (m_ts)&ats_vector::max, args("ts"), "returns max of ts-vector and a ts")
             .def("max", (m_tsv)&ats_vector::max, args("tsv"), "returns max of ts-vector and another ts-vector")
+
             .def("forecast_merge",&ats_vector::forecast_merge,args("lead_time","fc_interval"),
                  doc_intro("merge the forecasts in this vector into a time-series that is constructed")
                  doc_intro("taking a slice of length fc_interval starting lead_time into each of the forecasts")
@@ -174,7 +177,7 @@ namespace expose {
                   doc_notes()
                   doc_see_also("nash_sutcliffe_goal_function")
              )
-             .def("average_slice",&ats_vector::average_slice,args("lead_time","delta_t","n"),
+			.def("average_slice",&ats_vector::average_slice,args("lead_time","delta_t","n"),
                 doc_intro("Returns a ts-vector with the average time-series of the specified slice")
                 doc_intro("The slice for each ts is specified by the lead_time, delta_t and n")
                 doc_intro("parameters. ")
@@ -187,7 +190,7 @@ namespace expose {
                   doc_see_also("nash_sutcliffe,forecast_merge")
              )
             // defining vector math-operations goes here
-            .def(-self)
+			.def(-self)
             .def(self*double())
             .def(double()*self)
             .def(self*self)
@@ -266,7 +269,7 @@ namespace expose {
                 args("forecast_sets", "set_weights", "historical_data", "time_axis", "interpolation_start", "interpolation_end", "interpolated_quantiles"),
                 qm_doc
             );
-
+#endif
 	}
 
 #define DEF_STD_TS_STUFF() \
@@ -708,7 +711,7 @@ namespace expose {
 				doc_parameter("rc_param", "RatingCurveParameter", "RatingCurveParameter instance.")
 				doc_returns("rcts", "TimeSeries", "A new TimeSeries computed using self and rc_param.")
 			)
-            .def("extend", &shyft::api::apoint_ts::extend, (py::arg("self"), py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime(0), py::arg("fill_value") = shyft::nan),
+			.def("extend", &shyft::api::apoint_ts::extend, (py::arg("self"), py::arg("ts"), py::arg("split_policy") = extend_ts_split_policy::EPS_LHS_LAST, py::arg("fill_policy") = extend_ts_fill_policy::EPF_NAN, py::arg("split_at") = utctime{}, py::arg("fill_value") = shyft::nan),
                 doc_intro("create a new time-series that is self extended with ts")
                 doc_parameters()
                 doc_parameter("ts", "TimeSeries", "time-series to extend self with, only values after both the start of self, and split_at is used")

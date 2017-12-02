@@ -44,7 +44,7 @@ namespace expose {
 	static void validate_parameters(const std::shared_ptr<VectorT> & src, const geo_point_vector& dst_points, sta::fixed_dt time_axis) {
 		if (src==nullptr || src->size()==0 || dst_points.size()==0)
 			throw std::runtime_error("the supplied src and dst_points should be non-null and have at least one time-series");
-		if (time_axis.size()==0 || time_axis.delta()==0)
+		if (time_axis.size() == 0 || time_axis.delta() == sc::utctimespan{ 0 })
 			throw std::runtime_error("the supplied destination time-axis should have more than 0 element, and a delta-t larger than 0");
 	}
 
