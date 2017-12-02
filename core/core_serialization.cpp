@@ -46,36 +46,36 @@ namespace sc = shyft::core;
 template<class Archive>
 void load(Archive& ar, sc::utctime& tp, unsigned) {
 	sc::utctimespan::rep dt;
-	ar & dt;
+	ar & make_nvp("t_utc_us", dt);
 	tp = sc::utctime(sc::utctimespan(dt));
 }
 
 template<class Archive>
 void save(Archive& ar, sc::utctime const& tp, unsigned) {
 	sc::utctimespan::rep dt=std::chrono::duration_cast<sc::utctimespan>(tp.time_since_epoch()).count();
-	ar & dt;
+	ar & make_nvp("t_utc_us",dt);
 }
 
 template<class Archive>
-inline void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
+void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
 	boost::serialization::split_free(ar, tp, version);
 }
 
 template<class Archive>
 void load(Archive& ar, sc::utctimespan& tp, unsigned) {
 	sc::utctimespan::rep dt;// = tp.count();
-	ar & dt;
+	ar & make_nvp("dt_us", dt);
 	tp = sc::utctimespan(dt);
 }
 
 template<class Archive>
 void save(Archive& ar, sc::utctimespan const& tp, unsigned) {
 	sc::utctimespan::rep dt = tp.count();
-	ar & dt;
+	ar & make_nvp("dt_us", dt);
 }
 
 template<class Archive>
-inline void serialize(Archive & ar, sc::utctimespan& tp, unsigned version) {
+void serialize(Archive & ar, sc::utctimespan& tp, unsigned version) {
 	boost::serialization::split_free(ar, tp, version);
 }
 
@@ -497,6 +497,10 @@ void shyft::prediction::krls_rbf_predictor::serialize(Archive& ar, const unsigne
         deserialize_helper(ar, this->_krls);
     }
 }
+
+x_serialize_implement(shyft::core::utctime);
+x_serialize_implement(shyft::core::utctimespan);
+
 
 //-- export dtss stuff
 x_serialize_implement(shyft::dtss::ts_info);
