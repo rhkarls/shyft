@@ -24,7 +24,7 @@ namespace core {
 	* Also considered: moving to std::chrono, would enable a strict time arithmetic regime, of little advantage in this
 	* context, and at the cost of compile time (also consider the python/api part).
     */
-using utc_clock = std::chrono::steady_clock;
+using utc_clock = std::chrono::system_clock;
 using utctimespan = std::chrono::microseconds;
 using seconds = std::chrono::seconds;
 using deltahours = std::chrono::hours;

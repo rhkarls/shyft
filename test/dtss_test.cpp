@@ -579,7 +579,8 @@ TEST_CASE("dtss_store_basics") {
             FAST_CHECK_EQ(i.name,fn);
             FAST_CHECK_EQ(i.data_period,o.total_period());
             FAST_CHECK_EQ(i.point_fx, o.point_interpretation());
-            FAST_CHECK_LE( i.modified, utctime_now());
+			utctime t_now = utctime_now();
+            FAST_CHECK_LE( i.modified, t_now);
 
             auto fr = db.find(string(".ss.1\\.db")); // should match our ts.
             FAST_CHECK_EQ(fr.size(), 1 );
