@@ -370,7 +370,7 @@ namespace shyft {
                     return to_utctime(tzinfo->dst_local_start_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds());
                 }
                 utctime dst_end(int year) const {
-                    return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds() - tzinfo->dst_offset().total_seconds());
+                    return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds() + tzinfo->dst_offset().total_seconds());
                 }
                 utctimespan base_offset() const {
                     return utctimespan(seconds(tzinfo->base_utc_offset().total_seconds()));
