@@ -172,6 +172,9 @@ TEST_CASE("test_tz_info_db") {
     TS_ASSERT_EQUALS(eu_osl_iso->is_dst(utc.time(YMDhms(2016, 3,27, 1, 0, 0))),true); // exactly at shift into summer
     TS_ASSERT_EQUALS(eu_osl_iso->is_dst(utc.time(YMDhms(2016,10,30, 0,59,59))),true); // second before..
     TS_ASSERT_EQUALS(eu_osl_iso->is_dst(utc.time(YMDhms(2016,10,30, 1, 0, 0))),false);// exactly at shift into winter
+	auto t = utc.time(2040, 7, 1);
+	auto cc = utc.calendar_units(t);
+	TS_ASSERT_EQUALS(cc, YMDhms(2040, 7, 1));
     TS_ASSERT_EQUALS(eu_osl_iso->is_dst(utc.time(2040, 7, 1)), true);// make sure overflow in posix total_seconds() is away
 
 }

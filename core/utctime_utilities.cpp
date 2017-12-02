@@ -111,7 +111,7 @@ namespace shyft {
             if (!c.is_valid_coordinates())
                 throw std::runtime_error("calendar.time with invalid YMDhms coordinates attempted");
 
-            utctime r= utctime(std::chrono::seconds((int(day_number(c)) - UnixDay)*86400L) + hms_seconds(c.hour, c.minute, c.second));
+            utctime r= utctime(std::chrono::seconds( (day_number(c) - UnixDay)*86400LL) + hms_seconds(c.hour, c.minute, c.second));
             auto utc_diff_1= tz_info->utc_offset(r);// detect if we are in the dst-shift hour
             auto utc_diff_2= tz_info->utc_offset(r-utc_diff_1);
             return (utc_diff_1==utc_diff_2)?r-utc_diff_1: r-utc_diff_2;
@@ -128,7 +128,7 @@ namespace shyft {
                 throw std::runtime_error("calendar.time with invalid YWdhms coordinates attempted");
 
             // figure out utc-time of week 1:
-            utctime t = utctime(chrono::seconds(3600*24LL*(day_number(YMDhms(c.iso_year, 1, 14)) - UnixDay)));
+            utctime t = utctime(chrono::seconds(86400LL *(day_number(YMDhms(c.iso_year, 1, 14)) - UnixDay)));
             auto jdn = day_number(t);
             auto cw = from_day_number(jdn);
             cw.month = 1;cw.day = 1;// round/trim down to year.1.1
@@ -370,7 +370,7 @@ namespace shyft {
                     return to_utctime(tzinfo->dst_local_start_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds());
                 }
                 utctime dst_end(int year) const {
-                    return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds() + tzinfo->dst_offset().total_seconds());
+                    return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds()) - chrono::seconds( tzinfo->dst_offset().total_seconds());
                 }
                 utctimespan base_offset() const {
                     return utctimespan(seconds(tzinfo->base_utc_offset().total_seconds()));
