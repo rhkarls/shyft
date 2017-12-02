@@ -46,14 +46,14 @@ namespace sc = shyft::core;
 template<class Archive>
 void load(Archive& ar, sc::utctime& tp, unsigned) {
 	sc::utctimespan::rep dt;
-	ar & make_nvp("t_utc_us", dt);
+	ar & dt;//make_nvp("t_utc_us", dt);
 	tp = sc::utctime(sc::utctimespan(dt));
 }
 
 template<class Archive>
 void save(Archive& ar, sc::utctime const& tp, unsigned) {
 	sc::utctimespan::rep dt=std::chrono::duration_cast<sc::utctimespan>(tp.time_since_epoch()).count();
-	ar & make_nvp("t_utc_us",dt);
+	ar & dt;//make_nvp("t_utc_us",dt);
 }
 
 template<class Archive>
@@ -64,14 +64,14 @@ void serialize(Archive & ar, sc::utctime& tp, unsigned version) {
 template<class Archive>
 void load(Archive& ar, sc::utctimespan& tp, unsigned) {
 	sc::utctimespan::rep dt;// = tp.count();
-	ar & make_nvp("dt_us", dt);
+	ar & dt;//make_nvp("dt_us", dt);
 	tp = sc::utctimespan(dt);
 }
 
 template<class Archive>
 void save(Archive& ar, sc::utctimespan const& tp, unsigned) {
 	sc::utctimespan::rep dt = tp.count();
-	ar & make_nvp("dt_us", dt);
+	ar & dt;//make_nvp("dt_us", dt);
 }
 
 template<class Archive>
@@ -96,6 +96,10 @@ namespace shyft {
     namespace dtss {
         // later relocate to core/dtss.cpp when created
         std::string shyft_prefix{"shyft://"};
+    }
+
+    namespace time_axis {
+        const utctimespan calendar_dt::dt_h = utctimespan{ seconds(3600) };
     }
 }
 //-- utctime_utilities.h

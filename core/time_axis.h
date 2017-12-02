@@ -113,7 +113,7 @@ namespace shyft {
         */
         struct calendar_dt : continuous<true> {
 
-			static constexpr utctimespan dt_h = utctimespan{ 3600 };
+			static const utctimespan dt_h ;//= utctimespan{ seconds(3600) };
 
             shared_ptr<calendar> cal;
             utctime t;
@@ -181,13 +181,13 @@ namespace shyft {
             utcperiod total_period() const {
                 return n == 0
                     ? utcperiod(min_utctime, min_utctime)  // maybe just a non-valid period?
-                    : utcperiod(t, dt <= dt_h ? utctime{ chrono::duration_cast<utctimespan>((t + n*dt).time_since_epoch() )} : cal->add(t, dt, long(n)));
+                    : utcperiod(t, dt <= dt_h ? utctime(t + n*dt) : cal->add(t, dt, long(n)));
             }
 
             utctime time(size_t i) const {
                 if ( i < n ) {
                     return dt <= dt_h
-                        ? utctime{ chrono::duration_cast<utctimespan>((t + i * dt).time_since_epoch())}
+                        ?  t + long(i) * dt
                         : cal->add(t, dt, long(i));
                 }
                 throw out_of_range("calendar_dt.time(i)");

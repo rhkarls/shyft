@@ -55,8 +55,8 @@ TEST_SUITE("time_axis") {
 TEST_CASE("time_axis_merge_fixed_dt") {
 	using namespace shyft::time_axis;
 	utctime t0{ seconds(0) }, t2{ seconds(2) },t3{ seconds(3) }, t4{ seconds(4) };
-	utctimespan dt{ 1 };
-	
+	utctimespan dt{ seconds(1) };
+
 	FAST_CHECK_EQ(merge(fixed_dt{ t0,dt,4 }, fixed_dt{ t4,dt,4 }), fixed_dt{ t0,dt,8 });
 	FAST_CHECK_EQ(merge(fixed_dt{ t0,dt,4 }, fixed_dt{ t3,dt,4 }), fixed_dt{ t0,dt,7 });
 	FAST_CHECK_EQ(merge(fixed_dt{ t4,dt,4 }, fixed_dt{ t0,dt,4 }), fixed_dt{ t0,dt,8 });
