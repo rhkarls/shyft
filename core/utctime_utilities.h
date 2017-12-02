@@ -13,22 +13,21 @@
 #include "core_pch.h"
 namespace shyft {
 namespace core {
+
 /** \brief utctime
-    * basic types for time handling
-	* we use linear time, i.e. time is just a number
-	* on the timeaxis, utc. Timeaxis zero is at 1970-01-01 00:00:00 (unix time).
-	* resolution is 1 second, integer.
-	* also define min max and no_utctime
-	*
-	* The advantage with the definition is that it is well defined and commonly known in all platforms
-	* Also considered: moving to std::chrono, would enable a strict time arithmetic regime, of little advantage in this
-	* context, and at the cost of compile time (also consider the python/api part).
-    */
+ * basic types for time handling
+ * we use linear time, i.e. time is just a number
+ * on the timeaxis, utc. Timeaxis zero is at 1970-01-01 00:00:00 (unix time).
+ * resolution is 1 utctimespan, currently micro seconds.
+ * also define min max and no_utctime
+ *
+ * The advantage with the definition is that it is well defined and commonly known in all platforms
+ */
 using utc_clock = std::chrono::system_clock;
 using utctimespan = std::chrono::microseconds;
 using seconds = std::chrono::seconds;
-using deltahours = std::chrono::hours;
-using deltaminutes = std::chrono::minutes;
+inline utctimespan deltahours(int h) { return std::chrono::duration_cast<utctimespan>(std::chrono::hours(h)); }
+inline utctimespan deltaminutes(int m) { return std::chrono::duration_cast<utctimespan>(std::chrono::minutes(m)); }
 
 using utctime = std::chrono::time_point<utc_clock,utctimespan>;// clock::time_point<chrono::milliseconds>;
 const utctime max_utctime	= utctime::max();	/// max 64bit int
