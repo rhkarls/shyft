@@ -54,6 +54,29 @@ namespace shyft {
             return utc.to_string(*this);
         }
 
+		utctime utctime_floor(utctime t, utctimespan dt) noexcept {
+			return floor(t, dt);
+		}; 
+
+		utctime create_from_iso8601_string(const std::string&s) {
+			if (s.size() < string("YYYY-MM-DDThh:mm:ssZ").size())
+				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
+			int y, M, d, h, m;
+			float sec;
+			int tzh = 0, tzm = 0;
+			if (s.back() == 'Z' && 6 == sscanf(s.c_str(), "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &sec)) {
+				return  calendar().time(y, M, d, h, m, 0) + utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+				
+			} else if (6 < sscanf(s.c_str(), "%d-%d-%dT%d:%d:%f%d:%d", &y, &M, &d, &h, &m, &sec, &tzh, &tzm)) {
+				if (tzh < 0) tzm = -tzm;    // Fix the sign on minutes.
+				utctime t = calendar().time(y, M, d, h, m, 0) + utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+				t -= deltahours(tzh) + deltaminutes(tzm);
+				return t;
+			} else {
+				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
+			}
+		}
+
         string calendar::to_string(utctime t) const {
             char s[100];
 			if (t == no_utctime) { sprintf(s, "no_utctime"); }

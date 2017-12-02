@@ -49,12 +49,13 @@ class Vectors(unittest.TestCase):
         dv_from_list = api.UtcTimeVector([x for x in range(10)])
         dv_np = np.arange(10, dtype=np.int64)
         dv_from_np = api.UtcTimeVector.from_numpy(dv_np)
+        surprice = api.UtcTimeVector(dv_np)
         self.assertEqual(len(dv_from_list), 10)
         assert_array_almost_equal(dv_from_list.to_numpy(), dv_np)
         assert_array_almost_equal(dv_from_np.to_numpy(), dv_np)
-        dv_from_np[5] = 8
-        dv_from_np.append(11)
-        dv_from_np.push_back(12)
+        dv_from_np[5] = api.UtcTime(8)  # Would be nice to avoid these..
+        dv_from_np.append(api.UtcTime(11))
+        dv_from_np.push_back(api.UtcTime(12))
         dv_np[5] = 8
         dv_np.resize(12)
         dv_np[10] = 11

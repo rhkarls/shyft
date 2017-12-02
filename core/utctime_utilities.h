@@ -58,7 +58,12 @@ inline utctime floor(utctime t, utctimespan dt) noexcept {
 	return utctime(utctimespan(r.rem ? den*(r.quot - 1) : den*r.quot));
 }
 
+utctime utctime_floor(utctime t, utctimespan dt) noexcept; // expose to python
+
+utctime create_from_iso8601_string(const std::string&s);
+
 inline double to_seconds(const utctimespan &dt) { return double(dt.count()) / std::chrono::duration_cast<utctimespan>(std::chrono::seconds(1)).count(); }
+inline utctimespan from_seconds(double sec) { return utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) }; }
 
 /** \brief utcperiod is defined
  *  as period on the utctime space, like
@@ -318,7 +323,8 @@ struct calendar {
 	/**\brief returns tz_info (helper for boost python really) */
 	time_zone::tz_info_t_ get_tz_info() const {return tz_info;}
 	/**\brief construct a timezone with standard offset, no dst, name= UTC+01 etc. */
-	explicit calendar(utctimespan tz=utctimespan(0)): tz_info(new time_zone::tz_info_t(tz)) {}
+	explicit calendar(utctimespan tz): tz_info(new time_zone::tz_info_t(tz)) {}
+	explicit calendar(int tz_s=0) :tz_info(new time_zone::tz_info_t(utctimespan{std::chrono::seconds(tz_s)})) {}
 	/**\brief construct a timezone from tz_info shared ptr provided from typically time_zone db */
 	explicit calendar(time_zone::tz_info_t_ tz_info):tz_info(tz_info) {}
     calendar(calendar const&o) :tz_info(o.tz_info) {}

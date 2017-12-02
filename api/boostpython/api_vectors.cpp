@@ -59,7 +59,7 @@ namespace expose {
     }
 
     template<class T>
-    static vector<T> FromNdArray(const numpy_boost<T,1>& npv) {
+    static vector<T> from_numpy(const numpy_boost<T,1>& npv) {
         vector<T> r;r.reserve(npv.shape()[0]);
         for(size_t i=0;i<npv.shape()[0];++i) {
             r.push_back(npv[i]);
@@ -67,8 +67,17 @@ namespace expose {
         return r;
     }
 
+	static vector<utctime> utctime_from_numpy(const numpy_boost<int64_t, 1>& npv) {
+		size_t n = npv.shape()[0];
+		vector<utctime> r; r.reserve(n);
+		for (size_t i = 0; i<npv.shape()[0]; ++i) {
+			r.emplace_back(from_seconds(npv[i]));
+		}
+		return r;
+	}
+
     template<class T>
-    static numpy_boost<T,1> ToNpArray(const vector<T>&v) {
+    static numpy_boost<T,1> to_numpy(const vector<T>&v) {
         int dims[]={int(v.size())};
         numpy_boost<T,1> r(dims);
         for(size_t i=0;i<r.size();++i) {
@@ -77,6 +86,15 @@ namespace expose {
         return r;
     }
 
+	static numpy_boost<int64_t, 1> utctime_to_numpy(const vector<utctime>&v) {
+		int dims[] = { int(v.size()) };
+		numpy_boost<int64_t, 1> r(dims);
+		for (size_t i = 0; i<r.size(); ++i) {
+			r[i] = (int64_t) std::chrono::duration_cast<std::chrono::seconds>( v[i].time_since_epoch()).count();
+		}
+		return r;
+	}
+
     template <class T>
     static void expose_vector(const char *name) {
         typedef std::vector<T> XVector;
@@ -84,9 +102,9 @@ namespace expose {
         class_<XVector>(name)
         .def(vector_indexing_suite<XVector>()) // meaning it get all it needs to appear as python list
         .def(init<const XVector&>(args("const_ref_v"))) // so we can copy construct
-        .def("FromNdArray",FromNdArray<T>).staticmethod("FromNdArray") // BW compatible
-        .def("from_numpy",FromNdArray<T>).staticmethod("from_numpy")// static construct from numpy TODO: fix __init__
-        .def("to_numpy",ToNpArray<T>,"convert to numpy") // Ok, to make numpy 1-d arrays
+        .def("FromNdArray",from_numpy<T>).staticmethod("FromNdArray") // BW compatible
+        .def("from_numpy",from_numpy<T>).staticmethod("from_numpy")// static construct from numpy TODO: fix __init__
+        .def("to_numpy",to_numpy<T>,"convert to numpy") // Ok, to make numpy 1-d arrays
         ;
         numpy_boost_python_register_type<T, 1>(); // register the numpy object so we can access it in C++
         py_api::iterable_converter().from_python<XVector>();
@@ -126,6 +144,143 @@ namespace expose {
             .def(init<const GeoCellDataVector&>(args("const_ref_v")))
             ;
     }
+	typedef std::vector<utctime> UtcTimeVector;
+	struct utc_ext {
+		static UtcTimeVector *create_default() {
+			return new UtcTimeVector();
+		}
+		static UtcTimeVector *create_from_intv(const std::vector<int>&v) {
+			auto r = new UtcTimeVector(); r->reserve(v.size());
+			for (auto s : v) 
+				r->emplace_back(utctime{ std::chrono::seconds(s) });
+			return r;
+		}
+
+		static UtcTimeVector *create_from_doublev(const std::vector<double>&v) {
+			auto r = new UtcTimeVector(); r->reserve(v.size());
+			for (auto s : v)
+				r->emplace_back(from_seconds(s));
+			return r;
+		}
+		template<class tp>
+		static UtcTimeVector *create_from_np_tp(const numpy_boost<tp, 1>& npv) {
+			auto r = new UtcTimeVector();
+			size_t n = npv.shape()[0];
+			r->reserve(n);
+			for (size_t i = 0; i<n; ++i) {
+				r->emplace_back(from_seconds(npv[i]));
+			}
+			return r;
+		}
+		static UtcTimeVector *create_from_clone(const std::vector<utctime>&v) {
+			return new UtcTimeVector(v);
+		}
+		static UtcTimeVector *create_from_list(py::list times) {
+			if(py::len(times)==0)
+				return new UtcTimeVector();
+			auto r = new UtcTimeVector();
+			size_t n = py::len(times);
+			r->reserve(py::len(times));
+			for(size_t i=0;i<n;++i) {
+				py::object oi = times[i];
+				py::extract<utctime> xtract_utctime(oi);
+				if (xtract_utctime.check()) {
+					r->push_back(xtract_utctime());
+				} else {
+					py::extract<int64_t> xtract_int(oi);
+					if (xtract_int.check()) {
+						r->push_back(utctime{ std::chrono::seconds(xtract_int()) });
+					} else {
+						py::extract<int64_t> xtract_double(oi);
+						if (xtract_double.check()) {
+							r->push_back(utctime{ from_seconds(xtract_double()) });
+						} else {
+							py::extract<string> xtract_string(oi);
+							if (xtract_string.check()){
+								r->push_back(create_from_iso8601_string(xtract_string()));
+							} else {
+								throw std::runtime_error(std::string("failed to convert ") + std::to_string(i) + " element to UtcTime");
+							}
+						}
+					}
+				}
+			}
+			return r;
+
+		}
+	
+	
+	};
+
+	static void expose_utctime_vector() {
+		
+		class_<UtcTimeVector>("UtcTimeVector",no_init)
+			.def(vector_indexing_suite<UtcTimeVector>()) // meaning it get all it needs to appear as python list
+			.def("__init__", make_constructor(&utc_ext::create_default,
+				default_call_policies()
+				),
+				doc_intro("construct empty UtcTimeVecor")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_clone,
+				default_call_policies(),(py::arg("clone_me"))
+				),
+				doc_intro("construct a copy of supplied  UtcTimeVecor")
+				doc_parameters()
+				doc_parameter("clone_me", "UtcTimeVector", "to be cloned")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_intv,
+				default_call_policies(),
+				(py::arg("seconds_vector"))
+			    ),
+				doc_intro("construct a from seconds epoch utc as integer")
+				doc_parameters()
+				doc_parameter("seconds", "IntVector", "seconds")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_doublev,
+				default_call_policies(),
+				(py::arg("seconds_vector"))
+			    ),
+				doc_intro("construct a from seconds epoch utc as float")
+				doc_parameters()
+				doc_parameter("seconds", "DoubleVector", "seconds, up to us resolution epoch utc")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_list,
+				default_call_policies(),
+				(py::arg("times"))
+				),
+				doc_intro("construct a from a list of something that is convertible to UtcTime")
+				doc_parameters()
+				doc_parameter("times", "list", "a list with convertible times")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_np_tp<int64_t>,
+				default_call_policies(),
+				(py::arg("np_times"))
+				),
+				doc_intro("construct a from a numpy array of int64 s epoch")
+				doc_parameters()
+				doc_parameter("np_times", "list", "a list with convertible times")
+			)
+			.def("__init__", make_constructor(&utc_ext::create_from_np_tp<double>,
+				default_call_policies(),
+				(py::arg("np_times"))
+			    ),
+				doc_intro("construct a from a numpy array of float s epoch")
+				doc_parameters()
+				doc_parameter("np_times", "list", "a list with float convertible times")
+			)
+
+			// in init-file
+			.def("from_numpy", utctime_from_numpy).staticmethod("from_numpy")// static construct from numpy TODO: fix __init__
+			.def("to_numpy", utctime_to_numpy,(py::arg("self")),
+				doc_intro("convert to numpy array of type np.int64, seconds since epoch")
+			)// Ok, to make numpy 1-d arrays
+			;
+		
+		numpy_boost_python_register_type<utctime, 1>(); // register the numpy object so we can access it in C++
+		numpy_boost_python_register_type<int64_t, 1>();
+		py_api::iterable_converter().from_python<UtcTimeVector>();
+
+	}
     static void expose_ts_vector_create() {
         def("create_ts_vector_from_np_array",
             &create_tsv_from_np,(py::arg("time_axis"),py::arg("np_array"),py::arg("point_fx")),
@@ -200,7 +355,7 @@ namespace expose {
         expose_vector<double>("DoubleVector");
         expose_vector<int>("IntVector");
         expose_vector<char>("ByteVector");
-        expose_vector<utctime>("UtcTimeVector");
+		expose_utctime_vector();
         expose_geo_point_vector();
         expose_geo_cell_data_vector();
         expose_ts_vector_create();

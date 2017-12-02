@@ -30,3 +30,8 @@ class VerifyTUtcTime(unittest.TestCase):
         self.assertEqual(a - TimeSpan(3), UtcTime(-2))
         self.assertEqual(a - b, TimeSpan(-1))
 
+    def test_floor(self):
+        a = UtcTime(3601)
+        dt = TimeSpan(3600)
+        f = a.floor(dt)
+        self.assertEqual(f, UtcTime(3600))

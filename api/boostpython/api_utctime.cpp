@@ -48,27 +48,35 @@ namespace expose {
             doc_note(" The time-zone support is currently a snapshot of rules ~2014")
             doc_note(" but we plan to use standard packages like Howard Hinnant's online approach for this later.")
             )
-            .def(init<utctimespan>(args("tz_offset"), 
+
+			.def(py::init<utctimespan>( (py::arg("tz_offset")), 
                 doc_intro("creates a calendar with constant tz-offset")
                 doc_parameters()
-                doc_parameter("tz_offset","int","seconds utc offset, 3600 gives UTC+01 zone")
+                doc_parameter("tz_offset","TimeSpan","seconds utc offset, 3600 gives UTC+01 zone")
 
               )
             )
-            .def(init<string>(args("olson_tz_id"),
+			.def(py::init<int>( (py::arg("tz_offset")),
+				doc_intro("creates a calendar with constant tz-offset")
+				doc_parameters()
+				doc_parameter("tz_offset", "int", "seconds utc offset, 3600 gives UTC+01 zone")
+				)
+			)
+			
+            .def(py::init<string>( (py::arg("olson_tz_id")),
                 doc_intro("create a Calendar from Olson timezone id, eg. 'Europe/Oslo'")
                 doc_parameters()
                 doc_parameter("olson_tz_id","str","Olson time-zone id, e.g. 'Europe/Oslo'")
                 )
             )
-            .def("to_string", to_string_t, args("utctime"),
+            .def("to_string", to_string_t, (py::arg("self"),py::arg("utctime")),
                 doc_intro("convert time t to readable iso standard string taking ")
                 doc_intro(" the current calendar properties, including timezone into account")
                 doc_parameters()
                 doc_parameter("utctime","int","seconds utc since epoch")
                 doc_returns("iso time string","str","iso standard formatted string,including tz info")
             )
-            .def("to_string", to_string_p, args("utcperiod"),
+            .def("to_string", to_string_p, (py::arg("self"), py::arg("utcperiod")),
                 doc_intro("convert utcperiod p to readable string taking current calendar properties, including timezone into account")
                 doc_parameters()
                 doc_parameter("utcperiod", "UtcPeriod", "An UtcPeriod object")
@@ -278,7 +286,7 @@ namespace expose {
 			return new utctimespan(seconds(sec));
 		}
 		static utctimespan* create_from_double(double sec) {
-			return new utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+			return new utctimespan{ from_seconds(sec) };
 		}
 		static utctimespan x_self(const py::tuple& args) {
 			if (py::len(args) == 0)
@@ -315,6 +323,12 @@ namespace expose {
 			return py::str(std::string(s));
 		}
 
+		static utctimespan abs_timespan(utctimespan x) {
+			return abs(x);
+		}
+		static double _float_(utctimespan x) {
+			return to_seconds(x);
+		}
 	};
 
 	static void e_utctimespan() {
@@ -342,13 +356,23 @@ namespace expose {
 				doc_parameter("seconds", "int", "seconds")
 			)
 			.add_property("seconds",raw_function(utctimespan_ext::get_seconds,1),doc_intro("returns timespan in seconds"))
+			.def("__abs__",&utctimespan_ext::abs_timespan,(py::arg("self")))
+			.def("__float__",&utctimespan_ext::_float_,(py::arg("self")))
 			.def("__repr__",raw_function(utctimespan_ext::repr,1),doc_intro("repr of TimeSpan"))
 			.def("__str__", raw_function(utctimespan_ext::str, 1), doc_intro("str of TimeSpan"))
 			// math operations
+
 			.def(self==self)
 			.def(self != self)
+			.def(self < self)
+			.def(self<=self)
+			.def(self> self)
+			.def(self>=self)
+			//
 			.def(self + self)
+			.def(self += self)
 			.def(self - self)
+			.def(self -= self)
 			.def(self / self)
 			.def(self % self)
 			.def(self * int())
@@ -367,35 +391,28 @@ namespace expose {
 			return new utctime{ seconds(sec) };
 		}
 		static utctime* create_from_double(double sec) {
-			return new utctime{ utctimespan{int64_t(round(utctimespan::period::den*sec / utctimespan::period::num))} };
+			return new utctime{ from_seconds(sec) };
+		}
+		static utctime* create_from_timespan(utctimespan sec) {
+			return new utctime{ sec };
 		}
 		// consider spirit for faster and accurate parsing !
 		static utctime* create_from_string(const std::string& s) {
-			if (s.size() < string("YYYY-MM-DDThh:mm:ssZ").size())
-				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
-			int y, M, d, h, m;
-			float sec;
-			int tzh = 0, tzm = 0;
-			if (s.back() == 'Z' && 6 == sscanf(s.c_str(), "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &sec)) {
-				utctime t = calendar().time(y, M, d, h, m, 0) + utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
-				return new utctime{ t };
-			} else if (6 < sscanf(s.c_str(), "%d-%d-%dT%d:%d:%f%d:%d", &y, &M, &d, &h, &m, &sec, &tzh, &tzm)) {
-				if (tzh < 0) tzm = -tzm;    // Fix the sign on minutes.
-				utctime t= calendar().time(y, M, d, h, m, 0)+ utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
-				t -= deltahours(tzh) + deltaminutes(tzm) ;
-				return new utctime{ t };
-			} else {
-				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
-			}
+			return new utctime{ create_from_iso8601_string(s) };
+		}
+		template<class T>
+		static T x_arg(const py::tuple& args, size_t i) {
+			if (py::len(args) + 1 < (int )i)
+				throw std::runtime_error("missing arg #" + std::to_string(i) + std::string(" in UtcTime"));
+			py::object o = args[i];
+			py::extract<T> xtract_arg(o);
+			return xtract_arg();
 		}
 
 		static utctime x_self(const py::tuple& args) {
-			if (py::len(args) == 0)
-				throw std::runtime_error("self is null in UtcTime");
-			py::object self = args[0];
-			py::extract<utctime> xtract_self(self);
-			return xtract_self();
+			return x_arg<utctime>(args, 0);
 		}
+
 		static py::object get_seconds(py::tuple args, py::dict kwargs) {
 			auto dt = x_self(args).time_since_epoch();
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
@@ -416,7 +433,11 @@ namespace expose {
 		static py::object str(py::tuple args, py::dict kwargs) {
 			return py::str(calendar().to_string(x_self(args)));
 		}
-
+		static py::object floor(py::tuple args, py::dict kwargs) {
+			utctime t=x_self(args);
+			utctimespan dt=x_arg<utctimespan>(args,1);
+			return py::object(utctime_floor(t, dt));
+		}
 	};
 
     static void e_utctime() {
@@ -443,6 +464,16 @@ namespace expose {
 				doc_parameters()
 				doc_parameter("seconds", "int", "seconds")
 			)
+			.def("__init__", make_constructor(&utctime_ext::create_from_timespan,
+				default_call_policies(),
+				(py::arg("seconds"))
+				),
+				doc_intro("construct a from seconds as decimal number since epoch, where fractions is fractions of second")
+				doc_intro("- the resulting time-span preserves 1 micro-second digits")
+				doc_parameters()
+				doc_parameter("seconds", "TimeSpan", "seconds since epoch represented as TimeSpan")
+			)
+
 			.def("__init__", make_constructor(&utctime_ext::create_from_string,
 				default_call_policies(),
 				(py::arg("iso8601_str"))
@@ -456,6 +487,10 @@ namespace expose {
 			.add_property("seconds", raw_function(utctime_ext::get_seconds, 1), doc_intro("returns seconds since epoch"))
 			.def("__repr__", raw_function(utctime_ext::repr, 1), doc_intro("repr of UtcTime"))
 			.def("__str__", raw_function(utctime_ext::str, 1), doc_intro("str of UtcTime"))
+			.def("floor",raw_function(utctime_ext::floor,1),
+				//(py::arg("self"),py::arg("dt")),
+				doc_intro("floor(t,dt)")
+			)
 			// math operations
 			.def(self == self)
 			.def(self != self)
@@ -463,6 +498,10 @@ namespace expose {
 			.def(utctimespan()+ self)
 			.def(self - utctimespan())
 			.def(self - self)
+			.def(self < self)
+			.def(self <= self)
+			.def(self>self)
+			.def(self>=self)
 			;
 
         def("utctime_now",utctime_now,"returns utc-time now as seconds since 1970s");

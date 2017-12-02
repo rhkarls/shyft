@@ -380,7 +380,7 @@ class TimeSeries(unittest.TestCase):
 
         ts1_values = ts1.values
         for i in range(n):
-            expected_value = i * dt * 1.0
+            expected_value = i * dt.seconds * 1.0
             self.assertAlmostEqual(expected_value, ts1.value(i), 3, "expect integral f(t)*dt")
             self.assertAlmostEqual(expected_value, ts1_values[i], 3, "expect value vector equal as well")
 
@@ -412,7 +412,7 @@ class TimeSeries(unittest.TestCase):
 
         ts_i1_values = ts_i1.values
         for i in range(n):
-            expected_value = dt * fill_value
+            expected_value = dt.seconds * fill_value
             self.assertAlmostEqual(expected_value, ts_i1.value(i), 4, "expect integral of each interval")
             self.assertAlmostEqual(expected_value, ts_i2.value(i), 4, "expect integral of each interval")
             self.assertAlmostEqual(expected_value, ts_i1_values[i], 4, "expect integral of each interval")
@@ -819,7 +819,7 @@ class TimeSeries(unittest.TestCase):
             self.assertEqual(cd(t0 + (3 * n + i) * dt), 8.0)
 
         # split at a given time step, and extend the last value through the gap
-        ac = a.extend(c, split_policy=api.extend_split_policy.AT_VALUE, split_at=(t0 + dt * n // 2),
+        ac = a.extend(c, split_policy=api.extend_split_policy.AT_VALUE, split_at=(t0 + api.TimeSpan(dt.seconds*n // 2)),
                       fill_policy=api.extend_fill_policy.USE_LAST)
 
         for i in range(n // 2):  # first, only until the given split value
@@ -1028,8 +1028,8 @@ class TimeSeries(unittest.TestCase):
         ts = src.integral(tf)
         self.assertIsNotNone(ts)
         for i in range(len(tf)):
-            if not math.isclose(ts.value(i), 1.0 * api.deltahours(3)):
-                self.assertAlmostEqual(ts.value(i), 1.0 * api.deltahours(3))
+            if not math.isclose(ts.value(i), 1.0 * api.deltahours(3).seconds):
+                self.assertAlmostEqual(ts.value(i), 1.0 * api.deltahours(3).seconds)
 
     def test_calibration_ts_case(self):
         times = [0, 3600, 3600 + 2 * 3600]
@@ -1042,12 +1042,12 @@ class TimeSeries(unittest.TestCase):
     def test_min_max_check_linear_fill(self):
         ta = api.TimeAxis(0, 1, 5)
         ts_src = api.TimeSeries(ta, values=api.DoubleVector([1.0, -1.0, 2.0, float('nan'), 4.0]), point_fx=api.POINT_AVERAGE_VALUE)
-        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=-10.0, dt_max=300)
+        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=-10.0, dt_max=api.TimeSpan(300))
         self.assertAlmostEqual(ts_qac.value(3), 3.0)
-        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=0.0, dt_max=300)
+        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=0.0, dt_max=api.TimeSpan(300))
         self.assertAlmostEqual(ts_qac.value(1), 1.5)  # -1 out, replaced with linear between
         self.assertAlmostEqual(ts_qac.value(3), 3.0)
-        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=0.0, dt_max=0)
+        ts_qac = ts_src.min_max_check_linear_fill(v_max=10.0, v_min=0.0, dt_max=api.TimeSpan(0))
         self.assertTrue(not math.isfinite(ts_qac.value(3)))  # should give nan, not allowed to fill in
         self.assertTrue(not math.isfinite(ts_qac.value(1)))  # should give nan, not allowed to fill in
 
@@ -1055,9 +1055,9 @@ class TimeSeries(unittest.TestCase):
         ta = api.TimeAxis(0, 1, 5)
         ts_src = api.TimeSeries(ta, values=api.DoubleVector([1.0, -1.0, 2.0, float('nan'), 4.0]), point_fx=api.POINT_AVERAGE_VALUE)
         cts = api.TimeSeries(ta, values=api.DoubleVector([1.0, 1.8, 2.0, 2.0, 4.0]), point_fx=api.POINT_AVERAGE_VALUE)
-        ts_qac = ts_src.min_max_check_ts_fill(v_max=10.0, v_min=-10.0, dt_max=300, cts=cts)
+        ts_qac = ts_src.min_max_check_ts_fill(v_max=10.0, v_min=-10.0, dt_max=api.TimeSpan(300), cts=cts)
         self.assertAlmostEqual(ts_qac.value(3), 2.0)
-        ts_qac = ts_src.min_max_check_ts_fill(v_max=10.0, v_min=0.0, dt_max=300, cts=cts)
+        ts_qac = ts_src.min_max_check_ts_fill(v_max=10.0, v_min=0.0, dt_max=api.TimeSpan(300), cts=cts)
         self.assertAlmostEqual(ts_qac.value(1), 1.8)  # -1 out, replaced with linear between
         self.assertAlmostEqual(ts_qac.value(3), 2.0)
         # ref dtss test for serialization testing

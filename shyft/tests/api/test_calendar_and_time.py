@@ -25,10 +25,10 @@ class Calendar(unittest.TestCase):
         osl = api.Calendar("Europe/Oslo")
         self.assertIsNotNone(osl)
         self.assertEqual(osl.tz_info.name(), "Europe/Oslo")
-        self.assertEqual(osl.tz_info.base_offset(), 3600)
+        self.assertEqual(osl.tz_info.base_offset(), api.TimeSpan(3600))
         t = osl.time(2015, 6, 1)
         self.assertTrue(osl.tz_info.is_dst(t))
-        self.assertTrue(osl.tz_info.utc_offset(t), 7200)
+        self.assertTrue(osl.tz_info.utc_offset(t), api.TimeSpan(7200))
 
     def test_calendar_add_and_diff_units(self):
         osl = api.Calendar("Europe/Oslo")
@@ -109,7 +109,7 @@ class Calendar(unittest.TestCase):
         x = dt.datetime.utcnow()
         b = self.utc.time(api.YMDhms(x.year, x.month, x.day,
                                      x.hour, x.minute, x.second))
-        self.assertLess(abs(a - b), 2, 'Should be less than 2 seconds')
+        self.assertLess(float(abs(a - b)), 2, 'Should be less than 2 seconds')
 
     def test_utc_time_to_string(self):
         c1 = api.YMDhms(2000, 1, 2, 3, 4, 5)
@@ -162,7 +162,7 @@ class Calendar(unittest.TestCase):
         #
         t_str = self.utc.to_string(t)  # this one just to show it's still working as it should internally
         self.assertEqual(t_str, "1969-12-31T23:00:00Z")
-        self.assertEqual(t, api.deltahours(-1))
+        self.assertEqual(t, api.UtcTime(api.deltahours(-1)))
 
 
 if __name__ == "__main__":

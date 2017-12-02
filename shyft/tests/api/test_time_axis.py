@@ -22,12 +22,13 @@ class TimeAxis(unittest.TestCase):
         pass
 
     def test_index_of(self):
+        h=api.deltahours(1)
         self.assertEqual(self.ta.index_of(self.t),0)
         self.assertEqual(self.ta.index_of(self.t,0), 0)
-        self.assertEqual(self.ta.index_of(self.t-3600), api.npos)
+        self.assertEqual(self.ta.index_of(self.t-h), api.npos)
         self.assertEqual(self.ta.open_range_index_of(self.t),0)
         self.assertEqual(self.ta.open_range_index_of(self.t,0), 0)
-        self.assertEqual(self.ta.open_range_index_of(self.t-3600), api.npos)
+        self.assertEqual(self.ta.open_range_index_of(self.t-h), api.npos)
 
 
     def test_create_timeaxis(self):
@@ -42,7 +43,7 @@ class TimeAxis(unittest.TestCase):
         self.assertEqual(xta.size(), 3)
 
     def test_iterate_timeaxis(self):
-        tot_dt = 0
+        tot_dt = api.TimeSpan(0)
         for p in self.ta:
             tot_dt += p.timespan()
         self.assertEqual(tot_dt, self.n * self.d)
@@ -56,7 +57,7 @@ class TimeAxis(unittest.TestCase):
         A point time axis takes n+1 points do describe n-periods, where
         each period is defined as [ point_i .. point_i+1 >
         """
-        all_points = api.UtcTimeVector([t for t in range(self.t, self.t + (self.n + 1) * self.d, self.d)])
+        all_points = api.UtcTimeVector([t for t in range(self.t.seconds, self.t.seconds + (self.n + 1) * self.d.seconds, self.d.seconds)])
         tap = api.PointTimeaxis(all_points)
         self.assertEqual(tap.size(), self.ta.size())
         for i in range(self.ta.size()):
