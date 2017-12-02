@@ -163,7 +163,7 @@ vector<double> accumulate_linear(const TA&ta, const TS& ts, bool avg) {
             auto e_t = min(e_p.t,p.end); // recall that the points can be anywhere
             // then compute non-nan area and non-nan t_sum
             utctimespan dt{e_t-s_t};
-            area +=  (a*(s_t.time_since_epoch().count() + e_t.time_since_epoch().count())*0.5 + b)*dt.count();// avg.value * dt
+            area +=  (a*((s_t.time_since_epoch() + e_t.time_since_epoch()).count()/2) + b)*to_seconds(dt);// avg.value * dt
             t_sum += dt;
             if(e_p.t >= p.end) { // are we done in this time-step ?
                 r[i] = avg? area/to_seconds(t_sum): area;// stash result
