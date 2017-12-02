@@ -19,15 +19,15 @@ namespace shyft {
 		const utctimespan calendar::MINUTE = seconds(60L);
 		const utctimespan calendar::SECOND = seconds(1L);
 
-		const int calendar::UnixDay = 2440588;///< Calc::julian_day_number(ymd(1970,01,01));
-		const long long calendar::UnixSecond = 86400LL * UnixDay;///<Calc::julian_day_number(ymd(1970,01,01));
+		const int64_t calendar::UnixDay = 2440588;///< Calc::julian_day_number(ymd(1970,01,01));
+		const int64_t calendar::UnixSecond = 86400LL * UnixDay;///<Calc::julian_day_number(ymd(1970,01,01));
 																 // Snapped from boost gregorian_calendar.ipp
-		inline unsigned long calendar::day_number(const YMDhms& ymd) {
+		inline int64_t calendar::day_number(const YMDhms& ymd) {
 			unsigned short a = static_cast<unsigned short>((14 - ymd.month) / 12);
 			unsigned short y = static_cast<unsigned short>(ymd.year + 4800 - a);
 			unsigned short m = static_cast<unsigned short>(ymd.month + 12 * a - 3);
 			unsigned long  d = ymd.day + ((153 * m + 2) / 5) + 365 * y + (y / 4) - (y / 100) + (y / 400) - 32045;
-			return d;
+			return int64_t(d);
 		}
 
 		inline YMDhms calendar::from_day_number(unsigned long dayNumber) {

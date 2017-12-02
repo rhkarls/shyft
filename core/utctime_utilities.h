@@ -300,17 +300,17 @@ struct calendar {
 	static const utctimespan MINUTE;
 	static const utctimespan SECOND;
 
-	static const int UnixDay;///< Calc::julian_day_number(ymd(1970,01,01));
-	static const long long UnixSecond;///<Calc::julian_day_number(ymd(1970,01,01));
+	static const int64_t UnixDay;///< Calc::julian_day_number(ymd(1970,01,01));
+	static const int64_t UnixSecond;///<Calc::julian_day_number(ymd(1970,01,01));
 
 	// Snapped from boost gregorian_calendar.ipp
-	static unsigned long day_number(const YMDhms& ymd);
+	static int64_t day_number(const YMDhms& ymd);
 
 	static  YMDhms from_day_number(unsigned long dayNumber);
 	//static int  day_number(utctime t);
 	//static  utctimespan hms_seconds(int h, int m, int s);
-    static inline int day_number(utctime t) {
-        return (int)((UnixSecond + std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count()) / std::chrono::duration_cast<std::chrono::seconds>(DAY).count());
+    static inline int64_t day_number(utctime t) {
+        return (int64_t)((UnixSecond + std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count()) / std::chrono::duration_cast<std::chrono::seconds>(DAY).count());
     }
     static inline utctimespan hms_seconds(int h, int m, int s) { return deltahours(h) + deltaminutes(m) + std::chrono::seconds(s); }
 
