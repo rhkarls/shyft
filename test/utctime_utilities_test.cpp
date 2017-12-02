@@ -56,7 +56,8 @@ TEST_CASE("test_calendar_trim") {
     YMDhms t_15m(2012, 3, 8,12,15, 0);
     TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,calendar::YEAR)),t_y);
     TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,calendar::MONTH)),t_m);
-    TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,calendar::WEEK)), t_w);
+    YMDhms t_wx=cet.calendar_units( cet.trim(t,calendar::WEEK));
+    FAST_CHECK_EQ(t_wx, t_w);
     TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,calendar::DAY)),t_d);
     TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,calendar::HOUR)),t_h);
     TS_ASSERT_EQUALS(cet.calendar_units( cet.trim(t,deltaminutes(15))),t_15m);

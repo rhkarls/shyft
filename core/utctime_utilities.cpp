@@ -234,7 +234,7 @@ namespace shyft {
                 c.month = c.day = 1; c.hour = c.minute = c.second = 0;
                 return time(c);
             }
-			if (deltaT== QUARTER) {
+            if (deltaT== QUARTER) {
                 auto c = calendar_units(t);
                 return time(YMDhms(c.year, mq[c.month - 1], 1));
             }
@@ -248,9 +248,14 @@ namespace shyft {
                 c.hour = c.minute = c.second = 0;
                 return time(c);
             }
-
             auto tz_offset=tz_info->utc_offset(t);
-            t = floor(t+tz_offset,deltaT);
+
+            if(deltaT==WEEK) {
+                    t = floor(t+tz_offset+3*DAY,deltaT) - 3*DAY;// week 1970 starts on
+            } else {
+                    t = floor(t+tz_offset,deltaT);
+            }
+
             return  t - tz_info->utc_offset(t);
         }
 
