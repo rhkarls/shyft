@@ -373,10 +373,10 @@ namespace shyft {
                     return to_utctime(tzinfo->dst_local_end_time(year)) - chrono::seconds(tzinfo->base_utc_offset().total_seconds() - tzinfo->dst_offset().total_seconds());
                 }
                 utctimespan base_offset() const {
-                    return utctimespan(tzinfo->base_utc_offset().total_seconds());
+                    return utctimespan(seconds(tzinfo->base_utc_offset().total_seconds()));
                 }
                 utctimespan dst_offset(int y) const {
-                    return utctimespan(tzinfo->dst_offset().total_seconds());
+                    return utctimespan(seconds(tzinfo->dst_offset().total_seconds()));
                 }
                 string name() const {return tz_region_name;}
             };
