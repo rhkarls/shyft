@@ -10,6 +10,7 @@
 #include <ctime>
 #include <chrono>
 #include <cstdlib>
+#include <cmath>
 #include "core_pch.h"
 namespace shyft {
 namespace core {
