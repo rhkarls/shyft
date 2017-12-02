@@ -61,6 +61,8 @@ namespace shyft {
 			else if (t == max_utctime) { sprintf(s, "+oo"); }
 			else {
                 auto c = calendar_units(t);
+				auto ts = utctime{ chrono::duration_cast<seconds>(t.time_since_epoch()) };
+				auto us = t - ts;
                 auto tz= tz_info->utc_offset(t);
                 auto tz_hours= int(tz/deltahours(1));
                 auto tz_minutes= int(abs((tz-tz_hours*deltahours(1))/deltaminutes(1)));
@@ -73,7 +75,10 @@ namespace shyft {
                 } else {
                     strcpy(tzs,"Z");
                 }
-                sprintf(s, "%04d-%02d-%02dT%02d:%02d:%02d%s", c.year, c.month, c.day, c.hour, c.minute, c.second,tzs);
+				if(us.count()==0)
+					sprintf(s, "%04d-%02d-%02dT%02d:%02d:%02d%s", c.year, c.month, c.day, c.hour, c.minute, c.second,tzs);
+				else
+					sprintf(s, "%04d-%02d-%02dT%02d:%02d:%02d.%06d%s", c.year, c.month, c.day, c.hour, c.minute, c.second,int(us.count()),tzs);
             }
             return string(s);
         }

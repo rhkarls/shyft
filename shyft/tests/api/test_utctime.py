@@ -18,7 +18,7 @@ class VerifyTUtcTime(unittest.TestCase):
         self.assertEqual(str(UtcTime(-3600)), r'1969-12-31T23:00:00Z')
         self.assertEqual(str(UtcTime(0)), r'1970-01-01T00:00:00Z')
         self.assertEqual(str(UtcTime(r'1970-01-01T00:00:00Z')), r'1970-01-01T00:00:00Z')
-        self.assertEqual(str(UtcTime(r'1970-01-01T01:02:03.000-01:30')), r'1970-01-01T02:32:03Z')
+        self.assertEqual(str(UtcTime(r'1970-01-01T01:02:03.123456-01:30')), r'1970-01-01T02:32:03.123456Z')
 
     def test_bin_ops(self):
         a = UtcTime(1)
