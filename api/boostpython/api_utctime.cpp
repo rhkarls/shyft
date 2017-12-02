@@ -1,5 +1,7 @@
 #include "boostpython_pch.h"
 #include <boost/python/implicit.hpp>
+#include <boost/python/dict.hpp>
+#include <boost/python/raw_function.hpp>
 #include "core/utctime_utilities.h"
 
 namespace expose {
@@ -278,51 +280,191 @@ namespace expose {
 		static utctimespan* create_from_double(double sec) {
 			return new utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
 		}
+		static utctimespan x_self(const py::tuple& args) {
+			if (py::len(args) == 0)
+				throw std::runtime_error("self is null inTimeSpan");
+			py::object self = args[0];
+			py::extract<utctimespan> xtract_self(self);
+			return xtract_self();
+		}
+		static py::object get_seconds(py::tuple args, py::dict kwargs) {
+			utctimespan dt = x_self(args);
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			if (dt_s == dt)
+				return py::object(int64_t(dt_s.count()));
+			return py::object(to_seconds(dt));
+		}
+		static py::object repr(py::tuple args, py::dict kwargs) {
+			utctimespan dt = x_self(args);
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			char s[100];
+			if (dt_s == dt)
+				sprintf(s, "TimeSpan(%lld)", dt_s.count());
+			else
+				sprintf(s, "TimeSpan(%0.6lf)", to_seconds(dt));
+			return py::str(std::string(s));
+		}
+		static py::object str(py::tuple args, py::dict kwargs) {
+			utctimespan dt = x_self(args);
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			char s[100];
+			if (dt_s == dt)
+				sprintf(s, "%llds", dt_s.count());
+			else
+				sprintf(s, "%0.6lfs", to_seconds(dt));
+			return py::str(std::string(s));
+		}
+
 	};
 
 	static void e_utctimespan() {
-		class_<utctimespan>("UtcTimeSpan", doc_intro(""),no_init)
+		class_<utctimespan>("TimeSpan", doc_intro("Is just a number, in unit seconds, with some math-properties"),no_init)
 			.def("__init__", make_constructor(&utctimespan_ext::create_default,
 					default_call_policies()
 				),
-				doc_intro("construct a 0 time-span")
+				doc_intro("construct a 0s time-span")
 			)
 			.def("__init__", make_constructor(&utctimespan_ext::create_from_int,
 				default_call_policies(),
-				(py::arg("sec"))
+				(py::arg("seconds"))
 				),
 				doc_intro("construct a from seconds as integer")
 				doc_parameters()
-				doc_parameter("sec", "int", "seconds")
+				doc_parameter("seconds", "int", "seconds")
 			)
 			.def("__init__", make_constructor(&utctimespan_ext::create_from_double,
 				default_call_policies(),
-				(py::arg("sec"))
+				(py::arg("seconds"))
 				),
-				doc_intro("construct a from seconds as number, where fractions is fractions of second")
+				doc_intro("construct a from seconds as decimal number, where fractions is fractions of second")
 				doc_intro("- the resulting time-span preserves 1 micro-second digits")
 				doc_parameters()
-				doc_parameter("sec", "int", "seconds")
+				doc_parameter("seconds", "int", "seconds")
 			)
-			.def("count",&utctimespan::count,(py::arg("self")),doc_intro("return timespan micro seconds count"))
+			.add_property("seconds",raw_function(utctimespan_ext::get_seconds,1),doc_intro("returns timespan in seconds"))
+			.def("__repr__",raw_function(utctimespan_ext::repr,1),doc_intro("repr of TimeSpan"))
+			.def("__str__", raw_function(utctimespan_ext::str, 1), doc_intro("str of TimeSpan"))
+			// math operations
 			.def(self==self)
 			.def(self != self)
 			.def(self + self)
 			.def(self - self)
 			.def(self / self)
+			.def(self % self)
 			.def(self * int())
+			.def(self/ int())
 			.def(int()*self )
 			.def(-self)
 			;
 
-		//implicitly_convertible<utctimespan, int>();
-		//implicitly_convertible<int,utctimespan>();
 	}
 
+	struct utctime_ext {
+		static utctime* create_default() {
+			return new utctime{};
+		}
+		static utctime* create_from_int(int sec) {
+			return new utctime{ seconds(sec) };
+		}
+		static utctime* create_from_double(double sec) {
+			return new utctime{ utctimespan{int64_t(round(utctimespan::period::den*sec / utctimespan::period::num))} };
+		}
+		// consider spirit for faster and accurate parsing !
+		static utctime* create_from_string(const std::string& s) {
+			if (s.size() < string("YYYY-MM-DDThh:mm:ssZ").size())
+				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
+			int y, M, d, h, m;
+			float sec;
+			int tzh = 0, tzm = 0;
+			if (s.back() == 'Z' && 6 == sscanf(s.c_str(), "%d-%d-%dT%d:%d:%fZ", &y, &M, &d, &h, &m, &sec)) {
+				utctime t = calendar().time(y, M, d, h, m, 0) + utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+				return new utctime{ t };
+			} else if (6 < sscanf(s.c_str(), "%d-%d-%dT%d:%d:%f%d:%d", &y, &M, &d, &h, &m, &sec, &tzh, &tzm)) {
+				if (tzh < 0) tzm = -tzm;    // Fix the sign on minutes.
+				utctime t= calendar().time(y, M, d, h, m, 0)+ utctimespan{ int64_t(round(utctimespan::period::den*sec / utctimespan::period::num)) };
+				t -= deltahours(tzh) + deltaminutes(tzm) ;
+				return new utctime{ t };
+			} else {
+				throw std::runtime_error("Needs format 'YYYY-MM-DDThh:mm:ssZ': got " + s);
+			}
+		}
+
+		static utctime x_self(const py::tuple& args) {
+			if (py::len(args) == 0)
+				throw std::runtime_error("self is null in UtcTime");
+			py::object self = args[0];
+			py::extract<utctime> xtract_self(self);
+			return xtract_self();
+		}
+		static py::object get_seconds(py::tuple args, py::dict kwargs) {
+			auto dt = x_self(args).time_since_epoch();
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			if (dt_s == dt)
+				return py::object(int64_t(dt_s.count()));
+			return py::object(to_seconds(dt));
+		}
+		static py::object repr(py::tuple args, py::dict kwargs) {
+			auto dt = x_self(args).time_since_epoch();
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			char s[100];
+			if (dt_s == dt)
+				sprintf(s, "UtcTime(%lld)", dt_s.count());
+			else
+				sprintf(s, "UtcTime(%0.6lf)", to_seconds(dt));
+			return py::str(std::string(s));
+		}
+		static py::object str(py::tuple args, py::dict kwargs) {
+			return py::str(calendar().to_string(x_self(args)));
+		}
+
+	};
 
     static void e_utctime() {
-		class_<utctime>("UtcTime", doc_intro("utctime is a timepoint"))
+		class_<utctime>("UtcTime", doc_intro("utctime is a timepoint, represented as seconds since epoch 1970.01.01 UTC"),no_init)
+			.def("__init__", make_constructor(&utctime_ext::create_default,
+				default_call_policies()
+			    ),
+				doc_intro("construct a UtcTime, with 0 offset from epoch")
+			)
+			.def("__init__", make_constructor(&utctime_ext::create_from_int,
+				default_call_policies(),
+				(py::arg("seconds"))
+				),
+				doc_intro("construct a from seconds as integer")
+				doc_parameters()
+				doc_parameter("seconds", "int", "seconds")
+			)
+			.def("__init__", make_constructor(&utctime_ext::create_from_double,
+				default_call_policies(),
+				(py::arg("seconds"))
+				),
+				doc_intro("construct a from seconds as decimal number since epoch, where fractions is fractions of second")
+				doc_intro("- the resulting time-span preserves 1 micro-second digits")
+				doc_parameters()
+				doc_parameter("seconds", "int", "seconds")
+			)
+			.def("__init__", make_constructor(&utctime_ext::create_from_string,
+				default_call_policies(),
+				(py::arg("iso8601_str"))
+				),
+				doc_intro("construct a from iso 8601s string, e.g. '2014-11-12T19:12:14.505Z'")
+				doc_intro("- the resulting time-span preserves 1 micro-second digits")
+				doc_parameters()
+				doc_parameter("seconds", "int", "seconds")
+			)
+
+			.add_property("seconds", raw_function(utctime_ext::get_seconds, 1), doc_intro("returns seconds since epoch"))
+			.def("__repr__", raw_function(utctime_ext::repr, 1), doc_intro("repr of UtcTime"))
+			.def("__str__", raw_function(utctime_ext::str, 1), doc_intro("str of UtcTime"))
+			// math operations
+			.def(self == self)
+			.def(self != self)
+			.def(self + utctimespan())
+			.def(utctimespan()+ self)
+			.def(self - utctimespan())
+			.def(self - self)
 			;
+
         def("utctime_now",utctime_now,"returns utc-time now as seconds since 1970s");
         def("deltahours",deltahours,args("n"),"returns timespan equal to specified n hours");
         def("deltaminutes",deltaminutes,args("n"),"returns timespan equal to specified n minutes");

@@ -1,0 +1,32 @@
+from shyft.api import Calendar, UtcTime, TimeSpan, deltaminutes, deltahours
+import unittest
+
+
+class VerifyTUtcTime(unittest.TestCase):
+
+    def test_construct(self):
+        t = UtcTime(3)
+        self.assertIsNotNone(t)
+        self.assertEqual(t.seconds, 3)
+        df = UtcTime(3.123456)
+        self.assertEqual(df.seconds, 3.123456)
+        dn = UtcTime()
+        self.assertEqual(dn.seconds, 0)
+        self.assertAlmostEqual(UtcTime(1.1234567).seconds, 1.123457)  # note rounding
+        self.assertEqual(repr(UtcTime(1.234)), r'UtcTime(1.234000)')
+        self.assertEqual(repr(UtcTime(1234)), r'UtcTime(1234)')
+        self.assertEqual(str(UtcTime(-3600)), r'1969-12-31T23:00:00Z')
+        self.assertEqual(str(UtcTime(0)), r'1970-01-01T00:00:00Z')
+        self.assertEqual(str(UtcTime(r'1970-01-01T00:00:00Z')), r'1970-01-01T00:00:00Z')
+        self.assertEqual(str(UtcTime(r'1970-01-01T01:02:03.000-01:30')), r'1970-01-01T02:32:03Z')
+
+    def test_bin_ops(self):
+        a = UtcTime(1)
+        b = UtcTime(2)
+        self.assertFalse(a == b)
+        self.assertTrue(a != b)
+        self.assertTrue(a == a)
+        self.assertEqual(a + TimeSpan(3), UtcTime(4))
+        self.assertEqual(a - TimeSpan(3), UtcTime(-2))
+        self.assertEqual(a - b, TimeSpan(-1))
+
