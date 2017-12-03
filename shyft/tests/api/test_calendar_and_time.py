@@ -69,6 +69,7 @@ class Calendar(unittest.TestCase):
         t = api.utctime_now()
         td = self.std.trim(t, api.Calendar.DAY)
         c = self.std.calendar_units(td)
+        c0 = self.std.calendar_units(int(td))  # verify it takes regular timestamp.
         a = self.std.calendar_units(t)
         self.assertEqual(c.second, 0, 'incorrect seconds should be 0')
         self.assertEqual(c.minute, 0, 'trim day should set minutes to 0')
