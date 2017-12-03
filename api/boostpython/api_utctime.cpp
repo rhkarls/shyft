@@ -49,7 +49,7 @@ namespace expose {
             doc_note(" but we plan to use standard packages like Howard Hinnant's online approach for this later.")
             )
 
-			.def(py::init<utctimespan>( (py::arg("tz_offset")), 
+			.def(py::init<utctimespan>( (py::arg("tz_offset")),
                 doc_intro("creates a calendar with constant tz-offset")
                 doc_parameters()
                 doc_parameter("tz_offset","TimeSpan","seconds utc offset, 3600 gives UTC+01 zone")
@@ -62,7 +62,7 @@ namespace expose {
 				doc_parameter("tz_offset", "int", "seconds utc offset, 3600 gives UTC+01 zone")
 				)
 			)
-			
+
             .def(py::init<string>( (py::arg("olson_tz_id")),
                 doc_intro("create a Calendar from Olson timezone id, eg. 'Europe/Oslo'")
                 doc_parameters()
@@ -93,17 +93,17 @@ namespace expose {
                 doc_parameter("t", "int", "timestamp utc seconds since epoch")
                 doc_returns("calendar_units","YMDhms","calendar units as in year-month-day hour-minute-second")
             )
-            .def("calendar_week_units", &calendar::calendar_week_units, args("t"), 
+            .def("calendar_week_units", &calendar::calendar_week_units, args("t"),
                 doc_intro("returns iso YWdhms for specified t, in the time-zone as given by the calendar")
                 doc_parameters()
                 doc_parameter("t", "int", "timestamp utc seconds since epoch")
                 doc_returns("calendar_week_units", "YWdms", "calendar units as in iso year-week-week_day hour-minute-second")
             )
-            .def("time", time_YMDhms, args("YMDhms"), 
+            .def("time", time_YMDhms, args("YMDhms"),
                 doc_intro("convert calendar coordinates into time using the calendar time-zone")
                 doc_parameters()
                 doc_parameter("YMDhms","YMDhms","calendar cooordinate structure containg year,month,day, hour,minute,second")
-                doc_returns("timestamp","int","timestamp as in seconds utc since epoch")                
+                doc_returns("timestamp","int","timestamp as in seconds utc since epoch")
             )
             .def("time", time_YWdhms, args("YWdhms"),
                 doc_intro("convert calendar iso week coordinates structure into time using the calendar time-zone")
@@ -122,11 +122,11 @@ namespace expose {
                 doc_parameter("m", "int", "minute [0..59], default=0")
                 doc_parameter("s", "int", "second [0..59], default=0")
                 doc_returns("timestamp", "int", "timestamp as in seconds utc since epoch")
-                , 
+                ,
                 args("Y", "M", "D", "h", "m", "s")
             )
             )
-            .def("time_from_week", time_from_week_6, 
+            .def("time_from_week", time_from_week_6,
                 calendar_time_overloads_week(
                     doc_intro("convert calendar iso week coordinates into time using the calendar time-zone")
                     doc_parameters()
@@ -155,7 +155,7 @@ namespace expose {
                 doc_parameter("delta_t","int","timestep in seconds, with semantic interpretation of DAY,WEEK,MONTH,YEAR")
                 doc_parameter("n","int","number of timesteps to add")
                 doc_returns("t","int","new timestamp with the added time-steps, seconds utc since epoch")
-                doc_see_also("diff_units(t1,t2,delta_t),trim(t,delta_t)")  
+                doc_see_also("diff_units(t1,t2,delta_t),trim(t,delta_t)")
             )
         .def("diff_units",diff_units,args("t1","t2","delta_t"),
              doc_intro("calculate the distance t1..t2 in specified units, taking dst into account if observed")
@@ -214,7 +214,7 @@ namespace expose {
            ;
 
         class_<YWdhms>("YWdhms", "Defines calendar coordinates as iso Year Week week-day hour minute second")
-            .def(init<int, optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"), 
+            .def(init<int, optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"),
                 doc_intro("Creates calendar coordinates specifying iso Y,W,wd,h,m,s")
                 doc_parameters()
                 doc_parameter("Y","int","iso-year")
@@ -307,7 +307,7 @@ namespace expose {
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
 			char s[100];
 			if (dt_s == dt)
-				sprintf(s, "TimeSpan(%lld)", dt_s.count());
+				sprintf(s, "TimeSpan(%ld)",int64_t(dt_s.count()));
 			else
 				sprintf(s, "TimeSpan(%0.6lf)", to_seconds(dt));
 			return py::str(std::string(s));
@@ -317,14 +317,14 @@ namespace expose {
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
 			char s[100];
 			if (dt_s == dt)
-				sprintf(s, "%llds", dt_s.count());
+				sprintf(s, "%lds", dt_s.count());
 			else
 				sprintf(s, "%0.6lfs", to_seconds(dt));
 			return py::str(std::string(s));
 		}
 
 		static utctimespan abs_timespan(utctimespan x) {
-			return abs(x);
+			return x>=x.zero() ? x:-x;
 		}
 		static double _float_(utctimespan x) {
 			return to_seconds(x);
