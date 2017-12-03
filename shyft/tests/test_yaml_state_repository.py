@@ -48,7 +48,7 @@ class YamlStateRepositoryTestCase(unittest.TestCase):
 
         # arrange, by creating one State
         cal = Calendar()
-        utc_timestamp = int( cal.time(YMDhms(2001, 1, 1)))
+        utc_timestamp = cal.time(YMDhms(2001, 1, 1))
         region_model_id = "neanidelv-ptgsk"
         n_cells = 10
         tags = ["initial", "unverified"]

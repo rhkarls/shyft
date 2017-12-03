@@ -370,7 +370,10 @@ namespace expose {
 		}
 
 	};
-
+	struct utctime_picklers : py::pickle_suite {
+		static py::tuple
+			getinitargs(utctime const& t) { return py::make_tuple(to_seconds(t.time_since_epoch())); }
+	};
 	
 
     static void e_utctime() {
@@ -416,7 +419,7 @@ namespace expose {
 				doc_parameters()
 				doc_parameter("seconds", "int", "seconds")
 			)
-
+			.def_pickle(utctime_picklers())
 			.add_property("seconds", raw_function(utctime_ext::get_seconds, 1), doc_intro("returns seconds since epoch"))
 			.def("__repr__", raw_function(utctime_ext::repr, 1), doc_intro("repr of UtcTime"))
 			.def("__str__", raw_function(utctime_ext::str, 1), doc_intro("str of UtcTime"))

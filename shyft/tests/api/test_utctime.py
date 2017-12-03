@@ -26,6 +26,8 @@ class VerifyTUtcTime(unittest.TestCase):
         self.assertFalse(a == b)
         self.assertTrue(a != b)
         self.assertTrue(a == a)
+        self.assertTrue(a == 1)
+        self.assertTrue(1 == a)
         self.assertEqual(a + TimeSpan(3), UtcTime(4))
         self.assertEqual(a + 3, UtcTime(4))
         self.assertEqual(a - TimeSpan(3), UtcTime(-2))
