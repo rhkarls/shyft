@@ -587,6 +587,22 @@ x_serialize_implement(shyft::prediction::krls_rbf_predictor);
 // repeat template instance for each archive class
 #define x_arch(T) x_serialize_archive(T,binary_oarchive,binary_iarchive)
 
+namespace boost {
+namespace archive {
+namespace sc = shyft::core;
+// instantiate archive templates
+template void load<binary_iarchive>(binary_iarchive& ar, sc::utctime& tp, unsigned) ;
+template void save<binary_oarchive>(binary_oarchive& ar, sc::utctime const& tp, unsigned) ;
+template void serialize<binary_iarchive>(binary_iarchive & ar, sc::utctime& tp, unsigned version) ;
+template void serialize<binary_oarchive>(binary_oarchive & ar, sc::utctime& tp, unsigned version) ;
+
+template void load<binary_iarchive>(binary_iarchive& ar, sc::utctimespan& tp, unsigned) ;
+template void save<binary_oarchive>(binary_oarchive& ar, sc::utctimespan const& tp, unsigned);
+template void serialize<binary_iarchive>(binary_iarchive & ar, sc::utctimespan& tp, unsigned version);
+template void serialize<binary_oarchive>(binary_oarchive & ar, sc::utctimespan& tp, unsigned version);
+
+}
+}
 x_arch(shyft::dtss::ts_info);
 
 x_arch(shyft::core::utcperiod);
