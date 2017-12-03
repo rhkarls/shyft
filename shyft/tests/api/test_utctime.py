@@ -27,11 +27,36 @@ class VerifyTUtcTime(unittest.TestCase):
         self.assertTrue(a != b)
         self.assertTrue(a == a)
         self.assertEqual(a + TimeSpan(3), UtcTime(4))
+        self.assertEqual(a + 3, UtcTime(4))
         self.assertEqual(a - TimeSpan(3), UtcTime(-2))
+        self.assertEqual(a - 3, UtcTime(-2))
         self.assertEqual(a - b, TimeSpan(-1))
+        self.assertEqual(3*a-b, TimeSpan(1))
+
+        self.assertTrue(a < b)
+        self.assertTrue(a <= b)
+        self.assertTrue(b > a)
+        self.assertTrue(b >= a)
+        self.assertTrue(b < 10.0)
+        self.assertTrue(b < 10)
+        self.assertTrue(b <= 10.0)
+        self.assertTrue(b <= 10)
+        self.assertTrue(b < r'1990-01-01T00:00:00Z')
+        self.assertTrue(b <= r'1990-01-01T00:00:00Z')
+
 
     def test_floor(self):
         a = UtcTime(3601)
         dt = TimeSpan(3600)
         f = a.floor(dt)
         self.assertEqual(f, UtcTime(3600))
+
+    def test_to_float(self):
+        x = UtcTime(1.1234)
+        d = float(x)
+        self.assertAlmostEqual(1.1234, d)
+
+    def test_to_int(self):
+        x = UtcTime(1.1234)
+        d = int(x)
+        self.assertEqual(1, d)

@@ -78,7 +78,7 @@ class DtssTestCase(unittest.TestCase):
     def dtss_read_callback(self, ts_ids: StringVector, read_period: UtcPeriod) -> TsVector:
         self.callback_count += 1
         r = TsVector()
-        ta = TimeAxis(read_period.start, deltahours(1), read_period.timespan()/deltahours(1))
+        ta = TimeAxis(read_period.start, deltahours(1), int(read_period.timespan()//deltahours(1)))
         if self.rd_throws:
             self.rd_throws = False
             raise RuntimeError("read-ts-problem")

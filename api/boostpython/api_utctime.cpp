@@ -279,6 +279,18 @@ namespace expose {
         return n==string::npos;
     }
 
+	template<class T>
+	static T x_arg(const py::tuple& args, size_t i) {
+		if (py::len(args) + 1 < (int)i)
+			throw std::runtime_error("missing arg #" + std::to_string(i) + std::string(" in UtcTime"));
+		py::object o = args[i];
+		py::extract<T> xtract_arg(o);
+		return xtract_arg();
+	}
+	static void args_check(const py::tuple& args) {
+		if (py::len(args) < 2) 	throw std::runtime_error("compare needs two args");
+	}
+
 	struct utctimespan_ext {
 		static utctimespan* create_default() {
 			return new utctimespan{ 0 };
@@ -346,6 +358,38 @@ namespace expose {
 		static double _float_(utctimespan x) {
 			return to_seconds(x);
 		}
+		/// best effort convert from any number or string to utctime 
+		/// as long as it is well defined
+		static utctimespan as_timespan(const py::object& po) {
+			py::extract<utctimespan> o(po);
+			if (o.check())
+				return o();
+			py::extract<int64_t> i(po);
+			if (i.check())
+				return  from_seconds(i());
+			py::extract<double> d(po);
+			if (d.check())
+				return   from_seconds(d());
+			throw std::runtime_error("supplied argument not convertible to TimeSpan");
+		}
+		// rel ops
+		static py::object _lt_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) < as_timespan(args[1]));}
+		static py::object _le_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) <= as_timespan(args[1]));}
+		static py::object _gt_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) > as_timespan(args[1]));}
+		static py::object _ge_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) >= as_timespan(args[1]));}
+		static py::object _eq_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) == as_timespan(args[1]));}
+		static py::object _nq_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctimespan>(args, 0) != as_timespan(args[1]));}
+		// math
+		static py::object _add_(py::tuple args, py::dict kwargs) { args_check(args); return py::object(x_arg<utctimespan>(args, 0) + as_timespan(args[1])); }
+		static py::object _sub_(py::tuple args, py::dict kwargs) { args_check(args); return py::object(x_arg<utctimespan>(args, 0) - as_timespan(args[1])); }
+		static py::object _rsub_(py::tuple args, py::dict kwargs) { args_check(args); return py::object(-(x_arg<utctimespan>(args, 0) - as_timespan(args[1]))); }
+		static py::object _mult_(py::tuple args, py::dict kwargs) {	args_check(args); return py::object(from_seconds( to_seconds(x_arg<utctimespan>(args, 0)) * to_seconds(as_timespan(args[1])) ));}
+		static py::object _div_(py::tuple args, py::dict kwargs) { args_check(args); return py::object(from_seconds( to_seconds(x_arg<utctimespan>(args, 0)) / to_seconds(as_timespan(args[1])) ));	}
+		static py::object _mod_(py::tuple args, py::dict kwargs) {	args_check(args);return py::object( x_arg<utctimespan>(args, 0) % as_timespan(args[1]) );}
+		static py::object _floordiv_(py::tuple args, py::dict kwargs) {	args_check(args);return py::object(from_seconds(truncf(to_seconds(x_arg<utctimespan>(args, 0)) / to_seconds(as_timespan(args[1])))));}
+		static py::object _rfloordiv_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(from_seconds(truncf(to_seconds(as_timespan(args[1]))/to_seconds(x_arg<utctimespan>(args, 0)) )));}
+		static py::object _rdiv_(py::tuple args, py::dict kwargs) {	args_check(args);return py::object(from_seconds( to_seconds(as_timespan(args[1]))/ to_seconds(x_arg<utctimespan>(args, 0))));}
+
 	};
 
 	static void e_utctimespan() {
@@ -379,24 +423,28 @@ namespace expose {
 			.def("__long__", raw_function(utctimespan_ext::get_int_seconds, 1), doc_intro("timespan as int seconds"))
 			.def("__repr__",raw_function(utctimespan_ext::repr,1),doc_intro("repr of TimeSpan"))
 			.def("__str__", raw_function(utctimespan_ext::str, 1), doc_intro("str of TimeSpan"))
-			// math operations
+			// rel operations
+			.def("__lt__", raw_function(utctimespan_ext::_lt_, 1))
+			.def("__le__", raw_function(utctimespan_ext::_le_, 1))
+			.def("__gt__", raw_function(utctimespan_ext::_gt_, 1))
+			.def("__ge__", raw_function(utctimespan_ext::_ge_, 1))
+			.def("__eq__", raw_function(utctimespan_ext::_eq_, 1))
+			.def("__nq__", raw_function(utctimespan_ext::_nq_, 1))
 
-			.def(self==self)
-			.def(self != self)
-			.def(self < self)
-			.def(self<=self)
-			.def(self> self)
-			.def(self>=self)
-			//
-			.def(self + self)
-			.def(self += self)
-			.def(self - self)
-			.def(self -= self)
-			.def(self / self)
-			.def(self % self)
-			.def(self * int())
-			.def(self/ int())
-			.def(int()*self )
+			// math
+			.def("__add__",raw_function(utctimespan_ext::_add_, 1))
+			.def("__radd__", raw_function(utctimespan_ext::_add_, 1))
+			.def("__sub__", raw_function(utctimespan_ext::_sub_, 1))
+			.def("__rsub__", raw_function(utctimespan_ext::_rsub_, 1))
+			.def("__truediv__",raw_function(utctimespan_ext::_div_, 1))
+			.def("__rtruediv__", raw_function(utctimespan_ext::_rdiv_, 1))
+			.def("__floordiv__", raw_function(utctimespan_ext::_floordiv_, 1))
+			.def("__rfloordiv__", raw_function(utctimespan_ext::_rfloordiv_, 1))
+			.def("__mod__", raw_function(utctimespan_ext::_mod_, 1))
+
+			.def("__mul__", raw_function(utctimespan_ext::_mult_, 1))
+			.def("__rmul__", raw_function(utctimespan_ext::_mult_, 1))
+			//.def(self % self)
 			.def(-self)
 			;
 
@@ -419,14 +467,7 @@ namespace expose {
 		static utctime* create_from_string(const std::string& s) {
 			return new utctime{ create_from_iso8601_string(s) };
 		}
-		template<class T>
-		static T x_arg(const py::tuple& args, size_t i) {
-			if (py::len(args) + 1 < (int )i)
-				throw std::runtime_error("missing arg #" + std::to_string(i) + std::string(" in UtcTime"));
-			py::object o = args[i];
-			py::extract<T> xtract_arg(o);
-			return xtract_arg();
-		}
+
 
 		static utctime x_self(const py::tuple& args) {
 			return x_arg<utctime>(args, 0);
@@ -439,6 +480,11 @@ namespace expose {
 				return py::object(int64_t(dt_s.count()));
 			return py::object(to_seconds(dt));
 		}
+
+		static py::object get_float_seconds(py::tuple args, py::dict kwargs) {
+			return py::object(to_seconds(x_self(args).time_since_epoch()));
+		}
+
 		static py::object get_int_seconds(py::tuple args, py::dict kwargs) {
 			auto dt = x_self(args).time_since_epoch();
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
@@ -468,6 +514,101 @@ namespace expose {
 			utctimespan dt=x_arg<utctimespan>(args,1);
 			return py::object(utctime_floor(t, dt));
 		}
+		/// best effort convert from any number or string to utctime 
+		/// as long as it is well defined
+		static utctime as_utctime(const py::object& po, bool throw_on_fail=true) {
+			py::extract<utctime> o(po);
+			if (o.check())
+				return o();
+			py::extract<int64_t> i(po);
+			if (i.check())
+				return utctime{ from_seconds(i()) };
+			py::extract<double> d(po);
+			if (d.check())
+				return  utctime{ from_seconds(d()) };
+			py::extract<string> s(po);
+			if (s.check()) 
+				return create_from_iso8601_string(s);
+			if(throw_on_fail)
+				throw std::runtime_error("supplied argument not convertible to UtcTime");
+			return no_utctime;
+		}
+		static double as_seconds(const py::object& po) {
+			utctime o = as_utctime(po, false);
+			if (o != no_utctime)
+				return to_seconds(o.time_since_epoch());
+			return to_seconds(utctimespan_ext::as_timespan(po));
+		}
+
+		static py::object _lt_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args,0) < as_utctime(args[1]));}
+		static py::object _le_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args, 0) <= as_utctime(args[1]));}
+		static py::object _gt_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args, 0) > as_utctime(args[1]));}
+		static py::object _ge_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args, 0) >= as_utctime(args[1]));}
+		static py::object _eq_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args, 0) == as_utctime(args[1]));}
+		static py::object _nq_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(x_arg<utctime>(args, 0) != as_utctime(args[1]));}
+		// math (yes, utctime , we want it to be a number)
+		static double arg_as_double(py::object o) {
+			utctime rhs = as_utctime(o, false);
+			double rhs_d = 0;
+			if (rhs != no_utctime) {
+				rhs_d = to_seconds(rhs.time_since_epoch());
+			} else {
+				rhs_d = to_seconds(utctimespan_ext::as_timespan(o));
+			}
+			return rhs_d;
+		}
+
+		static py::object _add_(py::tuple args, py::dict kwargs) { args_check(args); return py::object(x_arg<utctime>(args, 0) + utctimespan_ext::as_timespan(args[1])); }
+		static py::object _sub_(py::tuple args, py::dict kwargs) { 
+			args_check(args); 
+			py::extract<utctime> is_utctime(args[1]);
+			if (is_utctime.check()) {
+				return py::object(x_arg<utctime>(args, 0) - is_utctime()); // -> converts to TimeSpan
+			}
+			// if other is time -> then result is timespan
+			// else other is timespan -> result is time
+			return py::object(utctime{ x_arg<utctime>(args, 0).time_since_epoch() - utctimespan_ext::as_timespan(args[1]) });
+		}
+		static py::object _rsub_(py::tuple args, py::dict kwargs) { 
+			args_check(args); 
+			py::extract<utctime> is_utctime(args[1]);
+			if (is_utctime.check()) {
+				return py::object(is_utctime() - x_arg<utctime>(args, 0)); // -> converts to TimeSpan
+			}
+			// if other is time -> then result is timespan
+			// else other is timespan -> result is time
+			return py::object(utctime{ -(x_arg<utctime>(args, 0).time_since_epoch() - utctimespan_ext::as_timespan(args[1])) });
+		}
+		static py::object _mult_(py::tuple args, py::dict kwargs) { 
+			args_check(args);
+			double rhs_d =arg_as_double(args[1]);
+			return py::object(utctime{ from_seconds(to_seconds(x_arg<utctime>(args, 0).time_since_epoch()) * rhs_d) });
+		}
+		static py::object _div_(py::tuple args, py::dict kwargs) { 
+			args_check(args); 
+			double rhs_d = arg_as_double(args[1]);
+			return py::object(utctime{ from_seconds(to_seconds(x_arg<utctime>(args, 0).time_since_epoch()) / rhs_d) });
+		}
+		static py::object _rdiv_(py::tuple args, py::dict kwargs) {
+			args_check(args);
+			double rhs_d = arg_as_double(args[1]);
+			return py::object(utctime{ from_seconds(rhs_d/to_seconds(x_arg<utctime>(args, 0).time_since_epoch())) });
+		}
+
+		static py::object _mod_(py::tuple args, py::dict kwargs) { 
+			args_check(args); 
+			double rhs_d = arg_as_double(args[1]);
+			return py::object(utctime{ x_arg<utctime>(args, 0).time_since_epoch() % from_seconds(rhs_d) });
+		}
+		static py::object _floordiv_(py::tuple args, py::dict kwargs) {
+			args_check(args);
+			return py::object(utctime {from_seconds(truncf(arg_as_double(args[0]) / arg_as_double(args[1])))});
+		}
+		static py::object _rfloordiv_(py::tuple args, py::dict kwargs) { 
+			args_check(args); 
+			return py::object(utctime{ from_seconds(truncf(arg_as_double(args[1]) / arg_as_double(args[0]))) });
+		}
+
 	};
 
 	
@@ -529,6 +670,9 @@ namespace expose {
 			.def("__long__", raw_function(utctime_ext::get_int_seconds, 1),
 				doc_intro("seconds since epoch 1970utc")
 			)
+			.def("__float__",raw_function(utctime_ext::get_float_seconds,1),
+				doc_intro("seconds since epoch 1970utc")
+			)
 
 			// math operations
 			.def(self == self)
@@ -537,10 +681,27 @@ namespace expose {
 			.def(utctimespan()+ self)
 			.def(self - utctimespan())
 			.def(self - self)
-			.def(self < self)
-			.def(self <= self)
-			.def(self>self)
-			.def(self>=self)
+			.def("__lt__",raw_function(utctime_ext::_lt_,1))
+			.def("__le__", raw_function(utctime_ext::_le_, 1))
+			.def("__gt__", raw_function(utctime_ext::_gt_, 1))
+			.def("__ge__", raw_function(utctime_ext::_ge_, 1))
+			.def("__eq__", raw_function(utctime_ext::_eq_, 1))
+			.def("__nq__", raw_function(utctime_ext::_nq_, 1))
+
+			.def("__add__", raw_function(utctime_ext::_add_, 1))
+			.def("__radd__", raw_function(utctime_ext::_add_, 1))
+			.def("__sub__", raw_function(utctime_ext::_sub_, 1))
+			.def("__rsub__", raw_function(utctime_ext::_rsub_, 1))
+			.def("__truediv__", raw_function(utctime_ext::_div_, 1))
+			.def("__rtruediv__", raw_function(utctime_ext::_rdiv_, 1))
+			.def("__floordiv__", raw_function(utctime_ext::_floordiv_, 1))
+			.def("__rfloordiv__", raw_function(utctime_ext::_rfloordiv_, 1))
+			.def("__mod__", raw_function(utctime_ext::_mod_, 1))
+
+			.def("__mul__", raw_function(utctime_ext::_mult_, 1))
+			.def("__rmul__", raw_function(utctime_ext::_mult_, 1))
+
+
 			;
 
         def("utctime_now",utctime_now,"returns utc-time now as seconds since 1970s");
