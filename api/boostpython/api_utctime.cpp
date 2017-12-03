@@ -307,7 +307,11 @@ namespace expose {
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
 			char s[100];
 			if (dt_s == dt)
+#ifndef _WIN32
 				sprintf(s, "TimeSpan(%ld)",int64_t(dt_s.count()));
+#else
+				sprintf(s, "TimeSpan(%lld)", int64_t(dt_s.count()));
+#endif
 			else
 				sprintf(s, "TimeSpan(%0.6lf)", to_seconds(dt));
 			return py::str(std::string(s));
@@ -317,7 +321,11 @@ namespace expose {
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
 			char s[100];
 			if (dt_s == dt)
+#ifndef _WIN32
 				sprintf(s, "%lds", dt_s.count());
+#else
+				sprintf(s, "%llds", dt_s.count());
+#endif
 			else
 				sprintf(s, "%0.6lfs", to_seconds(dt));
 			return py::str(std::string(s));

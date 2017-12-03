@@ -726,7 +726,7 @@ namespace expose {
             .def("max",max_double_f,(py::arg("self"),py::arg("number")),"create a new ts that contains the max of self and number for each time-step")
             .def("max",max_ts_f,(py::arg("self"),py::arg("ts_other")),"create a new ts that contains the max of self and ts_other")
             .def("min_max_check_linear_fill",&shyft::api::apoint_ts::min_max_check_linear_fill,
-                 (py::arg("self"),py::arg("v_min"),py::arg("v_max"),py::arg("dt_max")=shyft::core::max_utctime),
+                 (py::arg("self"),py::arg("v_min"),py::arg("v_max"),py::arg("dt_max")=shyft::core::utctimespan::max()),
                  doc_intro("Create a min-max range checked ts with linear-fill-values if value is NaN or outside range")
                  doc_parameters()
                  doc_parameter("v_min","float","minimum range, values < v_min are considered NaN. v_min==NaN means no lower limit")

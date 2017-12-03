@@ -7,6 +7,7 @@ from shyft.api import TimeSeries
 from shyft.api import TimeAxis
 from shyft.api import point_interpretation_policy as ts_point_fx
 from shyft.api import deltahours
+from shyft.api import UtcTime
 from shyft.api import GeoPointVector
 from shyft.api import GeoPoint
 from shyft.api import TemperatureSourceVector
@@ -21,12 +22,13 @@ from shyft.api import create_wind_speed_source_vector_from_np_array
 from shyft.api import create_rel_hum_source_vector_from_np_array
 from shyft.api import create_radiation_source_vector_from_np_array
 
+t0 = UtcTime(0)
+
 
 class VectorCreate(unittest.TestCase):
-
     def test_create_basic(self):
         a = np.array([[1.1, 1.2, 1.3], [2.1, 2.2, 2.3]], dtype=np.float64)
-        ta = TimeAxis(0, deltahours(1), 3)
+        ta = TimeAxis(t0, deltahours(1), 3)
         tsv = create_ts_vector_from_np_array(ta, a, ts_point_fx.POINT_AVERAGE_VALUE)
         self.assertIsNotNone(tsv)
         for i in range(2):
@@ -54,7 +56,7 @@ class VectorCreate(unittest.TestCase):
     def test_create_xx_source_vector(self):
         # arrange the setup
         a = np.array([[1.1, 1.2, 1.3], [2.1, 2.2, 2.3]], dtype=np.float64)
-        ta = TimeAxis(0, deltahours(1), 3)
+        ta = TimeAxis(t0, deltahours(1), 3)
         gpv = GeoPointVector()
         gpv[:] = [GeoPoint(1,2,3),GeoPoint(4,5,6)]
         cfs =[(create_precipitation_source_vector_from_np_array,PrecipitationSourceVector),
