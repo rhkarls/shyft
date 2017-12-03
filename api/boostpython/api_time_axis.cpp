@@ -53,6 +53,9 @@ namespace expose {
 			static fixed_dt *create_from_ints(int64_t t0, int64_t dt, int64_t n) {
 				return new fixed_dt{ utctime{ seconds(t0) }, seconds(dt), size_t(n) };
 			}
+			static fixed_dt *create_from_t_ints(utctime t0, int64_t dt, int64_t n) {
+				return new fixed_dt{t0, seconds(dt), size_t(n) };
+			}
 			static fixed_dt *create_from(utctime t0, utctimespan dt,int64_t n) {
 				return new fixed_dt{ t0,dt,size_t(n) };
 			}
@@ -76,6 +79,16 @@ namespace expose {
 					doc_intro("creates a time-axis with n intervals, fixed delta_t, starting at start")
 					doc_parameters()
 					doc_parameter("start", "int", "utc-time 1970 utc based")
+					doc_parameter("delta_t", "int", "number of seconds delta-t, length of periods in the time-axis")
+					doc_parameter("n", "int", "number of periods in the time-axis")
+				)
+				.def("__init__", make_constructor(&fixed_dt_ext::create_from_t_ints,
+					default_call_policies(),
+					(py::arg("t0"), py::arg("dt"), py::arg("n"))
+					),
+					doc_intro("creates a time-axis with n intervals, fixed delta_t, starting at start")
+					doc_parameters()
+					doc_parameter("start", "UtcTime", "utc-time 1970 utc based")
 					doc_parameter("delta_t", "int", "number of seconds delta-t, length of periods in the time-axis")
 					doc_parameter("n", "int", "number of periods in the time-axis")
 				)

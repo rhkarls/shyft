@@ -73,6 +73,7 @@ inline utctimespan from_seconds(double sec) { return utctimespan{ int64_t(round(
  */
 struct utcperiod {
 	utcperiod(utctime start, utctime end) noexcept: start(start), end(end) {}
+	utcperiod(int64_t start, int64_t end) noexcept : start{ seconds(start) }, end{ seconds(end) } {}
 	utcperiod() noexcept: start(no_utctime), end(no_utctime) {}
 	utctimespan timespan() const noexcept {	return (end - start); }
 	bool valid() const noexcept { return start != no_utctime && end != no_utctime && start <= end; }

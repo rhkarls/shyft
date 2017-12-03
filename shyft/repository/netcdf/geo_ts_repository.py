@@ -88,8 +88,8 @@ class GeoTsRepository(interfaces.GeoTsRepository):
                     tpath = station['time'].split('/')[1:]  # v1 time, the first one is empty
                     vpath = station['values'].split('/')[1:]
                     times = dset.groups[tpath[0]].variables[tpath[1]][:]
-                    imin = times.searchsorted(period.start, side='left')
-                    imax = times.searchsorted(period.end, side='right')
+                    imin = times.searchsorted(int(period.start), side='left')  # sih, works for all rep of t (ignores us)
+                    imax = times.searchsorted(int(period.end), side='right')
 
                     if imin >= imax:
                         #policy test goes here: then either
@@ -100,9 +100,9 @@ class GeoTsRepository(interfaces.GeoTsRepository):
                         tseries['time'] = [period.start, period.end]
                     # Get the indices of the valid period
                     else:
-                        if times[imin] > period.start and imin > 0:
+                        if times[imin] > int(period.start) and imin > 0:
                             imin -= 1  # requirement! data should cover requested period
-                        if times[imax] < period.end and imax + 1 < len(times):
+                        if times[imax] < int(period.end) and imax + 1 < len(times):
                             imax += 1  # requirement! data should cover requested period
 
                         tseries['values'] = dset.groups[vpath[0]].variables[vpath[1]][imin:imax]

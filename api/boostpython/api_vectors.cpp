@@ -191,7 +191,7 @@ namespace expose {
 					if (xtract_int.check()) {
 						r->push_back(utctime{ std::chrono::seconds(xtract_int()) });
 					} else {
-						py::extract<int64_t> xtract_double(oi);
+						py::extract<double> xtract_double(oi);
 						if (xtract_double.check()) {
 							r->push_back(utctime{ from_seconds(xtract_double()) });
 						} else {

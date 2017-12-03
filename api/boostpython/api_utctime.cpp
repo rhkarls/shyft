@@ -262,6 +262,7 @@ namespace expose {
         bool (utcperiod::*contains_p)(const utcperiod&) const = &utcperiod::contains;
         class_<utcperiod>("UtcPeriod","UtcPeriod defines the open utctime range [start..end> \nwhere end is required to be equal or greater than start")
         .def(init<utctime,utctime>(args("start,end"),"Create utcperiod given start and end"))
+		.def(init<int64_t, int64_t>(args("start,end"), "Create utcperiod given start and end"))
         .def("valid",&utcperiod::valid,"returns true if start<=end otherwise false")
         .def("contains",contains_t,args("t"),"returns true if utctime t is contained in this utcperiod" )
         .def("contains",contains_p,args("p"),"returns true if utcperiod p is contained in this utcperiod" )
@@ -302,6 +303,14 @@ namespace expose {
 				return py::object(int64_t(dt_s.count()));
 			return py::object(to_seconds(dt));
 		}
+		static py::object get_int_seconds(py::tuple args, py::dict kwargs) {
+			utctimespan dt = x_self(args);
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			if (dt_s == dt)
+				return py::object(int64_t(dt_s.count()));
+			return py::object(int64_t(to_seconds(dt)));
+		}
+
 		static py::object repr(py::tuple args, py::dict kwargs) {
 			utctimespan dt = x_self(args);
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
@@ -366,6 +375,8 @@ namespace expose {
 			.add_property("seconds",raw_function(utctimespan_ext::get_seconds,1),doc_intro("returns timespan in seconds"))
 			.def("__abs__",&utctimespan_ext::abs_timespan,(py::arg("self")))
 			.def("__float__",&utctimespan_ext::_float_,(py::arg("self")))
+			.def("__int__",raw_function(utctimespan_ext::get_int_seconds,1),doc_intro("timespan as int seconds"))
+			.def("__long__", raw_function(utctimespan_ext::get_int_seconds, 1), doc_intro("timespan as int seconds"))
 			.def("__repr__",raw_function(utctimespan_ext::repr,1),doc_intro("repr of TimeSpan"))
 			.def("__str__", raw_function(utctimespan_ext::str, 1), doc_intro("str of TimeSpan"))
 			// math operations
@@ -428,6 +439,13 @@ namespace expose {
 				return py::object(int64_t(dt_s.count()));
 			return py::object(to_seconds(dt));
 		}
+		static py::object get_int_seconds(py::tuple args, py::dict kwargs) {
+			auto dt = x_self(args).time_since_epoch();
+			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
+			if (dt_s == dt)
+				return py::object(int64_t(dt_s.count()));
+			return py::object(int64_t(to_seconds(dt)));
+		}
 		static py::object repr(py::tuple args, py::dict kwargs) {
 			auto dt = x_self(args).time_since_epoch();
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
@@ -451,6 +469,8 @@ namespace expose {
 			return py::object(utctime_floor(t, dt));
 		}
 	};
+
+	
 
     static void e_utctime() {
 		class_<utctime>("UtcTime", doc_intro("utctime is a timepoint, represented as seconds since epoch 1970.01.01 UTC"),no_init)
@@ -503,6 +523,13 @@ namespace expose {
 				//(py::arg("self"),py::arg("dt")),
 				doc_intro("floor(t,dt)")
 			)
+			.def("__int__", raw_function(utctime_ext::get_int_seconds, 1),
+				doc_intro("seconds since epoch 1970utc")
+			)
+			.def("__long__", raw_function(utctime_ext::get_int_seconds, 1),
+				doc_intro("seconds since epoch 1970utc")
+			)
+
 			// math operations
 			.def(self == self)
 			.def(self != self)

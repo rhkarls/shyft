@@ -488,7 +488,7 @@ class AromeDataRepository(interfaces.GeoTsRepository):
 
         def rad_conv(r):
             dr = r[1:] - r[:-1]
-            return np.clip(dr/(time[1] - time[0]), 0.0, 5000.0)
+            return np.clip(dr/float(time[1] - time[0]), 0.0, 5000.0)
 
         convert_map = {"wind_speed": lambda x, t: (noop_space(x), noop_time(t)),
                        "relative_humidity_2m": lambda x, t: (noop_space(x), noop_time(t)),

@@ -49,7 +49,7 @@ class Vectors(unittest.TestCase):
         dv_from_list = api.UtcTimeVector([x for x in range(10)])
         dv_np = np.arange(10, dtype=np.int64)
         dv_from_np = api.UtcTimeVector.from_numpy(dv_np)
-        surprice = api.UtcTimeVector(dv_np)
+        # surprice = api.UtcTimeVector(dv_np)
         self.assertEqual(len(dv_from_list), 10)
         assert_array_almost_equal(dv_from_list.to_numpy(), dv_np)
         assert_array_almost_equal(dv_from_np.to_numpy(), dv_np)
@@ -61,6 +61,9 @@ class Vectors(unittest.TestCase):
         dv_np[10] = 11
         dv_np[11] = 12
         assert_array_almost_equal(dv_from_np.to_numpy(), dv_np)
+        lst = [api.UtcTime(1),api.UtcTime(2)]
+        lst_v = api.UtcTimeVector(lst)
+        self.assertEqual(len(lst), len(lst_v))
 
     def test_string_vector(self):
         # NOTE: support for string vector is very limited, e.g. numpy does not work, only lists

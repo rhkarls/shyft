@@ -310,7 +310,7 @@ class CFDataRepository(interfaces.GeoTsRepository):
         """
 
         def noop_time(t):
-            return api.TimeAxis(api.UtcTimeVector.from_numpy(t.astype(int)), int(2*t[-1] - t[-2]))
+            return api.TimeAxis(api.UtcTimeVector.from_numpy(t.astype(int)), int(t[-1] +(t[-1]- t[-2])))  # works regardless type of t
 
         def dacc_time(t):
             return noop_time(t) if issubset else api.TimeAxis(api.UtcTimeVector.from_numpy(t.astype(int)))
