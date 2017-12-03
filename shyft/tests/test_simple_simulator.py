@@ -196,9 +196,9 @@ class SimulationTestCase(unittest.TestCase):
         found_discharge = simulator.region_model.statistics.discharge([cid])
 
         t_vs = np.array([target_discharge.value(i) for i in range(target_discharge.size())])
-        t_ts = np.array([target_discharge.time(i) for i in range(target_discharge.size())])
+        t_ts = np.array([float(target_discharge.time(i)) for i in range(target_discharge.size())])
         f_vs = np.array([found_discharge.value(i) for i in range(found_discharge.size())])
-        f_ts = np.array([found_discharge.time(i) for i in range(found_discharge.size())])
+        f_ts = np.array([float(found_discharge.time(i)) for i in range(found_discharge.size())])
         self.assertTrue(np.linalg.norm(t_ts - f_ts) < 1.0e-10)
         self.assertTrue(np.linalg.norm(t_vs - f_vs) < 1.0e-3)
 

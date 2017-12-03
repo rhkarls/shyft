@@ -389,7 +389,8 @@ namespace expose {
 		static py::object _floordiv_(py::tuple args, py::dict kwargs) {	args_check(args);return py::object(from_seconds(truncf(to_seconds(x_arg<utctimespan>(args, 0)) / to_seconds(as_timespan(args[1])))));}
 		static py::object _rfloordiv_(py::tuple args, py::dict kwargs) {args_check(args);return py::object(from_seconds(truncf(to_seconds(as_timespan(args[1]))/to_seconds(x_arg<utctimespan>(args, 0)) )));}
 		static py::object _rdiv_(py::tuple args, py::dict kwargs) {	args_check(args);return py::object(from_seconds( to_seconds(as_timespan(args[1]))/ to_seconds(x_arg<utctimespan>(args, 0))));}
-
+		// just for backward(consider change code)
+		static py::object _sqrt_(py::tuple args, py::dict kwargs) {return py::object(sqrt(to_seconds(as_timespan(args[0])) / to_seconds(x_arg<utctimespan>(args, 0)))); }
 	};
 
 	static void e_utctimespan() {
@@ -444,6 +445,7 @@ namespace expose {
 
 			.def("__mul__", raw_function(utctimespan_ext::_mult_, 1))
 			.def("__rmul__", raw_function(utctimespan_ext::_mult_, 1))
+			.def("sqrt",raw_function(utctimespan_ext::_sqrt_,1))
 			//.def(self % self)
 			.def(-self)
 			;
