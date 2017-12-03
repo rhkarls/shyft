@@ -433,7 +433,11 @@ namespace expose {
 			auto dt_s = std::chrono::duration_cast<std::chrono::seconds>(dt);
 			char s[100];
 			if (dt_s == dt)
-				sprintf(s, "UtcTime(%lld)", dt_s.count());
+#ifndef _WIN32
+				sprintf(s, "UtcTime(%ld)", dt_s.count());
+#else
+                sprintf(s, "UtcTime(%lld)", dt_s.count());
+#endif
 			else
 				sprintf(s, "UtcTime(%0.6lf)", to_seconds(dt));
 			return py::str(std::string(s));
