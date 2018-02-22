@@ -262,7 +262,23 @@ namespace expose {
 
     }
     static void dtss_server() {
-        typedef shyft::dtss::py_server DtsServer;
+
+        using DtsServer = shyft::dtss::py_server;
+        using shyft::dtss::server_container_type;
+        
+        enum_<server_container_type>("dtss_server_container_type",
+            doc_intro("Enumeration of the different containers that may be added to a DtsServer.")
+            doc_intro("")
+            doc_intro("The different containers exposed are:")
+            doc_intro(" * `TS_DB_CONTAINER`: this is the default database container type.")
+            doc_intro(" * `KRLS_PRED_CONTAINER`: This is a container training a KRLS predictor on all time-seies")
+            doc_intro("   stored in it, and read accesses retreive interpolated values from the KRLS predictor.")
+            )
+            .value("TS_DB_CONTAINER", server_container_type::TS_DB_CONTAINER)
+            .value("KRLS_PRED_CONTAINER", server_container_type::KRLS_PRED_CONTAINER)
+            .export_values()
+            ;
+
         class_<DtsServer, boost::noncopyable >("DtsServer",
             doc_intro("A distributed time-series server object")
             doc_intro("Capable of processing time-series messages and responding accordingly")
@@ -387,13 +403,15 @@ namespace expose {
                     "dtss-threads perform the callback ")
                 doc_see_also("cb,start_async(),is_running,clear()")
             )
-            .def("set_container",&DtsServer::add_container,(py::arg("self"),py::arg("name"),py::arg("root_dir")),
+            .def("set_container", &DtsServer::add_container, (py::arg("self"), py::arg("name"), py::arg("root_dir"),
+                                                              py::arg("container_type") = shyft::dtss::server_container_type::TS_DB_CONTAINER),
                  doc_intro("set ( or replaces) an internal shyft store container to the dtss-server.")
                  doc_intro("All ts-urls with shyft://<container>/ will resolve")
                  doc_intro("to this internal time-series storage for find/read/store operations")
                  doc_parameters()
                  doc_parameter("name","str","Name of the container as pr. url definition above")
                  doc_parameter("root_dir","str","A valid directory root for the container")
+                 // doc_parameter("container_type", "dtss_server_container_type", "Container type to add. See `dtss_server_container_type`.")
                  doc_notes()
                  doc_note("currently this call should only be used when the server is not processing messages\n"
                           "- before starting, or after stopping listening operations\n"
@@ -440,8 +458,8 @@ namespace expose {
                 doc_intro("time-series from cache in the least recently used order.")
             )
             ;
-
     }
+
     static void dtss_client() {
         typedef shyft::dtss::py_client  DtsClient;
 		class_<DtsClient, boost::noncopyable >("DtsClient",

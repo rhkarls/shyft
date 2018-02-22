@@ -63,6 +63,14 @@ using store_call_back_t = std::function<void(const ts_vector_t&)>;
 using find_call_back_t = std::function<ts_info_vector_t(std::string search_expression)>;
 
 
+/** \brief Enumeration of different containers the server can host.
+ */
+enum class server_container_type {
+    TS_DB_CONTAINER,  ///< Regular time-series database container. See \ref shyft::dtss::ts_db .
+    KRLS_PRED_CONTAINER,  ///< For containers hosting a krls predictor. See \ref shyft::dtss::ts_krls_pred .
+};
+
+
 /** \brief A dtss server with time-series server-side functions
  *
  * The dtss server listens on a port, receives messages, interpret them
@@ -82,17 +90,20 @@ using find_call_back_t = std::function<ts_info_vector_t(std::string search_expre
  *
  */
 struct server : dlib::server_iostream {
+
     using ts_cache_t = cache<apoint_ts_frag,apoint_ts>;
+
     // callbacks for extensions
     read_call_back_t bind_ts_cb; ///< called to read non shyft:// unbound ts
     find_call_back_t find_ts_cb; ///< called for all non shyft:// find operations
     store_call_back_t store_ts_cb;///< called for all non shyft:// store operations
+
     // shyft-internal implementation
     std::unordered_map<std::string, ts_db> container;///< mapping of internal shyft <container> -> ts_db
     ts_cache_t ts_cache{1000000};// default 1 mill ts in cache
     bool cache_all_reads{false};
-    // constructors
 
+    // constructors
     server()=default;
     server(server&&)=delete;
     server(const server&) =delete;
@@ -119,8 +130,19 @@ struct server : dlib::server_iostream {
     ~server() =default;
 
     //-- container management
-    void add_container(const std::string &container_name,const std::string& root_dir) {
-        container[container_name]=ts_db(root_dir); // TODO: This is not thread-safe(so needs to be done before starting)
+    void add_container(
+        const std::string & container_name, const std::string & root_dir,
+        server_container_type type = server_container_type::TS_DB_CONTAINER
+    ) {
+        switch ( type ) {
+        default:
+        case server_container_type::TS_DB_CONTAINER: {
+            container[container_name] = ts_db(root_dir);  // TODO: This is not thread-safe(so needs to be done before starting)
+        } break;
+        case server_container_type::KRLS_PRED_CONTAINER: {
+            // TODO: add container
+        } break;
+        }
     }
 
     const ts_db& internal(const std::string& container_name) const {
