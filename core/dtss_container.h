@@ -73,7 +73,9 @@ struct container_wrapper {
     ~container_wrapper() = default;
     // -----
     template < class CIMPL >
-    container_wrapper(container<CIMPL> & c) : _container{ container_adt{ c } } { }
+    container_wrapper(const container<CIMPL> & c) : _container{ container_adt{ c } } { }
+    template < class CIMPL >
+    container_wrapper(container<CIMPL> && c) : _container{ container_adt{ c } } { }
     // -----
     container_wrapper(const container_wrapper &) = default;
     container_wrapper & operator=(const container_wrapper &) = default;
