@@ -587,7 +587,8 @@ TEST_CASE("dtss_store_basics") {
         time_axis::point_dt pta(tp,fta.total_period().end);
         dlog << dlib::LINFO << "starting store basics";
 
-        auto tmpdir = (fs::temp_directory_path()/"ts.db.test");
+        auto dirname = "ts.db.test." + std::to_string(core::utctime_now());
+        auto tmpdir = (fs::temp_directory_path()/dirname);
         ts_db db(tmpdir.string());
 
         TEST_SECTION("store_fixed_dt") {
@@ -862,7 +863,8 @@ TEST_CASE("dtss_store_merge_write") {
     namespace ts = shyft::time_series;
 	using shyft::time_series::dd::gta_t;
     // setup db
-    auto tmpdir = (fs::temp_directory_path()/"ts.db.test");
+    auto dirname = "ts.db.test." + std::to_string(core::utctime_now());
+    auto tmpdir = (fs::temp_directory_path()/dirname);
     dtss::ts_db db(tmpdir.string());
 
     SUBCASE("error_handling") {
