@@ -2242,4 +2242,28 @@ TEST_CASE("dtss_ltm") {
     << double(n*n_ts*(2+1))/(elapsed_us(t1,t2)/1e6)/1e6<<" mops/s \n";
 
 }
+
+TEST_CASE("dtss_container_wrapping") {
+    auto tmpdir = (fs::temp_directory_path()/"dtss_container_wrapping");
+
+    shyft::core::calendar utc;
+
+    using shyft::time_axis::generic_dt;
+    using shyft::time_series::point_ts;
+    using shyft::time_series::ts_point_fx;
+    // -----
+    using shyft::dtss::ts_db;
+    using cwrp_t = shyft::dtss::container_wrapper<ts_db>;  // keep the parameter list updated with all containers allowed
+    
+    SUBCASE("dispatch save through container_wrapper") {
+        auto case_dir = (tmpdir/"case_1");
+
+        generic_dt ta{ utc.time(2002, 2, 2) };
+        point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
+
+        cwrp_t container{ ts_db(case_dir.string()) };
+        container.save("test", ts);
+    }
+}
+
 }
