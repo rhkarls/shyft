@@ -43,7 +43,7 @@ struct container {
 
     /** Remove a time-series from the container. */
     void remove(const std::string & tsid) const {
-        static_cast<const IMPL*>(this)->remove(fn);
+        static_cast<const IMPL*>(this)->remove(tsid);
     }
 
     /** Get minimal info about a time-series stored in the container. */
@@ -70,8 +70,10 @@ struct container_wrapper {
     container_adt _container;
 
     container_wrapper() = default;
+    ~container_wrapper() = default;
+    // -----
     template < class CIMPL >
-    container_wrapper(container<CIMPL> && c) : _container{ container_adt{ c } } { }
+    container_wrapper(container<CIMPL> & c) : _container{ container_adt{ c } } { }
     // -----
     container_wrapper(const container_wrapper &) = default;
     container_wrapper & operator=(const container_wrapper &) = default;
