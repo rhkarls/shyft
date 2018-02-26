@@ -242,7 +242,7 @@ namespace shyft {
                         if (idx == 0) sca = 0.0;
                         else if (idx == I.size()) sca = 1.0;
                         else {
-                            if (s.sp[idx] > 0.0) sca = I[idx] - (I[idx] - I[idx - 1])*(potmelt - s.sp[idx])/(s.sp[idx - 1] = s.sp[idx]);
+                            if (s.sp[idx] > 0.0) sca = I[idx] - (I[idx] - I[idx - 1])*(potmelt - s.sp[idx])/(s.sp[idx - 1] - s.sp[idx]);
                             else sca = (1.0 - potmelt/s.sp[idx - 1])*(sca - I[idx - 1]) + I[idx - 1];
                         }
 
