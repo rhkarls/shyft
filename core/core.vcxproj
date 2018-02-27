@@ -130,6 +130,7 @@
     <ClInclude Include="hbv_stack.h" />
     <ClInclude Include="hbv_stack_cell_model.h" />
     <ClInclude Include="hbv_tank.h" />
+    <ClInclude Include="hs_snow.h" />
     <ClInclude Include="kalman.h" />
     <ClInclude Include="model_calibration.h" />
     <ClInclude Include="gamma_snow.h" />

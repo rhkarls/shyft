@@ -33,6 +33,7 @@ namespace expose {
 	extern void dtss();
     extern void dtss_finalize();
     extern void api_cell_state_id();
+	extern void hs_snow();
 
 
     static std::vector<char> byte_vector_from_file(std::string path) {
@@ -106,6 +107,7 @@ namespace expose {
         gamma_snow();
         skaugen_snow();
         hbv_snow();
+		hs_snow();
         hbv_physical_snow();
         kirchner();
         cell_environment();

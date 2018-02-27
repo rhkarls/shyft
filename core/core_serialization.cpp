@@ -21,6 +21,7 @@
 #include "time_axis.h"
 #include "geo_cell_data.h"
 #include "hbv_snow.h"
+#include "hs_snow.h"
 #include "hbv_physical_snow.h"
 #include "hbv_soil.h"
 #include "hbv_tank.h"
@@ -171,6 +172,16 @@ void shyft::core::hbv_snow::state::serialize(Archive & ar, const unsigned int fi
     & core_nvp("swe",swe)
     & core_nvp("sca",sca)
     ;
+}
+//-- state serialization
+template <class Archive>
+void shyft::core::hs_snow::state::serialize(Archive & ar, const unsigned int file_version) {
+	ar
+		& core_nvp("sp", sp)
+		& core_nvp("sw", sw)
+		& core_nvp("swe", swe)
+		& core_nvp("sca", sca)
+		;
 }
 
 template <class Archive>
