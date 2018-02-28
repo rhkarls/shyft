@@ -71,7 +71,7 @@ enum class server_container_type {
 /** 
  */
 template < class ... CIMPLs >
-struct container {
+struct container_wrapper {
 
     using gta_t = shyft::time_axis::generic_dt;
     using gts_t = shyft::time_series::point_ts<gta_t>;
@@ -80,19 +80,19 @@ struct container {
     // -----
     container_adt _container;
 
-    container() = default;
-    ~container() = default;
+    container_wrapper() = default;
+    ~container_wrapper() = default;
     // -----
     template < class CIMPL >
-    container(const CIMPL & c) : _container{ c } { }
+    container_wrapper(const CIMPL & c) : _container{ c } { }
     template < class CIMPL >
-    container(CIMPL && c) : _container{ std::forward<CIMPL>(c) } { }
+    container_wrapper(CIMPL && c) : _container{ std::forward<CIMPL>(c) } { }
     // -----
-    container(const container &) = default;
-    container & operator=(const container &) = default;
+    container_wrapper(const container_wrapper &) = default;
+    container_wrapper & operator=(const container_wrapper &) = default;
     // -----
-    container(container &&) = default;
-    container & operator=(container &&) = default;
+    container_wrapper(container_wrapper &&) = default;
+    container_wrapper & operator=(container_wrapper &&) = default;
 
     /** Save a time-series to the container. */
     void save(
@@ -157,7 +157,7 @@ struct container {
 struct server : dlib::server_iostream {
 
     using ts_cache_t = cache<apoint_ts_frag,apoint_ts>;
-    using cwrp_t = container<ts_db>;  // keep the parameter list updated with all containers allowed
+    using cwrp_t = container_wrapper<ts_db>;  // keep the parameter list updated with all containers allowed
 
     // callbacks for extensions
     read_call_back_t bind_ts_cb; ///< called to read non shyft:// unbound ts
@@ -165,7 +165,7 @@ struct server : dlib::server_iostream {
     store_call_back_t store_ts_cb;///< called for all non shyft:// store operations
 
     // shyft-internal implementation
-    std::unordered_map<std::string, cwrp_t> container;///< mapping of internal shyft <container> -> ts_db
+    std::unordered_map<std::string, cwrp_t> container;///< mapping of internal shyft <container>
     ts_cache_t ts_cache{1000000};// default 1 mill ts in cache
     bool cache_all_reads{false};
 
