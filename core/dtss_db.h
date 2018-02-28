@@ -29,7 +29,6 @@ namespace fs = boost::filesystem;
 #include "core/time_series_dd.h"
 #include "time_series_info.h"
 #include "utctime_utilities.h"
-#include "dtss_container.h"
 
 namespace shyft {
 namespace dtss {
@@ -135,7 +134,7 @@ struct ts_db_header {
  *      internally managed as well as externally mapped ts-db
  *
  */
-struct ts_db : public container<ts_db> {
+struct ts_db {
 	std::string root_dir; ///< root_dir points to the top of the container
   private:
 
@@ -196,7 +195,7 @@ public:
 	explicit ts_db(const std::string& root_dir) :root_dir(root_dir) {
 		if (!fs::is_directory(root_dir)) {
 			if (!fs::exists(root_dir)) {
-				if (!fs::create_directory(root_dir)) {
+				if (!fs::create_directories(root_dir)) {
 					throw std::runtime_error(std::string("ts_db: failed to create root directory :") + root_dir);
 				}
 			} else {

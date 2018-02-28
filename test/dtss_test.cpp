@@ -2253,9 +2253,9 @@ TEST_CASE("dtss_container_wrapping") {
     using shyft::time_series::ts_point_fx;
     // -----
     using shyft::dtss::ts_db;
-    using cwrp_t = shyft::dtss::container_wrapper<ts_db>;  // keep the parameter list updated with all containers allowed
+    using cwrp_t = shyft::dtss::container<ts_db>;  // keep the parameter list updated with all containers allowed
     
-    SUBCASE("dispatch save through container_wrapper") {
+    SUBCASE("dispatch save through container") {
         auto case_dir = (tmpdir/"case_1");
 
         generic_dt ta{ utc.time(2002, 2, 2) };
