@@ -143,7 +143,7 @@ struct ts_db {
 		bool win_thread_close = false;
 		mutable ts_db * parent = nullptr;
 
-		close_write_handle() noexcept = default;
+		close_write_handle() noexcept {};// minimum fix for clang ref. https://stackoverflow.com/questions/43819314/default-member-initializer-needed-within-definition-of-enclosing-class-outside
 		close_write_handle(bool wtc) noexcept : win_thread_close{ wtc } {};
 		close_write_handle(const close_write_handle &) noexcept = default;
 
