@@ -2244,7 +2244,7 @@ TEST_CASE("dtss_ltm") {
 }
 
 TEST_CASE("dtss_container_wrapping") {
-    auto tmpdir = (fs::temp_directory_path()/"dtss_container_wrapping");
+    auto tmpdir = (fs::temp_directory_path()/fs::unique_path());
 
     shyft::core::calendar utc;
 
@@ -2253,16 +2253,79 @@ TEST_CASE("dtss_container_wrapping") {
     using shyft::time_series::ts_point_fx;
     // -----
     using shyft::dtss::ts_db;
-    using cwrp_t = shyft::dtss::container_wrapper<ts_db>;  // keep the parameter list updated with all containers allowed
+    using cwrp_t = shyft::dtss::container_wrapper<ts_db>;
     
     SUBCASE("dispatch save through container") {
-        auto case_dir = (tmpdir/"case_1");
+        std::string ts_name{ "test" };
 
-        generic_dt ta{ utc.time(2002, 2, 2) };
+        generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(case_dir.string()) };
-        container.save("test", ts);
+        cwrp_t container{ ts_db(tmpdir.string()) };
+
+        container.save(ts_name, ts);
+        FAST_REQUIRE_UNARY( fs::is_regular_file(tmpdir/ts_name) );
+    }
+
+    SUBCASE("dispatch read through container") {
+        std::string ts_name{ "test" };
+
+        generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
+        point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
+
+        cwrp_t container{ ts_db(tmpdir.string()) };
+        
+        container.save(ts_name, ts);
+        FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
+
+        auto ts_new = container.read(ts_name, ta.total_period());
+        TS_ASSERT_EQUALS( ts_new, ts );
+    }
+
+    SUBCASE("dispatch remove through container") {
+        std::string ts_name{ "test" };
+
+        generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
+        point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
+
+        cwrp_t container{ ts_db(tmpdir.string()) };
+
+        container.save(ts_name, ts);
+        FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
+
+        container.remove(ts_name);
+        FAST_REQUIRE_UNARY_FALSE( fs::exists(tmpdir/ts_name) );
+    }
+
+    SUBCASE("dispatch get_ts_info through container") {
+        std::string ts_name{ "test" };
+
+        generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
+        point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
+
+        cwrp_t container{ ts_db(tmpdir.string()) };
+
+        container.save(ts_name, ts);
+        FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
+
+        auto info = container.get_ts_info(ts_name);
+        FAST_REQUIRE_EQ( info.name, ts_name );
+    }
+
+    SUBCASE("dispatch find through container") {
+        std::string ts_name{ "test" };
+
+        generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
+        point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
+
+        cwrp_t container{ ts_db(tmpdir.string()) };
+
+        container.save(ts_name, ts);
+        FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
+
+        auto info = container.find(ts_name);
+        FAST_REQUIRE_EQ( info.size(), 1 );
+        FAST_REQUIRE_EQ( info[0].name, ts_name );
     }
 }
 
