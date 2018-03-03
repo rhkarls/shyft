@@ -19,7 +19,7 @@ class RegionModel(unittest.TestCase):
         gcds = api.GeoCellDataVector()  # creating models from geo_cell-data is easier and more flexible
         for i in range(model_size):
             gp = api.GeoPoint(500 + 1000.0 * i, 500.0, 500.0 * i / model_size)
-            cid = 0
+            cid = 1
             if num_catchments > 1:
                 cid = random.randint(1, num_catchments + 1)
             geo_cell_data = api.GeoCellData(gp, cell_area, cid, 0.9, api.LandTypeFractions(0.01, 0.05, 0.19, 0.3, 0.45))
@@ -262,7 +262,7 @@ class RegionModel(unittest.TestCase):
         model.river_network.add(
             api.River(1, api.RoutingInfo(0, 3000.0), api.UHGParameter(1 / 3.60, 7.0, 0.0)))  # river id =1
         # 2nd: let cells route to the river
-        model.connect_catchment_to_river(0, 1)  # now all cells in catchment 0 routes to river with id 1.
+        model.connect_catchment_to_river(1, 1)  # now all cells in catchment 1 routes to river with id 1.
         self.assertTrue(model.has_routing())
         # 3rd: now we can have a look at water coming in and out
         river_out_m3s = model.river_output_flow_m3s(1)  # should be delayed and reshaped
@@ -274,7 +274,7 @@ class RegionModel(unittest.TestCase):
         self.assertAlmostEqual(river_out_m3s.value(8), 31.57297, 0)
         self.assertIsNotNone(river_local_m3s)
         self.assertIsNotNone(river_upstream_inflow_m3s)
-        model.connect_catchment_to_river(0, 0)
+        model.connect_catchment_to_river(1, 0)
         self.assertFalse(model.has_routing())
         #
         # Test the state-adjustments interfaces
@@ -472,6 +472,29 @@ class RegionModel(unittest.TestCase):
             self.assertAlmostEqual(cell_vector[i].geo.mid_point().z, cell_vector2[i].mid_point().z)
             self.assertAlmostEqual(cell_vector[i].geo.mid_point().x, cell_vector2[i].mid_point().x)
             self.assertAlmostEqual(cell_vector[i].geo.mid_point().y, cell_vector2[i].mid_point().y)
+
+    def test_model_catchment_ids(self):
+        num_cells = 50
+        model_type = pt_gs_k.PTGSKModel
+        for n_cids in [1,2,3]:
+            model = self.build_model(model_type, pt_gs_k.PTGSKParameter, num_cells, n_cids)
+            cids= sorted(model.catchment_ids)
+            self.assertEqual(len(cids), n_cids)
+            for i in range(n_cids):
+                self.assertEqual(i+1, cids[i])
+
+
+    def test_region_environment_variable_list(self):
+        """ just to verify ARegionEnvironment.variables container exposed to ease scripting"""
+        cal = api.Calendar()
+        time_axis = api.TimeAxisFixedDeltaT(cal.time(2015, 1, 1, 0, 0, 0), api.deltahours(1), 240)
+        e = self.create_dummy_region_environment(time_axis,api.GeoPoint(0.0,1.0,2.0))
+        self.assertIsNotNone(e)
+        self.assertEqual(len(e.variables),5)
+        for v in e.variables:
+            self.assertIsNotNone(v[1])
+            self.assertEqual(getattr(e,v[0])[0].mid_point_,v[1][0].mid_point_)  # equivalent, just check first midpoint
+            self.assertEqual(getattr(e,v[0])[0].ts.value(0),v[1][0].ts.value(0))  # and value
 
     def test_state_with_id_handler(self):
         num_cells = 20

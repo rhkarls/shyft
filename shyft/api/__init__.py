@@ -383,6 +383,16 @@ TemperatureSourceVector.values_at_time = GeoPointSourceVector.values_at_time
 RelHumSourceVector.values_at_time = GeoPointSourceVector.values_at_time
 WindSpeedSourceVector.values_at_time = GeoPointSourceVector.values_at_time
 
+ARegionEnvironment.variables = property(
+    lambda self:[
+        ('temperature', self.temperature),
+        ('precipitation', self.precipitation),
+        ('radiation', self.radiation),
+        ('rel_hum', self.rel_hum),
+        ('wind_speed', self.wind_speed)
+        ]
+    ,doc='returns the list of available forcing variables as tuples(string,reference_to_variable)'
+)
 # need to create the `__all__` attribute for documentation.
 # if you want sphinx-apidoc to autodoc a module/class it should be
 # included below.

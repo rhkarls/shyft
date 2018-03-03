@@ -177,17 +177,17 @@ namespace expose {
          .def("river_upstream_inflow_m3s",&M::river_upstream_inflow_m3s, (py::arg("self"), py::arg("rid")),"returns the routed upstream inflow to the specified river id (rid))")
          .def("river_local_inflow_m3s",&M::river_local_inflow_m3s, (py::arg("self"), py::arg("rid")),"returns the routed local inflow from connected cells to the specified river id (rid))")
 		 .def("connect_catchment_to_river",&M::connect_catchment_to_river, (py::arg("self"), py::arg("cid"),py::arg("rid")),
-         "Connect routing of all the cells in the specified catchment id to the specified river id\n"
-         ""
-         "Parameters\n"
-         "----------\n"
-         " cid: int\n"
-         "\t catchment identifier\n"
-         " rid: int\n"
-         "\t river identifier, can be set to 0 to indicate disconnect from routing"
+            doc_intro("Connect routing of all the cells in the specified catchment id to the specified river id")
+            doc_intro("")
+            doc_parameters()
+            doc_parameter("cid","int","catchment identifier")
+            doc_parameter("rid","int","river identifier, can be set to 0 to indicate disconnect from routing")
          )
          .def("number_of_catchments",&M::number_of_catchments, (py::arg("self")),"compute and return number of catchments using info in cells.geo.catchment_id()")
-		 .def("extract_geo_cell_data",&M::extract_geo_cell_data,(py::arg("self")),
+		 .def_readonly("catchment_ids",&M::catchment_ids,
+             doc_intro("provides the list of catchment identifiers,'cids' within this model")
+         )
+         .def("extract_geo_cell_data",&M::extract_geo_cell_data,(py::arg("self")),
              "extracts the geo_cell_data and return it as GeoCellDataVector that can\n"
              "be passed into a the constructor of a new region-model (clone-operation)\n"
          )
