@@ -742,10 +742,42 @@ TEST_CASE("dtss_store_basics") {
 
 }
 TEST_CASE("shyft_url") {
-    using namespace shyft::dtss;
-    FAST_CHECK_EQ(shyft_url("abc","123"),string("shyft://abc/123"));
-    FAST_CHECK_EQ(extract_shyft_url_container("shyft://abc/something/else"),string("abc"));
-    FAST_CHECK_EQ(extract_shyft_url_container("grugge"),string{});
+
+    using shyft::dtss::shyft_url;
+    using shyft::dtss::extract_shyft_url_container;
+
+    FAST_CHECK_EQ( shyft_url("abc","123"), string("shyft://abc/123") );
+
+    FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else"), string("abc") );
+    FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else?query=string&here=foo"), string("abc") );
+
+    FAST_CHECK_EQ( extract_shyft_url_container("grugge"), string{} );
+    FAST_CHECK_EQ( extract_shyft_url_container("grugge?query"), string{} );
+
+}
+TEST_CASE("shyft_url_query") {
+
+    using shyft::dtss::extract_query_parameters;
+
+    auto m1 = extract_query_parameters("shyft://abc/something/else?query=string&here=");
+    FAST_CHECK_EQ( m1.size(), 2 );
+    FAST_REQUIRE_EQ( m1.count("query"), 1 );
+    FAST_CHECK_EQ( m1["query"], std::string{"string"} );
+    FAST_REQUIRE_EQ( m1.count("here"), 1 );
+    FAST_CHECK_EQ( m1["here"], std::string{""} );
+
+    auto m2 = extract_query_parameters("shyft://abc/something/else?query=string&here=foo");
+    FAST_CHECK_EQ( m2.size(), 2 );
+    FAST_REQUIRE_EQ( m2.count("query"), 1 );
+    FAST_CHECK_EQ( m2["query"], std::string{"string"} );
+    FAST_REQUIRE_EQ( m2.count("here"), 1 );
+    FAST_CHECK_EQ( m2["here"], std::string{"foo"} );
+
+    auto m3 = extract_query_parameters("grugge");
+    FAST_CHECK_EQ( m3.size(), 0 );
+
+    auto m4 = extract_query_parameters("grugge?query");
+    FAST_CHECK_EQ( m4.size(), 0 );
 }
 TEST_CASE("dtss_store") { /*
     This test simply create and host a dtss on port 20000,
