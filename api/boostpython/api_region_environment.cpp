@@ -54,6 +54,7 @@ namespace expose {
             )
             .staticmethod("from_geo_and_ts_vector")
             ;
+        py_api::iterable_converter().from_python<TSourceVector>();
 
         py::def("compute_geo_ts_values_at_time", &geo_tsv_values<T>, py::args("geo_ts_vector", "t"),
             doc_intro("compute the ts-values of the GeoPointSourceVector type for the specified time t and return DoubleVector")

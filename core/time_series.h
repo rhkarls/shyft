@@ -1269,6 +1269,10 @@ namespace shyft{
 			bool valid(double level) const {
 				return lower <= level;
 			}
+            bool operator==(const rating_curve_segment& o) const {
+                return epsilon_difference(lower,o.lower)<2 && epsilon_difference(a,o.a)<2 && epsilon_difference(b,o.b) && epsilon_difference(c,o.c);
+            }
+            bool operator!=(const rating_curve_segment&o) const { return !operator==(o); }
 			// -----
 			/** Compute the flow from a water level.
 			 * Does _not_ check if `h` is valid according to `lower`.
@@ -1464,11 +1468,13 @@ namespace shyft{
 				return ret.str();
 			}
 			// -----
-			void add_curve(utctime t, rating_curve_function && rcf) {
+            rating_curve_parameters& add_curve(utctime t, rating_curve_function && rcf) {
 				curves.emplace(t, std::forward<rating_curve_function>(rcf));
+                return *this;
 			}
-			void add_curve(utctime t, const rating_curve_function & rcf) {
+            rating_curve_parameters& add_curve(utctime t, const rating_curve_function & rcf) {
 				curves.emplace(t, rcf);
+                return *this;
 			}
 			// -----
 			/** Apply the rating-curve pack at a specific time. */
