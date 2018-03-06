@@ -1,7 +1,10 @@
 #pragma once
+
 #include <algorithm>
-#include <unordered_map>
+#include <map>
+#include <sstream>
 #include <string>
+
 
 namespace shyft {
 namespace dtss {
@@ -10,9 +13,19 @@ namespace dtss {
 extern std::string shyft_prefix;//="shyft://";  ///< marks all internal handled urls
 
 
-/**construct a shyft-url from container and ts-name */
-inline std::string shyft_url(const std::string& container, const std::string& ts_name) {
+/** Construct a shyft-url from a container and a ts-name. */
+inline std::string shyft_url(const std::string & container, const std::string & ts_name) {
     return shyft_prefix + container + "/" + ts_name;
+}
+/** Construct a shyft-url from a container, a ts-name, and a collection of query flags. */
+inline std::string shyft_url(const std::string & container, const std::string & ts_name, const std::map<std::string, std::string> & queries) {
+    std::ostringstream str_s{ };
+    str_s << "?";
+    for ( auto it = queries.cbegin(); it != queries.cend(); ) {
+        auto p = *it++;  // record current value, increment iterator
+        str_s << p.first << '=' << p.second << (it != queries.cend() ? "&" : "");
+    }
+    return shyft_url(container, ts_name) + str_s.str();
 }
 
 
@@ -44,9 +57,9 @@ inline std::string extract_shyft_url_container(const std::string& url) {
  * \param url String url to parse.
  * \return A map-type with the key-values from the url query string.
  */
-inline std::unordered_map<std::string, std::string> extract_query_parameters(const std::string & url) {
+inline std::map<std::string, std::string> extract_shyft_url_query_parameters(const std::string & url) {
     
-    using map_t = std::unordered_map<std::string, std::string>;
+    using map_t = std::map<std::string, std::string>;
     
     // locate query string if present
     auto it = std::find(url.cbegin(), url.cend(), '?');

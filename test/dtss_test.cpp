@@ -744,9 +744,15 @@ TEST_CASE("dtss_store_basics") {
 TEST_CASE("shyft_url") {
 
     using shyft::dtss::shyft_url;
-    using shyft::dtss::extract_shyft_url_container;
 
     FAST_CHECK_EQ( shyft_url("abc","123"), string("shyft://abc/123") );
+
+    std::map<std::string, std::string> m{ std::make_pair("foo", "bar"), std::make_pair("baz", "") };
+    FAST_CHECK_EQ( shyft_url("abc","123", m), string("shyft://abc/123?baz=&foo=bar") );
+}
+TEST_CASE("extract_shyft_url_container") {
+
+    using shyft::dtss::extract_shyft_url_container;
 
     FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else"), string("abc") );
     FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else?query=string&here=foo"), string("abc") );
@@ -755,28 +761,28 @@ TEST_CASE("shyft_url") {
     FAST_CHECK_EQ( extract_shyft_url_container("grugge?query"), string{} );
 
 }
-TEST_CASE("shyft_url_query") {
+TEST_CASE("extract_shyft_url_query") {
 
-    using shyft::dtss::extract_query_parameters;
+    using shyft::dtss::extract_shyft_url_query_parameters;
 
-    auto m1 = extract_query_parameters("shyft://abc/something/else?query=string&here=");
+    auto m1 = extract_shyft_url_query_parameters("shyft://abc/something/else?query=string&here=");
     FAST_CHECK_EQ( m1.size(), 2 );
     FAST_REQUIRE_EQ( m1.count("query"), 1 );
     FAST_CHECK_EQ( m1["query"], std::string{"string"} );
     FAST_REQUIRE_EQ( m1.count("here"), 1 );
     FAST_CHECK_EQ( m1["here"], std::string{""} );
 
-    auto m2 = extract_query_parameters("shyft://abc/something/else?query=string&here=foo");
+    auto m2 = extract_shyft_url_query_parameters("shyft://abc/something/else?query=string&here=foo");
     FAST_CHECK_EQ( m2.size(), 2 );
     FAST_REQUIRE_EQ( m2.count("query"), 1 );
     FAST_CHECK_EQ( m2["query"], std::string{"string"} );
     FAST_REQUIRE_EQ( m2.count("here"), 1 );
     FAST_CHECK_EQ( m2["here"], std::string{"foo"} );
 
-    auto m3 = extract_query_parameters("grugge");
+    auto m3 = extract_shyft_url_query_parameters("grugge");
     FAST_CHECK_EQ( m3.size(), 0 );
 
-    auto m4 = extract_query_parameters("grugge?query");
+    auto m4 = extract_shyft_url_query_parameters("grugge?query");
     FAST_CHECK_EQ( m4.size(), 0 );
 }
 TEST_CASE("dtss_store") { /*
