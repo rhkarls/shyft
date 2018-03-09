@@ -514,6 +514,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         """
 
         def noop_time(t):
+            t = t[:-1]
             dt_last = int(t[-1] - t[-2])
             if np.all(t[1:] - t[:-1] == dt_last):  # fixed_dt time axis
                 return api.TimeAxis(int(t[0]), dt_last, len(t))
