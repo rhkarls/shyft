@@ -408,7 +408,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         for k in dataset.variables.keys():
             if self._arome_shyft_map.get(k, None) in input_source_types:
                 if k in self._shift_fields and issubset:  # Add one to time slice
-                    data_time_slice = slice(time_slice.start, time_slice.stop + 1)
+                    data_time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra value that is needed for accumulated variables
                 else:
                     data_time_slice = time_slice
                 data = dataset.variables[k]
@@ -452,6 +452,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 sfc_t = raw_data["temperature"][0]
             raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, sfc_p), "relative_humidity_2m", '1'
         #print(data.dimensions)
+        time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra time that is needed for accumulated variables
         if ensemble_member is None and 'ensemble_member' in data.dimensions:
             dims_flat = [d for d in data.dimensions if d in ['time', 'ensemble_member', x_var.name]]
             ens_dim_idx = dims_flat.index('ensemble_member')
