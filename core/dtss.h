@@ -31,6 +31,8 @@
 #include "dtss_url.h"
 #include "dtss_msg.h"
 #include "dtss_db.h"
+#include "dtss_krls.h"
+
 
 namespace shyft {
 namespace dtss {
@@ -75,6 +77,7 @@ struct container_wrapper {
 
     using gta_t = shyft::time_axis::generic_dt;
     using gts_t = shyft::time_series::point_ts<gta_t>;
+    using queries_t = std::map<std::string, std::string>;
     // -----
     using container_adt = boost::variant<CIMPLs...>;
     // -----
@@ -99,41 +102,63 @@ struct container_wrapper {
         const std::string & tsid,
         const gts_t & ts,
         bool overwrite = true,
-        bool win_thread_close = true
+        const queries_t & queries = queries_t{}
     ) const {
         boost::apply_visitor([&](auto && var) {
-            var.save(tsid, ts, overwrite, win_thread_close);
+            var.save(tsid, ts, overwrite, queries);
         }, _container);
     }
     /** Read a period from a time-series from the container. */
     gts_t read(
         const std::string & tsid,
-        core::utcperiod period
+        core::utcperiod period,
+        const queries_t & queries = queries_t{}
     ) const {
         return boost::apply_visitor([&](auto && var) -> gts_t {
-            return var.read(tsid, period);
+            return var.read(tsid, period, queries);
         }, _container);
     }
     /** Remove a time-series from the container. */
-    void remove(const std::string & tsid) const {
+    void remove(
+        const std::string & tsid,
+        const queries_t & queries = queries_t{}
+    ) const {
         boost::apply_visitor([&](auto && var) {
-            return var.remove(tsid);
+            return var.remove(tsid, queries);
         }, _container);
     }
     /** Get minimal info about a time-series stored in the container. */
-    ts_info get_ts_info(const std::string & tsid) const {
+    ts_info get_ts_info(
+        const std::string & tsid,
+        const queries_t & queries = queries_t{}
+    ) const {
         return boost::apply_visitor([&](auto && var) -> ts_info {
-            return var.get_ts_info(tsid);
+            return var.get_ts_info(tsid, queries);
         }, _container);
     }
     /** Find minimal information about all time-series stored in the container matching a regex pattern. */
-    std::vector<ts_info> find(const std::string & pattern) const {
+    std::vector<ts_info> find(
+        const std::string & pattern,
+        const queries_t & queries = queries_t{}
+    ) const {
         return boost::apply_visitor([&](auto && var) -> std::vector<ts_info> {
-            return var.find(pattern);
+            return var.find(pattern, queries);
         }, _container);
     }
 
 };
+
+/** Map between container query values and container prefixes.
+ */
+inline std::string get_container_prefix_for_container_query(const std::string & container_query) {
+    if ( container_query.empty() || container_query == "ts_db" ) {
+        return std::string{};
+    } else if ( container_query == "krls" ) {
+        return std::string{ "KRLS_PREDICTOR_CONTAINER_" };
+    } else {
+        throw std::runtime_error(std::string{"failed to map container query to container type: "} + container_query);
+    }
+}
 
 
 /** \brief A dtss server with time-series server-side functions
@@ -157,7 +182,7 @@ struct container_wrapper {
 struct server : dlib::server_iostream {
 
     using ts_cache_t = cache<apoint_ts_frag,apoint_ts>;
-    using cwrp_t = container_wrapper<ts_db>;  // keep the parameter list updated with all containers allowed
+    using cwrp_t = container_wrapper<ts_db, krls_pred_db>;  // keep the parameter list updated with all containers allowed
 
     // callbacks for extensions
     read_call_back_t bind_ts_cb; ///< called to read non shyft:// unbound ts
@@ -200,19 +225,24 @@ struct server : dlib::server_iostream {
         const std::string & container_name, const std::string & root_dir,
         server_container_type type = server_container_type::TS_DB_CONTAINER
     ) {
+        // TODO: adding containers is not thread-safe (so it needs to be done before starting)
         switch ( type ) {
         default:
         case server_container_type::TS_DB_CONTAINER: {
-            container[container_name] = cwrp_t{ ts_db(root_dir) };  // TODO: This is not thread-safe(so needs to be done before starting)
+            container[container_name] = cwrp_t{ ts_db(root_dir) };
         } break;
         case server_container_type::KRLS_PRED_CONTAINER: {
-            // TODO: add container
+            container[get_container_prefix_for_container_query("krls") + container_name] = cwrp_t{
+                krls_pred_db(root_dir, [this](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
+                    id_vector_t id_vec{ tsid };
+                    return this->do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
+                }) };
         } break;
         }
     }
 
-    const cwrp_t & internal(const std::string& container_name) const {
-        auto f = container.find(container_name);
+    const cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
+        auto f = container.find(get_container_prefix_for_container_query(container_query) + container_name);
         if(f == end(container))
             throw runtime_error(std::string("Failed to find shyft container:")+container_name);
         return f->second;

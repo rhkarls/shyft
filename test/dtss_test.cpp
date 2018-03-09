@@ -197,7 +197,7 @@ TEST_CASE("dtss_ts_cache") {
     auto mts2 = c.get(ids2, mta.total_period());
     FAST_REQUIRE_EQ(n_ts, mts.size());
     for (size_t i = 0; i<n_ts; ++i) {
-        FAST_REQUIRE_UNARY(mts2.find(ids[i])!=mts.end());
+        FAST_REQUIRE_UNARY(mts2.find(ids[i]) != mts2.end());
         FAST_CHECK_EQ(mts2[ids[i]].value(0), double(i)); // just check one value unique for ts.
     }
 
@@ -2365,6 +2365,10 @@ TEST_CASE("dtss_container_wrapping") {
         FAST_REQUIRE_EQ( info.size(), 1 );
         FAST_REQUIRE_EQ( info[0].name, ts_name );
     }
+}
+
+TEST_CASE("dtss_server_url_query_parameters") {
+    // TODO to test this robustly may require breaking the tight coupling between dtss::server and the containers
 }
 
 }

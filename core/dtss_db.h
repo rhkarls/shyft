@@ -135,9 +135,12 @@ struct ts_db_header {
  *
  */
 struct ts_db {
-	std::string root_dir; ///< root_dir points to the top of the container
-  private:
+	
+    using queries_t = std::map<std::string, std::string>;
 
+    std::string root_dir; ///< root_dir points to the top of the container
+
+  private:
   	/** helper class needed for win compensating code */
 	struct close_write_handle {
 		bool win_thread_close = false;
@@ -186,9 +189,8 @@ struct ts_db {
 #else
 	void wait_for_close_fh() const noexcept {}
 #endif
+
 public:
-
-
 	ts_db() = default;
 
 	/** constructs a ts_db with specified container root */
@@ -241,7 +243,7 @@ public:
 	 *                          Use a deatached background thread to close the file.
 	 *                          Defaults to true.
 	 */
-	void save(const std::string& fn, const gts_t& ts, bool overwrite = true, bool win_thread_close = true) const {
+	void save(const std::string& fn, const gts_t& ts, bool overwrite = true, const queries_t & queries = queries_t{}, bool win_thread_close = true) const {
         wait_for_close_fh();
 
         std::string ffp = make_full_path(fn, true);
@@ -275,7 +277,7 @@ public:
 	}
 
 	/** read a ts from specified file */
-	gts_t read(const std::string& fn, core::utcperiod p) const {
+	gts_t read(const std::string& fn, core::utcperiod p, const queries_t & queries = queries_t{}) const {
 		wait_for_close_fh();
 		std::string ffp = make_full_path(fn);
 		std::unique_ptr<std::FILE, decltype(&std::fclose)> fh{ std::fopen(ffp.c_str(), "rb"), &std::fclose };
@@ -286,7 +288,7 @@ public:
 	}
 
 	/** removes a ts from the container */
-	void remove(const std::string& fn) const {
+	void remove(const std::string& fn, const queries_t & queries = queries_t{}) const {
 		wait_for_close_fh();
 		auto fp = make_full_path(fn);
 		for (std::size_t retry = 0; retry < 10; ++retry) {
@@ -301,7 +303,7 @@ public:
 	}
 
 	/** get minimal ts-information from specified fn */
-	ts_info get_ts_info(const std::string& fn) const {
+	ts_info get_ts_info(const std::string& fn, const queries_t & queries = queries_t{}) const {
 		wait_for_close_fh();
 		auto ffp = make_full_path(fn);
 		std::unique_ptr<std::FILE, decltype(&std::fclose)> fh{ std::fopen(ffp.c_str(), "rb"), &std::fclose };
@@ -320,7 +322,7 @@ public:
 	 * e.g.: match= 'hydmet_station/.*_id/temperature'
 	 *    would find all time-series /hydmet_station/xxx_id/temperature
 	 */
-	std::vector<ts_info> find(const std::string& match) const {
+	std::vector<ts_info> find(const std::string& match, const queries_t & queries = queries_t{}) const {
 		wait_for_close_fh();
 		fs::path root(root_dir);
 		std::vector<ts_info> r;
@@ -329,7 +331,7 @@ public:
 			if (fs::is_regular(x.path())) {
 				std::string fn = x.path().lexically_relative(root).generic_string(); // x.path() except root-part
 				if (std::regex_search(fn, r_match)) {
-					r.push_back(get_ts_info(fn)); // TODO: maybe multi-core this into a job-queue
+					r.push_back(get_ts_info(fn, queries)); // TODO: maybe multi-core this into a job-queue
 				}
 			} else if (fs::is_directory(x.path())) {
 				// TODO: elide recursion into the x, calling
