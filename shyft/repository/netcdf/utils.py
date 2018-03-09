@@ -33,3 +33,19 @@ def calc_RH(T, Td, p):
     qsat = calc_q(T, p, alpha)
     q = calc_q(Td, p, alpha)
     return q / qsat
+
+
+def calc_P(elev, seaLevelPressure=101325):
+    """
+    Compute surface pressure at a particular altitude given a sea level pressure
+
+    elev: meters
+    seaLevelPressure: pa
+    """
+    g = 9.80665;  # m/s2
+    T0 = 288.15;  # K
+    L = -0.0065;  # K/m
+    M = 0.0289644  # kg/mol
+    R = 8.3144598  # J/mol/K
+    value = seaLevelPressure * (T0 / (T0 + L * (elev))) ** (g * M / (R * L))
+    return value

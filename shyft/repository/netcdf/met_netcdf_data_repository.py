@@ -14,6 +14,7 @@ from shyft import api
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
 from .utils import calc_RH
+from .utils import calc_P
 
 UTC = api.Calendar()
 
@@ -126,6 +127,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         self._arome_shyft_map = {
             'dew_point_temperature_2m': 'dew_point_temperature_2m',
             'surface_air_pressure': 'surface_air_pressure',
+            'sea_level_pressure': 'sea_level_pressure',
             "relative_humidity_2m": "relative_humidity",
             "air_temperature_2m": "temperature",
             #"altitude": "z",
@@ -144,6 +146,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                           "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time": ['W s/m^2'],
                           'dew_point_temperature_2m': ['K'],
                           'surface_air_pressure': ['Pa'],
+                          'sea_level_pressure': ['Pa'],
                           }
 
         self._shift_fields = ("precipitation_amount", "precipitation_amount_acc",
@@ -385,12 +388,22 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         # else:
         #     ecmwf_fetching_error = False
         # if "relative_humidity" in input_source_types and ("relative_humidity_2m" not in dataset.variables or ecmwf_fetching_error):
+
+        # estimate from surface_air_preasure...
         if "relative_humidity" in input_source_types and all([var in dataset.variables for var in ["surface_air_pressure", "dew_point_temperature_2m"]]):
             if not isinstance(input_source_types, list):
                 input_source_types = list(input_source_types)  # We change input list, so take a copy
             input_source_types.remove("relative_humidity")
             input_source_types.extend(["surface_air_pressure", "dew_point_temperature_2m"])
             if no_temp: input_source_types.extend(["temperature"])
+        # ...or from sea_level_preasure
+        if "relative_humidity" in input_source_types and all([var in dataset.variables for var in ["sea_level_pressure", "dew_point_temperature_2m"]]):
+            if not isinstance(input_source_types, list):
+                input_source_types = list(input_source_types)  # We change input list, so take a copy
+            input_source_types.remove("relative_humidity")
+            input_source_types.extend(["sea_level_pressure", "dew_point_temperature_2m"])
+            if no_temp: input_source_types.extend(["temperature"])
+
         # Check for presence and consistency of coordinate variables
         time, x_var, y_var, data_cs, coord_conv = self._check_and_get_coord_vars(dataset, input_source_types)
         # Check units of meteorological variables
@@ -451,6 +464,14 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             else:
                 sfc_t = raw_data["temperature"][0]
             raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, sfc_p), "relative_humidity_2m", '1'
+        if set(("sea_level_pressure", "dew_point_temperature_2m")).issubset(raw_data):
+            sea_p = raw_data.pop("sea_level_pressure")[0]
+            dpt_t = raw_data.pop("dew_point_temperature_2m")[0]
+            if no_temp:
+                sfc_t = raw_data.pop("temperature")[0]
+            else:
+                sfc_t = raw_data["temperature"][0]
+            raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, calc_P(z, sea_p)), "relative_humidity_2m", '1'
         #print(data.dimensions)
         time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra time that is needed for accumulated variables
         if ensemble_member is None and 'ensemble_member' in data.dimensions:
