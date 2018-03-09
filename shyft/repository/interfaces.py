@@ -1,4 +1,5 @@
 ﻿from abc import ABCMeta, abstractmethod
+from shyft import api
 
 """Module description: This module contain the abstract base-classes for the
 repositories in shyft, defining the contracts that a repository should
@@ -92,7 +93,8 @@ class RegionModelRepository(object):
         return region_model(cells, region_parameter, catchment_parameters)
         ```
         """
-        pass
+        raise NotImplementedError(
+            "Method 'get_region_model' not implemented for repository {}.".format(self.__class__.__name__))
 
 
 class StateInfo(object):
@@ -162,7 +164,8 @@ class StateRepository(object):
         -------
         List of StateInfo objects that matches the specified criteria
         """
-        pass
+        raise NotImplementedError(
+            "Method 'find_state' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def get_state(self, state_id):
@@ -177,7 +180,8 @@ class StateRepository(object):
         The state for a specified state_id, - the returned object/type can be
         passed directly to the region-model
         """
-        pass
+        raise NotImplementedError(
+            "Method 'get_state' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def put_state(self, region_model_id, utc_timestamp,
@@ -201,7 +205,8 @@ class StateRepository(object):
         state_id: immutable id
             Identifier that can be used as argument to get_state.
         """
-        pass
+        raise NotImplementedError(
+            "Method 'put_state' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def delete_state(self, state_id):
@@ -221,6 +226,78 @@ class StateRepository(object):
         """
         pass
 
+class ForecastSelectionCriteriaError(Exception):
+   pass
+
+class ForecastSelectionCriteria(object):
+    """
+    A fc_selection_criteria is a tuple which specifies the collection of forecasts to be returned by
+    GeoTsRepository methods get_forecast_collection and get_forecast_ensemble_collection.
+    See Interfaces.GeoTsRepository
+
+    Initialisation
+    --------------
+    The following initialisations are supported:
+        * forecast created within period=UtcPeriod
+            get forecast created within period
+        * forecasts_with_start_within_period=UtcPeriod
+            get forecast with nb_to_drop-horizon within period
+        * forecasts_that_cover_period=UtcPeriod
+            get forecast that cover period
+        * latest_available_forecasts={'number_of_forecast': int, 'forecasts_older_than': int}
+            get latest number_of_forecast older than time_stamp
+        * 'forecasts_at_reference_times': list(int)
+            get latest forecast for list of time_stamps
+
+    Examples
+    --------
+    fc_selection_criteria = ForecastSelectionCriteria(forecasts_created_within_period=api.UtcPeriod(0,3600))
+    fc_selection_criteria.criterion
+    Out: ('forecasts_created_within_period', <shyft.api._api.UtcPeriod at 0xc9c39ef538>)
+
+    fc_selection_criteria = ForecastSelectionCriteria(latest_available_forecasts=
+                            {'number_of_forecasts': 1, 'forecasts_older_than': api.Calendar().time(2018, 1, 20, 7)})
+    fc_selection_criteria.criterion
+    Out: ('latest_available_forecasts', {'forecasts_older_than': 1516431600, 'number_of_forecasts': 1})
+    """
+    def __init__(self, **kwargs):
+        cri_lst = [(k, v) for k, v in kwargs.items()]
+        is_not_none = [cri[1] is not None for cri in cri_lst]
+        if sum(is_not_none) != 1:
+           raise ForecastSelectionCriteriaError('Only one of the selection criteria should be specified!')
+        self._selected_criterion = cri_lst[is_not_none.index(True)]
+        self._validate()
+
+    @property
+    def criterion(self):
+        return self._selected_criterion
+
+    def _validate(self):
+        k, v = self._selected_criterion
+        if k == 'forecasts_created_within_period':
+           if not isinstance(v, api.UtcPeriod):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_created_within_period' selection criteria should be of type api.UtcPeriod.")
+        elif k == 'forecasts_with_start_within_period':
+           if not isinstance(v, api.UtcPeriod):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_with_start_within_period' selection criteria should be of type api.UtcPeriod.")
+        elif k == 'forecasts_that_cover_period':
+           if not isinstance(v, api.UtcPeriod):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_that_cover_period' selection criteria should be of type api.UtcPeriod.")
+        elif k == 'latest_available_forecasts':
+           if not all([isinstance(v, dict), isinstance(v['number_of_forecasts'], int),
+                       isinstance(v['forecasts_older_than'], int)]):
+               raise ForecastSelectionCriteriaError(
+                   "'latest_available_forecasts' selection criteria should be of type dict with keys "
+                   "'number_of_forecasts' and 'forecasts_older_than' and values of type int.")
+        elif k == 'forecasts_at_reference_times':
+           if not isinstance(v, list):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_at_reference_times' selection criteria should be of type list.")
+        else:
+           raise ForecastSelectionCriteriaError("Unrecognized forecast selection criteria.")
 
 class GeoTsRepository(object):
     """
@@ -261,8 +338,8 @@ class GeoTsRepository(object):
             List of source types to retrieve (precipitation,temperature..)
         utc_period: api.UtcPeriod
             The utc time period that should (as a minimum) be covered.
-        geo_location_criteria: object
-            Some type (to be decided), extent (bbox + coord.ref)
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
 
         Returns
         -------
@@ -274,7 +351,32 @@ class GeoTsRepository(object):
             the requested period, but must return sufficient data so
             that the f(t) can be evaluated over the requested period.
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'get_timeseries' not implemented for repository {}.".format(self.__class__.__name__))
+
+    @abstractmethod
+    def get_timeseries_ensemble(self, input_source_types, utc_period, geo_location_criteria=None):
+        """
+        Parameters
+        ----------
+        input_source_types: list
+            List of source types to retrieve (precipitation,temperature..)
+        utc_period: api.UtcPeriod
+            The utc time period that should (as a minimum) be covered.
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
+
+        Returns
+        -------
+        ensemble: list of same type as get_timeseries
+            Important notice: The returned time-series should at least cover the
+            requested period. It could return *more* data than in
+            the requested period, but must return sufficient data so
+            that the f(t) can be evaluated over the requested period.
+        """
+        raise NotImplementedError(
+            "Interface method 'get_timeseries_ensemble' not implemented for repository {}.".format(
+                self.__class__.__name__))
 
     @abstractmethod
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):
@@ -287,8 +389,8 @@ class GeoTsRepository(object):
             The utc time period that should (as a minimum) be covered.
         t_c: long
             Forecast specification; return newest forecast older than t_c.
-        geo_location_criteria: object
-            Some type (to be decided), extent (bbox + coord.ref).
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
 
         Returns
         -------
@@ -300,7 +402,8 @@ class GeoTsRepository(object):
             the requested period, but must return sufficient data so
             that the f(t) can be evaluated over the requested period.
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'get_forecast' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def get_forecast_ensemble(self, input_source_types, utc_period,
@@ -314,19 +417,65 @@ class GeoTsRepository(object):
             The utc time period that should (as a minimum) be covered.
         t_c: long
             Forecast specification; return newest forecast older than t_c.
-        geo_location_criteria: object
-            Some type (to be decided), extent (bbox + coord.ref).
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
 
         Returns
         -------
-        ensemble: list of same type as get_timeseries
-        Important notice: The returned forecast time-series should at least cover the
+        ensemble: list of same type as get_forecast
+            Important notice: The returned forecast time-series should at least cover the
             requested period. It could return *more* data than in
             the requested period, but must return sufficient data so
             that the f(t) can be evaluated over the requested period.
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'get_forecast_ensemble' not implemented for repository {}.".format(
+                self.__class__.__name__))
 
+    @abstractmethod
+    def get_forecast_collection(self, input_source_types, fc_selection_criteria, geo_location_criteria=None):
+        """
+        Parameters
+        ----------
+        input_source_types: list
+            List of source types to retrieve (precipitation, temperature, ...)
+        fc_selection_criteria: ForecastSelectionCriteria
+            Forecasts specifications; return all forecast that meet specification
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
+
+        Returns
+        -------
+        List of geo_loc_ts:
+            List of dictionaries keyed by time series name, where values are
+            api vectors of geo located timeseries.
+        """
+        raise NotImplementedError(
+            "Interface method 'get_forecast_collection' not implemented for repository {}.".format(
+                self.__class__.__name__))
+
+    @abstractmethod
+    def get_forecast_ensemble_collection(self, input_source_types, fc_selection_criteria, geo_location_criteria=None):
+        """
+        Parameters
+        ----------
+        input_source_types: list
+            List of source types to retrieve (precipitation, temperature, ...)
+        fc_selection_criteria: ForecastSelectionCriteria
+            Forecasts specification; return all forecast that meet specification
+        geo_location_criteria: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            Polygon defining the boundary for selecting points. All points located inside this boundary will be fetched.
+
+        Returns
+        -------
+        List (collection) of lists (ensemble members) of geo_loc_ts:
+            List (collection indexed) of lists (ensemble indexed) dictionaries
+            keyed by time series name, where values are api vectors of geo located
+            timeseries.
+        """
+        raise NotImplementedError(
+            "Interface method 'get_forecast_ensemble_collection' not implemented for repository {}.".format(
+                self.__class__.__name__))
 
 class InterpolationParameterRepository(object):
     """
@@ -345,7 +494,8 @@ class InterpolationParameterRepository(object):
         parameter: shyft.api type
             Interpolation parameter object
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'get_parameters' not implemented for repository {}.".format(self.__class__.__name__))
 
 
 class BoundingRegion(object):
@@ -368,7 +518,8 @@ class BoundingRegion(object):
            x coordinates of the four corners, numbered clockwise from
            upper left corner.
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'bounding_box' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def bounding_polygon(self, epsg):
@@ -385,7 +536,8 @@ class BoundingRegion(object):
         y: np.ndarray
            y coordinates of the smallest bounding polygon of the region
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'bounding_polygon' not implemented for repository {}.".format(self.__class__.__name__))
 
     @abstractmethod
     def epsg(self):
@@ -395,7 +547,8 @@ class BoundingRegion(object):
         epsg: string
             Epsg id of coordinate system
         """
-        pass
+        raise NotImplementedError(
+            "Interface method 'epsg' not implemented for repository {}.".format(self.__class__.__name__))
 
 
 class InterfaceError(Exception):
