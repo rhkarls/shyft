@@ -515,7 +515,8 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         """
 
         def noop_time(t):
-            t = t[:-1]
+            if issubset:
+                t = t[:-1]
             dt_last = int(t[-1] - t[-2])
             if np.all(t[1:] - t[:-1] == dt_last):  # fixed_dt time axis
                 return api.TimeAxis(int(t[0]), dt_last, len(t))
@@ -524,14 +525,10 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
         def dacc_time(t):
             dt_last = int(t[-1] - t[-2])
-            if issubset:
-                return noop_time(t)
+            if np.all(t[1:] - t[:-1] == dt_last):  # fixed_dt time axis
+                return api.TimeAxis(int(t[0]), dt_last, len(t) - 1)
             else:
-                if np.all(t[1:] - t[:-1] == dt_last):  # fixed_dt time axis
-                    return api.TimeAxis(int(t[0]), dt_last, len(t) - 1)
-                else:
-                    #return api.TimeAxis(api.UtcTimeVector.from_numpy(t[:-1].astype(int)), int(t[-1] + dt_last))
-                    return api.TimeAxis(api.UtcTimeVector.from_numpy(t[:-1].astype(int)), int(t[-1]))
+                return api.TimeAxis(api.UtcTimeVector.from_numpy(t[:-1].astype(int)), int(t[-1]))
 
         def noop_space(x):
             return x
