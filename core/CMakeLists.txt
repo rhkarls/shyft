@@ -1,6 +1,6 @@
 # CMake file for compiling the C++ core library
 # library sources
-set(SOURCES   dtss_client.cpp dtss.cpp experimental.cpp dream_optimizer.cpp sceua_optimizer.cpp 
+set(SOURCES   dtss_client.cpp experimental.cpp dream_optimizer.cpp sceua_optimizer.cpp 
     time_series_dd.cpp core_serialization.cpp time_series_serialization.cpp
     utctime_utilities.cpp expression_serialization.cpp
 )
