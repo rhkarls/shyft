@@ -40,7 +40,7 @@ namespace shyft {
 	using time_series::dd::apoint_ts;
 	using time_series::dd::ats_vector;
 
-        struct py_server : server {
+        struct py_server : server<container_wrapper<ts_db, krls_pred_db>> {
             boost::python::object cb;///< callback for the read function
             boost::python::object fcb;///< callback for the find function
             boost::python::object scb;///< callback for the store function

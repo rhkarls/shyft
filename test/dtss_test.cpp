@@ -352,7 +352,7 @@ TEST_CASE("dlib_server_basics") {
             return r;
         };
 
-        server our_server(cb,fcb);
+        server<cwrp_spec> our_server(cb,fcb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -432,11 +432,11 @@ TEST_CASE("dlib_multi_server_basics") {
         };
 
         size_t n_servers=2;
-        vector<unique_ptr<server>> servers;
+        vector<unique_ptr<server<cwrp_spec>>> servers;
         vector<string> host_ports;
         int base_port=21000;
         for(size_t i=0;i<n_servers;++i) {
-            auto srv = make_unique<server>(rcb);
+            auto srv = make_unique<server<cwrp_spec>>(rcb);
             srv->set_listening_ip("127.0.0.1");
             srv->set_listening_port(base_port +i);
             srv->start_async();
@@ -502,7 +502,7 @@ TEST_CASE("dlib_server_performance") {
             }
             return from_disk;
         };
-        server our_server(cb);
+        server<cwrp_spec> our_server(cb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -754,11 +754,15 @@ TEST_CASE("extract_shyft_url_container") {
 
     using shyft::dtss::extract_shyft_url_container;
 
-    FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else"), string("abc") );
-    FAST_CHECK_EQ( extract_shyft_url_container("shyft://abc/something/else?query=string&here=foo"), string("abc") );
+    std::string extracted_1 = extract_shyft_url_container("shyft://abc/something/else");
+    std::string extracted_2 = extract_shyft_url_container("shyft://abc/something/else?query=string&here=foo");
+    FAST_CHECK_EQ( extracted_1, string("abc") );
+    FAST_CHECK_EQ( extracted_2, string("abc") );
 
-    FAST_CHECK_EQ( extract_shyft_url_container("grugge"), string{} );
-    FAST_CHECK_EQ( extract_shyft_url_container("grugge?query"), string{} );
+    std::string extracted_3 = extract_shyft_url_container("grugge");
+    std::string extracted_4 = extract_shyft_url_container("grugge?query");
+    FAST_CHECK_EQ( extracted_3, string{} );
+    FAST_CHECK_EQ( extracted_4, string{} );
 
 }
 TEST_CASE("extract_shyft_url_query") {
@@ -803,7 +807,7 @@ TEST_CASE("dtss_store") { /*
 
     // make dtss server
     auto tmpdir = fs::temp_directory_path()/"shyft.c.test";
-    server our_server{};
+    server<cwrp_spec> our_server{};
     string tc{"tc"};
     our_server.add_container(tc,tmpdir.string());
     our_server.set_listening_ip("127.0.0.1");

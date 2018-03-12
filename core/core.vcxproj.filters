@@ -16,9 +16,6 @@
     <ClCompile Include="core_serialization.cpp">
       <Filter>serialization</Filter>
     </ClCompile>
-    <ClCompile Include="dtss.cpp">
-      <Filter>dtss</Filter>
-    </ClCompile>
     <ClCompile Include="dtss_client.cpp">
       <Filter>dtss</Filter>
     </ClCompile>
@@ -184,6 +181,12 @@
     </ClInclude>
     <ClInclude Include="time_series_point_merge.h">
       <Filter>time_series</Filter>
+    </ClInclude>
+    <ClInclude Include="hbv_physical_snow.h" />
+    <ClInclude Include="pt_hps_k.h" />
+    <ClInclude Include="pt_hps_k_cell_model.h" />
+    <ClInclude Include="dtss_krls.h">
+      <Filter>dtss</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
