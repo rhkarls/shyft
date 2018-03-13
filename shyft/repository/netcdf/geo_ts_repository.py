@@ -158,19 +158,6 @@ class GeoTsRepository(interfaces.GeoTsRepository):
             data[input_source] = acc_data
         return data
 
-    def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria):
-        """
-        Parameters:
-        see get_timeseries
-        semantics for utc_period: Get the forecast closest up to utc_period.start
-        """
-        raise NotImplementedError("get_forecast")
-
-    def get_forecast_ensemble(self, input_source_types, utc_period,
-                              t_c, geo_location_criteria=None):
-        raise NotImplementedError("get_forecast_ensemble")
-
-
 def get_geo_ts_collection(datasets_config, data_dir):
     """Return a collection of geo-ts repos in datasets config file."""
     geo_ts_repos = []

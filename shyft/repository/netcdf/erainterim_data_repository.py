@@ -118,18 +118,6 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
             return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria)
 
-    def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria):
-        """
-        Parameters:
-        see get_timeseries
-        semantics for utc_period: Get the forecast closest up to utc_period.start
-        """
-        raise NotImplementedError("get_forecast")
-
-    def get_forecast_ensemble(self, input_source_types, utc_period,
-                              t_c, geo_location_criteria=None):
-        raise NotImplementedError("get_forecast_ensemble")
-
     def _convert_to_timeseries(self, data):
         tsc = api.TsFactory().create_point_ts
         time_series = {}
