@@ -49,10 +49,10 @@ namespace dtss_stress {
         utctimespan dt_read_var{1000};
         string container{"test"};
         string ts_path{"a"};
-        size_t min_ts{100};
-        size_t max_ts{1000};
+        size_t min_ts{10};
+        size_t max_ts{100};
         size_t min_n{10};
-        size_t max_n{1000};
+        size_t max_n{100};
         utctimespan dt{10};
         size_t n_pts_min{1};
         int n_pts_var{10000};
@@ -60,7 +60,8 @@ namespace dtss_stress {
 
     struct reader {
         config c{};
-
+        bool use_cache{ true };
+        bool update_cache{ false };
         dtss::ts_vector_t mk_read_expression() {
             dtss::ts_vector_t r;
             int n = c.min_ts + rand()%(c.max_ts-c.min_ts);
@@ -85,8 +86,10 @@ namespace dtss_stress {
                 int n = c.min_n + rand()%(c.max_n-c.min_n);
                 gta_t ta(rp.start,utctimespan{1 + rp.timespan()/n},n);
                 try {
-                auto r = d.percentiles(mk_read_expression(),rp,ta,vector<int64_t>{0,10,50,75,100},true,false);
-                rr++;rn +=r.size();
+                    use_cache = (rand()%100) > 50;  // randomize 
+                    auto r = d.percentiles(mk_read_expression(),rp,ta,vector<int64_t>{0,10,50,75,100},use_cache,update_cache);
+                    rr++;rn +=r.size();
+                    this_thread::sleep_for(chrono::milliseconds(10));
                 } catch (const runtime_error &re) {
                     throw runtime_error(string("reader:")+re.what());
                 }
@@ -99,6 +102,8 @@ namespace dtss_stress {
     struct writer {
         volatile size_t n{0};
         promise<bool> done;
+        bool cache_on_write{ true };
+        bool replace_all{ false };
         config c{};
         dtss::ts_vector_t mk_write_ts(utctime t_now) {
             dtss::ts_vector_t r;
@@ -116,16 +121,20 @@ namespace dtss_stress {
         size_t do_work(utctime t_exit) {
             auto t_now= utctime_now();
             dtss::client d(server_addr(c.host,c.port));
+            n = 0;
             while (t_now < t_exit) {
                 try {
-                    d.store_ts(mk_write_ts(t_now),true, false);
+                    d.store_ts(mk_write_ts(t_now),replace_all, cache_on_write);
                 } catch(const runtime_error &ex) {
                     throw runtime_error(string("writer:")+ ex.what());
                 }
-                if(!n) {
+                if(n==0) {
+                    cout<<"w1\n";
                     done.set_value(true);
                 }
                 ++n;
+                cout<<"."; cout.flush();
+                this_thread::sleep_for(chrono::milliseconds(20));
                 t_now=utctime_now();
             }
             return n;
@@ -148,8 +157,8 @@ namespace dtss_stress {
             //
             //w.do_work(t_exit);
             auto wm =std::async(std::launch::async,[t_exit,this]()->size_t {return w.do_work(t_exit); });
-            auto ready=w.done.get_future().wait_for(chrono::seconds(15))!=future_status::timeout;
-            if(!ready)
+            auto ready=w.done.get_future().wait_for(chrono::seconds(55))!=future_status::timeout;
+            if(!ready && w.n< 1)
                 throw runtime_error("still missing writer ready");
             std::cout<<"Ok, launch readers\n";
             for(size_t i=0;i<r.size();++i) {
@@ -186,9 +195,9 @@ TEST_CASE("dtss_stress") {
     srv.start_async();
     bool rr=srv.is_running();
     FAST_REQUIRE_EQ(rr,true);
-    single_writer_multi_reader swmr;
+    single_writer_multi_reader swmr{};
     size_t n_readers=1;
-    int n_seconds =10;
+    int n_seconds =20;
     if(getenv("SHYFT_DTSS_STRESS")) {
         if(sscanf(getenv("SHYFT_DTSS_STRESS"),"%d,%d",&n_readers,&n_seconds)!=2) {
             FAST_REQUIRE_EQ(true,false);
