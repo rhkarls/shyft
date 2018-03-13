@@ -12,7 +12,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="-nv -tc=ice_packing" />
+				<Option parameters="-nv -tc=dtss_mutex" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -46,7 +46,7 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-fexceptions -Winvalid-pch -pthread" />
 			<Add option="-D__UNIT_TEST__" />
 			<Add option="-DVERBOSE=0" />
@@ -91,6 +91,12 @@
 		</Unit>
 		<Unit filename="cell_builder_test.cpp">
 			<Option virtualFolder="full_model/" />
+		</Unit>
+		<Unit filename="dtss_mutex_test.cpp">
+			<Option virtualFolder="dtss/" />
+		</Unit>
+		<Unit filename="dtss_stress_test.cpp">
+			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_test.cpp">
 			<Option virtualFolder="dtss/" />

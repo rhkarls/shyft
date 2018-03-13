@@ -7,16 +7,17 @@ namespace expose {
 	void hbv_soil() {
 		using namespace shyft::core::hbv_soil;
 		using namespace boost::python;
+        namespace py=boost::python;
 		using namespace std;
 
 		class_<parameter>("HbvSoilParameter")
-			.def(init<optional<double, double>>(args("fc", "beta"), "create parameter object with specifed values"))
+			.def(init<py::optional<double, double>>(args("fc", "beta"), "create parameter object with specifed values"))
 			.def_readwrite("fc", &parameter::fc, "mm, .. , default=300")
 			.def_readwrite("beta", &parameter::beta, ",default=2.0")
 			;
 
 		class_<state>("HbvSoilState")
-			.def(init<optional<double>>(args("sm"), "create a state with specified values"))
+			.def(init<py::optional<double>>(args("sm"), "create a state with specified values"))
 			.def_readwrite("sm", &state::sm, "Soil  moisture [mm]")
 			;
 

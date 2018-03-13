@@ -14,7 +14,7 @@
     <ProjectGuid>{ABCFDAA1-0000-0000-0000-000000000000}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>EnkiService</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -121,6 +121,7 @@
     <ClInclude Include="dtss_client.h" />
     <ClInclude Include="dtss_db.h" />
     <ClInclude Include="dtss_msg.h" />
+    <ClInclude Include="dtss_mutex.h" />
     <ClInclude Include="dtss_url.h" />
     <ClInclude Include="experimental.h" />
     <ClInclude Include="expression_serialization.h" />

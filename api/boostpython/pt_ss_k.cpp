@@ -22,6 +22,7 @@ static char const* version() {
 namespace expose {
     namespace pt_ss_k {
         using namespace boost::python;
+        namespace py=boost::python;
         using namespace shyft::core;
         using namespace shyft::core::pt_ss_k;
 
@@ -32,7 +33,7 @@ namespace expose {
                               "Contains the parameters to the methods used in the PTSSK assembly\n"
                               "priestley_taylor,skaugen,actual_evapotranspiration,precipitation_correction,kirchner\n"
                 )
-                .def(init<priestley_taylor::parameter,skaugen::parameter,actual_evapotranspiration::parameter,kirchner::parameter,precipitation_correction::parameter, optional<glacier_melt::parameter,routing::uhg_parameter>>(args("pt","gs","ae","k","p_corr","gm","routing"),"create object with specified parameters"))
+                .def(init<priestley_taylor::parameter,skaugen::parameter,actual_evapotranspiration::parameter,kirchner::parameter,precipitation_correction::parameter, py::optional<glacier_melt::parameter,routing::uhg_parameter>>(args("pt","gs","ae","k","p_corr","gm","routing"),"create object with specified parameters"))
                 .def(init<const parameter&>(args("p"),"clone a parameter"))
                 .def_readwrite("pt",&parameter::pt,"priestley_taylor parameter")
                 .def_readwrite("ae", &parameter::ae, "actual evapotranspiration parameter")

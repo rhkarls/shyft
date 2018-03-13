@@ -44,7 +44,7 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-fexceptions -fPIC -pthread -Winvalid-pch" />
 			<Add option="-DBOOST_VARIANT_MINIMIZE_SIZE" />
 			<Add option="-DARMA_DONT_USE_WRAPPER" />
@@ -101,6 +101,9 @@
 			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_msg.h">
+			<Option virtualFolder="dtss/" />
+		</Unit>
+		<Unit filename="dtss_mutex.h">
 			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_url.h">

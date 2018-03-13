@@ -8,6 +8,7 @@ namespace expose {
         using namespace shyft::core::skaugen;
         using namespace boost::python;
         using namespace std;
+        namespace py=boost::python;
         class_<parameter>("SkaugenParameter")
         .def(init<double,double,double,double,double,double,double,double>(args("alpha_0","d_range","unit_size","max_water_fraction","tx","cx","ts","cfr"),"create parameter object with specifed values"))
         .def(init<const parameter&>(args("p"),"create a clone of p"))
@@ -22,7 +23,7 @@ namespace expose {
          ;
 
         class_<state>("SkaugenState")
-         .def(init<double,optional<double,double,double,double,double,double>>(args("","alpha","sca","swe","free_water","residual","num_units"),"create a state with specified values"))
+         .def(init<double,py::optional<double,double,double,double,double,double>>(args("","alpha","sca","swe","free_water","residual","num_units"),"create a state with specified values"))
          .def(init<const state&>(args("s"),"create a clone of s"))
          .def_readwrite("nu",&state::nu,"")
          .def_readwrite("alpha",&state::alpha,"")

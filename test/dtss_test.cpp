@@ -720,7 +720,7 @@ TEST_CASE("dtss_store_basics") {
             auto r_mb_s= n_ts*n/double(elapsed_ms(t1,t2))/1000.0;
 			// on windows(before workaround): ~ 6 mpts/sec write, 162 mpts/sec read (slow close->workaround with thread?)
 			// on linux: ~ 120 mpts/sec write, 180 mpts/sec read
-            std::cout<<"write pts/s = "<<w_mb_s<<", read pts/s = "<<r_mb_s<<" pts = "<<n_ts*n<<", roundtrip ms="<< double(elapsed_ms(t0,t2)) <<"\n";
+            std::cout<<"write Mpts/s = "<<w_mb_s<<", read Mpts/s = "<<r_mb_s<<" pts = "<<n_ts*n<<", roundtrip ms="<< double(elapsed_ms(t0,t2)) <<"\n";
 			//std::cout << "open_ms:" << db.t_open << ", write_ms:" << db.t_write << ", t_close_ms:" << db.t_close << std::endl;
             FAST_CHECK_EQ(rv.size(),tsv.size());
             //fs::remove_all("*.db");

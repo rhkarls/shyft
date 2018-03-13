@@ -16,23 +16,17 @@ namespace fs = boost::filesystem;
 
 #include <regex>
 
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <sys/io.h>
-#define O_BINARY 0
-#define O_SEQUENTIAL 0
-#include <sys/stat.h>
-#endif
 #include <fcntl.h>
 
-#include "core/time_series_dd.h"
+#include "time_series_dd.h"
+#include "dtss_mutex.h"
+
 #include "time_series_info.h"
 #include "utctime_utilities.h"
 
 namespace shyft {
 namespace dtss {
-// TODO: Remove API dependency from core...
+
 using shyft::time_series::dd::apoint_ts;
 using shyft::time_series::dd::gpoint_ts;
 using shyft::time_series::dd::gts_t;
@@ -43,6 +37,7 @@ using shyft::core::utctimespan;
 using shyft::core::no_utctime;
 using shyft::core::calendar;
 using shyft::core::deltahours;
+
 
 using gta_t = shyft::time_axis::generic_dt;
 using gts_t = shyft::time_series::point_ts<gta_t>;
@@ -151,7 +146,6 @@ struct ts_db {
 #ifdef _WIN32
 			if (win_thread_close && parent) {
 				parent->fclose_me(fh);
-				//std::thread(std::fclose, fh).detach();// allow time-consuming close to work in background
 			} else {
 				std::fclose(fh); // takes forever in windows, by design
 			}
@@ -169,7 +163,7 @@ struct ts_db {
 	mutable std::vector<std::future<void>> fclose_windows;
 
 	void fclose_me(std::FILE *fh) {
-		lock_guard<decltype(fclose_mx)> scoped_lock(fclose_mx);
+		lock_guard<decltype(fclose_mx)> sl(fclose_mx);
 		fclose_windows.emplace_back(std::async(std::launch::async, [fh]() { std::fclose(fh); }));
 	}
 
@@ -186,6 +180,7 @@ struct ts_db {
 #else
 	void wait_for_close_fh() const noexcept {}
 #endif
+	file_lock_manager f_mx;
 public:
 
 
@@ -209,26 +204,11 @@ public:
 		wait_for_close_fh();
 	}
 
-	// note that we need special care(windows) for the operations below
-	// basically we don't copy/move the fclose_windows, rather just wait it out before overwrite.
-	ts_db(const ts_db&c) :root_dir(c.root_dir),calendars(c.calendars) {}
-	ts_db(ts_db&&c) :root_dir(c.root_dir), calendars(c.calendars) {};
-	ts_db & operator=(const ts_db&o) {
-		if (&o != this) {
-			wait_for_close_fh();
-			root_dir = o.root_dir;
-			calendars = o.calendars;
-		}
-		return *this;
-	};
-	ts_db & operator=( ts_db&&o) {
-		if (&o != this) {
-			wait_for_close_fh();
-			root_dir = o.root_dir;
-			calendars = o.calendars;
-		}
-		return *this;
-	};
+	// not supported:
+	ts_db(const ts_db&)=delete;
+	ts_db(ts_db&&)=delete;
+	ts_db & operator=(const ts_db&)=delete;
+	ts_db & operator=( ts_db&&) =delete;
 
 	/** \brief Save a time-series to a file, *overwrite* any existing file with contents.
 	 *
@@ -241,11 +221,11 @@ public:
 	 *                          Use a deatached background thread to close the file.
 	 *                          Defaults to true.
 	 */
-	void save(const std::string& fn, const gts_t& ts, bool overwrite = true, bool win_thread_close = true) const {
+	void save(const std::string& fn, const gts_t& ts, bool overwrite = true, bool win_thread_close = true) {
         wait_for_close_fh();
 
         std::string ffp = make_full_path(fn, true);
-
+        writer_file_lock lck(f_mx,ffp);
 		std::unique_ptr<std::FILE, close_write_handle> fh;  // zero-initializes deleter
 		fh.get_deleter().win_thread_close = win_thread_close;
 		fh.get_deleter().parent = const_cast<ts_db*>(this);
@@ -275,9 +255,11 @@ public:
 	}
 
 	/** read a ts from specified file */
-	gts_t read(const std::string& fn, core::utcperiod p) const {
+	gts_t read(const std::string& fn, core::utcperiod p) {
 		wait_for_close_fh();
 		std::string ffp = make_full_path(fn);
+        reader_file_lock lck(f_mx,ffp);
+
 		std::unique_ptr<std::FILE, decltype(&std::fclose)> fh{ std::fopen(ffp.c_str(), "rb"), &std::fclose };
 		if(!fh.get()) {
 			throw std::runtime_error(std::string("shyft-read time-series internal: Could not open file ")+ffp );
@@ -286,9 +268,11 @@ public:
 	}
 
 	/** removes a ts from the container */
-	void remove(const std::string& fn) const {
+	void remove(const std::string& fn) {
 		wait_for_close_fh();
 		auto fp = make_full_path(fn);
+        writer_file_lock lck(f_mx,fp);
+
 		for (std::size_t retry = 0; retry < 10; ++retry) {
 			try {
 				fs::remove(fp);
@@ -301,9 +285,11 @@ public:
 	}
 
 	/** get minimal ts-information from specified fn */
-	ts_info get_ts_info(const std::string& fn) const {
+	ts_info get_ts_info(const std::string& fn) {
 		wait_for_close_fh();
 		auto ffp = make_full_path(fn);
+        reader_file_lock lck(f_mx,ffp);
+
 		std::unique_ptr<std::FILE, decltype(&std::fclose)> fh{ std::fopen(ffp.c_str(), "rb"), &std::fclose };
 		auto h = read_header(fh.get());
 		ts_info i;
@@ -320,12 +306,12 @@ public:
 	 * e.g.: match= 'hydmet_station/.*_id/temperature'
 	 *    would find all time-series /hydmet_station/xxx_id/temperature
 	 */
-	std::vector<ts_info> find(const std::string& match) const {
+	std::vector<ts_info> find(const std::string& match) {
 		wait_for_close_fh();
 		fs::path root(root_dir);
 		std::vector<ts_info> r;
 		std::regex r_match(match, std::regex_constants::ECMAScript | std::regex_constants::icase);
-		for (auto&& x : fs::recursive_directory_iterator(root)) {
+		for (auto& x : fs::recursive_directory_iterator(root)) {
 			if (fs::is_regular(x.path())) {
 				std::string fn = x.path().lexically_relative(root).generic_string(); // x.path() except root-part
 				if (std::regex_search(fn, r_match)) {
@@ -736,8 +722,10 @@ private:
 
 	inline void read(std::FILE * fh, void* d, std::size_t sz) const {
 		std::size_t rsz = std::fread(d, sizeof(char), sz, fh);
-		if (rsz != sz)
-			throw std::runtime_error("dtss_store: failed to read from disk");
+		if (rsz != sz) {
+			std::string fn{"?"};
+			throw std::runtime_error("dtss_store: failed to read '" + fn + "'from disk expected size="+std::to_string(sz)+"!="+std::to_string(rsz));
+		}
 	}
 	ts_db_header read_header(std::FILE * fh) const {
 		ts_db_header h;

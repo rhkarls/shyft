@@ -61,7 +61,8 @@ using id_vector_t = std::vector<std::string>;
 using read_call_back_t = std::function<ts_vector_t(const id_vector_t& ts_ids, utcperiod p)>;
 using store_call_back_t = std::function<void(const ts_vector_t&)>;
 using find_call_back_t = std::function<ts_info_vector_t(std::string search_expression)>;
-
+using std::unique_ptr;
+using std::make_unique;
 
 /** \brief A dtss server with time-series server-side functions
  *
@@ -88,7 +89,8 @@ struct server : dlib::server_iostream {
     find_call_back_t find_ts_cb; ///< called for all non shyft:// find operations
     store_call_back_t store_ts_cb;///< called for all non shyft:// store operations
     // shyft-internal implementation
-    std::unordered_map<std::string, ts_db> container;///< mapping of internal shyft <container> -> ts_db
+    mutex c_mx;///< container mutex
+    std::unordered_map<std::string, unique_ptr<ts_db>> container;///< mapping of internal shyft <container> -> ts_db
     ts_cache_t ts_cache{1000000};// default 1 mill ts in cache
     bool cache_all_reads{false};
     // constructors
@@ -120,14 +122,15 @@ struct server : dlib::server_iostream {
 
     //-- container management
     void add_container(const std::string &container_name,const std::string& root_dir) {
-        container[container_name]=ts_db(root_dir); // TODO: This is not thread-safe(so needs to be done before starting)
+        unique_lock<mutex> sl(c_mx);
+        container[container_name]= make_unique<ts_db>(root_dir); // TODO: This is not thread-safe(so needs to be done before starting)
     }
 
-    const ts_db& internal(const std::string& container_name) const {
+    ts_db& internal(const std::string& container_name) const {
         auto f=container.find(container_name);
         if(f == end(container))
             throw runtime_error(std::string("Failed to find shyft container:")+container_name);
-        return f->second;
+        return *(f->second);
     }
 
 	//-- expose cache functions

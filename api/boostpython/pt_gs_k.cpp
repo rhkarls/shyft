@@ -36,7 +36,7 @@ namespace expose {
                               "Contains the parameters to the methods used in the PTGSK assembly\n"
                               "priestley_taylor,gamma_snow,actual_evapotranspiration,precipitation_correction,kirchner\n"
                 )
-                .def(init<priestley_taylor::parameter,gamma_snow::parameter,actual_evapotranspiration::parameter,kirchner::parameter,precipitation_correction::parameter, optional<glacier_melt::parameter,routing::uhg_parameter>>(args("pt","gs","ae","k","p_corr","gm","routing"),"create object with specified parameters"))
+                .def(init<priestley_taylor::parameter,gamma_snow::parameter,actual_evapotranspiration::parameter,kirchner::parameter,precipitation_correction::parameter,py::optional<glacier_melt::parameter,routing::uhg_parameter>>(args("pt","gs","ae","k","p_corr","gm","routing"),"create object with specified parameters"))
                 .def(init<const parameter&>(args("p"),"clone a parameter"))
                 .def_readwrite("pt",&parameter::pt,"priestley_taylor parameter")
                 .def_readwrite("gs",&parameter::gs,"gamma-snow parameter")
@@ -62,7 +62,7 @@ namespace expose {
                 .def_readwrite("kirchner",&state::kirchner,"kirchner state")
                 ;
 
-            
+
             class_<PTGSKStateVector,bases<>,std::shared_ptr<PTGSKStateVector> >("PTGSKStateVector")
                 .def(vector_indexing_suite<PTGSKStateVector>())
                 ;

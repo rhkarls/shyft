@@ -5,6 +5,7 @@
 namespace expose {
     using namespace shyft::core;
     using namespace boost::python;
+    namespace py=boost::python;
     using namespace std;
 
     typedef std::vector<utcperiod> UtcPeriodVector;
@@ -188,7 +189,7 @@ namespace expose {
         ;
 
         class_<YMDhms>("YMDhms","Defines calendar coordinates as Year Month Day hour minute second")
-        .def(init<int,optional<int,int,int,int,int>>( args("Y","M","D","h","m","s" ),"Creates calendar coordinates specifying Y,M,D,h,m,s"))
+        .def(init<int,py::optional<int,int,int,int,int>>( args("Y","M","D","h","m","s" ),"Creates calendar coordinates specifying Y,M,D,h,m,s"))
         .def("is_valid",&YMDhms::is_valid,"returns true if YMDhms values are reasonable")
         .def("is_null",&YMDhms::is_null,"returns true if all values are 0, - the null definition")
         .def_readwrite("year",&YMDhms::year)
@@ -204,7 +205,7 @@ namespace expose {
            ;
 
         class_<YWdhms>("YWdhms", "Defines calendar coordinates as iso Year Week week-day hour minute second")
-            .def(init<int, optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"), 
+            .def(init<int, py::optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"), 
                 doc_intro("Creates calendar coordinates specifying iso Y,W,wd,h,m,s")
                 doc_parameters()
                 doc_parameter("Y","int","iso-year")

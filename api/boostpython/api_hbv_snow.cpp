@@ -10,8 +10,8 @@ namespace expose {
         namespace py = boost::python;
         using namespace std;
         class_<parameter>("HbvSnowParameter")
-        .def(init<double,optional<double,double,double,double>>(args("tx","cx","ts","lw","cfr"),"create parameter object with specifed values"))
-        .def(init<const vector<double>&,const vector<double>&,optional<double,double,double,double,double>>(
+        .def(init<double,py::optional<double,double,double,double>>(args("tx","cx","ts","lw","cfr"),"create parameter object with specifed values"))
+        .def(init<const vector<double>&,const vector<double>&,py::optional<double,double,double,double,double>>(
             args("snow_redist_factors","quantiles","tx","cx","ts","lw","cfr"),"create a parameter with snow re-distribution factors, quartiles and optionally the other parameters"))
         .def("set_snow_redistribution_factors",&parameter::set_snow_redistribution_factors,args("snow_redist_factors"))
         .def("set_snow_quantiles",&parameter::set_snow_quantiles,args("quantiles"))
@@ -25,7 +25,7 @@ namespace expose {
          ;
 
         class_<state>("HbvSnowState")
-         .def(init<double,optional<double>>(args("swe","sca"),"create a state with specified values"))
+         .def(init<double,py::optional<double>>(args("swe","sca"),"create a state with specified values"))
          .def_readwrite("swe",&state::swe,"snow water equivalent[mm]")
          .def_readwrite("sca",&state::sca,"snow covered area [0..1]")
          .def("distribute", &state::distribute, (py::arg("self"), py::arg("p"),py::arg("force")=true),
