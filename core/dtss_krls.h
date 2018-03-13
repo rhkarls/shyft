@@ -51,7 +51,6 @@ public:
     krls_pred_db & operator=(const krls_pred_db &) = default;  // TODO wait for file handles to close! (windows)
     krls_pred_db & operator=(krls_pred_db &&) = default;  // TODO wait for file handles to close! (windows)
 
-
     /*  Container API
      * =============== */
 

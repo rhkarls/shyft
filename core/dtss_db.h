@@ -47,6 +47,7 @@ using shyft::core::deltahours;
 using gta_t = shyft::time_axis::generic_dt;
 using gts_t = shyft::time_series::point_ts<gta_t>;
 
+
 /** \brief Storage layer header-record.
  *
  * The storage layer header-record contains enough

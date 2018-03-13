@@ -352,7 +352,7 @@ TEST_CASE("dlib_server_basics") {
             return r;
         };
 
-        server<cwrp_spec> our_server(cb,fcb);
+        server<standard_dtss_config> our_server(cb,fcb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -432,11 +432,11 @@ TEST_CASE("dlib_multi_server_basics") {
         };
 
         size_t n_servers=2;
-        vector<unique_ptr<server<cwrp_spec>>> servers;
+        vector<unique_ptr<server<standard_dtss_config>>> servers;
         vector<string> host_ports;
         int base_port=21000;
         for(size_t i=0;i<n_servers;++i) {
-            auto srv = make_unique<server<cwrp_spec>>(rcb);
+            auto srv = make_unique<server<standard_dtss_config>>(rcb);
             srv->set_listening_ip("127.0.0.1");
             srv->set_listening_port(base_port +i);
             srv->start_async();
@@ -502,7 +502,7 @@ TEST_CASE("dlib_server_performance") {
             }
             return from_disk;
         };
-        server<cwrp_spec> our_server(cb);
+        server<standard_dtss_config> our_server(cb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -807,7 +807,7 @@ TEST_CASE("dtss_store") { /*
 
     // make dtss server
     auto tmpdir = fs::temp_directory_path()/"shyft.c.test";
-    server<cwrp_spec> our_server{};
+    server<standard_dtss_config> our_server{};
     string tc{"tc"};
     our_server.add_container(tc,tmpdir.string());
     our_server.set_listening_ip("127.0.0.1");

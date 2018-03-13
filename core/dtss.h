@@ -64,18 +64,19 @@ using read_call_back_t = std::function<ts_vector_t(const id_vector_t& ts_ids, ut
 using store_call_back_t = std::function<void(const ts_vector_t&)>;
 using find_call_back_t = std::function<ts_info_vector_t(std::string search_expression)>;
 
+// ========================================
 
-/** \brief Enumeration of different containers the server can host.
- */
-enum class server_container_type {
-    TS_DB_CONTAINER,  ///< Regular time-series database container. See \ref shyft::dtss::ts_db .
-    KRLS_PRED_CONTAINER,  ///< For containers hosting a krls predictor. See \ref shyft::dtss::ts_krls_pred .
-};
+/*  Forward Declarations */
+
+template < class ServerConfig > struct server;
+
+
+// ========================================
 
 
 /** 
  */
-template < class ... CIMPLs >
+template < class ... CIMPLs >  /* Container Implementations */
 struct container_wrapper {
 
     using gta_t = shyft::time_axis::generic_dt;
@@ -100,6 +101,10 @@ struct container_wrapper {
     container_wrapper(container_wrapper &&) = default;
     container_wrapper & operator=(container_wrapper &&) = default;
 
+    /* Container API
+     * ------------- */
+
+public:
     /** Save a time-series to the container. */
     void save(
         const std::string & tsid,
@@ -148,24 +153,70 @@ struct container_wrapper {
             return var.find(pattern, queries);
         }, _container);
     }
-
 };
 
-/** Map between container query values and container prefixes.
- */
-inline std::string get_container_prefix_for_container_query(const std::string & container_query) {
-    if ( container_query.empty() || container_query == "ts_db" ) {
-        return std::string{};
-    } else if ( container_query == "krls" ) {
-        return std::string{ "KRLS_PREDICTOR_CONTAINER_" };
-    } else {
-        throw std::runtime_error(std::string{"failed to map container query to container type: "} + container_query);
+struct standard_dtss_config {
+
+    /** \brief Alias for the wrapping of containers.
+     */
+    using container_wrapper_t = container_wrapper<ts_db, krls_pred_db>;
+
+
+    /** \brief Enumeration of the different containers the server can host.
+    */
+    enum class container_types {
+        TS_DB_CONTAINER,  ///< Regular time-series database container. See \ref shyft::dtss::ts_db .
+        KRLS_PRED_CONTAINER,  ///< For containers hosting a krls predictor. See \ref shyft::dtss::ts_krls_pred .
+    };
+
+
+    template < typename Srv >
+    static void create_container(
+        const std::string & container_name, std::unordered_map<std::string, container_wrapper_t> & containers,
+        container_types cid,
+        const std::string & root_path,
+        Srv & srv
+    ) {
+        switch ( cid ) {
+        case container_types::TS_DB_CONTAINER: {
+            containers[container_name] = container_wrapper_t{ ts_db{ root_path } };
+            break;
+        }
+        case container_types::KRLS_PRED_CONTAINER: {
+            containers["KRLS_"+container_name] = container_wrapper_t{ krls_pred_db{
+                    root_path,
+                    [&srv](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
+                        id_vector_t id_vec{ tsid };
+                        return srv.do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
+                    }
+                }
+            };
+            break;
+        }
+        default: {
+            throw std::runtime_error{ "trying to construct dtss container with unknown type" };
+        }
+        }
     }
-}
 
+    static const container_wrapper_t & get_container(
+        const std::unordered_map<std::string, container_wrapper_t> & containers,
+        const std::string & container_name, const std::string & container_query
+    ) {
+        std::unordered_map<std::string, container_wrapper_t>::const_iterator f;
+        if ( container_query.empty() || container_query == "ts_db" ) {
+            f = containers.find(container_name);
+        } else if ( container_query == "krls" ) {
+            f = containers.find("KRLS_"+container_name);
+        }
 
-using cwrp_spec = container_wrapper<ts_db, krls_pred_db>;
+        if( f == std::end(containers) )
+            throw runtime_error(std::string("Failed to find shyft container:")+container_name);
+        
+        return f->second;
+    }
 
+};
 
 /** \brief A dtss server with time-series server-side functions
  *
@@ -185,20 +236,20 @@ using cwrp_spec = container_wrapper<ts_db, krls_pred_db>;
  *       the server is started.
  *
  */
-template < class ContainerHandler >
+template < class ServerConfig >
 struct server : dlib::server_iostream {
 
-    using ts_cache_t = cache<apoint_ts_frag,apoint_ts>;
-    using cwrp_t = ContainerHandler;
+    using ts_cache_t = cache<apoint_ts_frag, apoint_ts>;
+    using cwrp_t = typename ServerConfig::container_wrapper_t;
 
     // callbacks for extensions
-    read_call_back_t bind_ts_cb; ///< called to read non shyft:// unbound ts
-    find_call_back_t find_ts_cb; ///< called for all non shyft:// find operations
-    store_call_back_t store_ts_cb;///< called for all non shyft:// store operations
+    read_call_back_t bind_ts_cb;    ///< called to read non shyft:// unbound ts
+    find_call_back_t find_ts_cb;    ///< called for all non shyft:// find operations
+    store_call_back_t store_ts_cb;  ///< called for all non shyft:// store operations
 
     // shyft-internal implementation
-    std::unordered_map<std::string, cwrp_t> container;///< mapping of internal shyft <container>
-    ts_cache_t ts_cache{1000000};// default 1 mill ts in cache
+    std::unordered_map<std::string, cwrp_t> container;  ///< mapping of internal shyft <container>
+    ts_cache_t ts_cache{1000000};  // default 1 mill ts in cache
     bool cache_all_reads{false};
 
     // constructors
@@ -208,18 +259,18 @@ struct server : dlib::server_iostream {
     server& operator=(const server&)=delete;
     server& operator=(server&&)=delete;
 
-    template <class CB>
-    explicit server(CB&& cb):bind_ts_cb(std::forward<CB>(cb)) {
+    template < class CB >
+    explicit server(CB && cb) : bind_ts_cb(std::forward<CB>(cb)) {
     }
 
-    template <class RCB,class FCB>
-    server(RCB&& rcb, FCB && fcb ) :
+    template < class RCB, class FCB>
+    server(RCB && rcb, FCB && fcb ) :
         bind_ts_cb(std::forward<RCB>(rcb)),
         find_ts_cb(std::forward<FCB>(fcb)) {
     }
 
-    template <class RCB,class FCB,class SCB>
-    server(RCB&& rcb, FCB && fcb ,SCB&& scb) :
+    template < class RCB, class FCB, class SCB >
+    server(RCB && rcb, FCB && fcb, SCB && scb) :
         bind_ts_cb(std::forward<RCB>(rcb)),
         find_ts_cb(std::forward<FCB>(fcb)),
         store_ts_cb(std::forward<SCB>(scb)) {
@@ -230,31 +281,13 @@ struct server : dlib::server_iostream {
     //-- container management
     void add_container(
         const std::string & container_name, const std::string & root_dir,
-        server_container_type type = server_container_type::TS_DB_CONTAINER
+        typename ServerConfig::container_types type = ServerConfig::container_types::TS_DB_CONTAINER
     ) {
-        // TODO move into container_wrapper as a static factory-ish method
-        // TODO: adding containers is not thread-safe (so it needs to be done before starting)
-        switch ( type ) {
-        default:
-        case server_container_type::TS_DB_CONTAINER: {
-            container[container_name] = cwrp_t{ ts_db(root_dir) };
-        } break;
-        case server_container_type::KRLS_PRED_CONTAINER: {
-            container[get_container_prefix_for_container_query("krls") + container_name] = cwrp_t{
-                krls_pred_db(root_dir, [this](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
-                    id_vector_t id_vec{ tsid };
-                    return this->do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
-                }) };
-        } break;
-        }
+        ServerConfig::create_container(container_name, this->container, type, root_dir, *this);
     }
 
     const cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
-        // TODO find some way to move into container_handler
-        auto f = container.find(get_container_prefix_for_container_query(container_query) + container_name);
-        if(f == end(container))
-            throw runtime_error(std::string("Failed to find shyft container:")+container_name);
-        return f->second;
+        return ServerConfig::get_container(this->container, container_name, container_query);
     }
 
 	//-- expose cache functions
@@ -310,6 +343,7 @@ struct server : dlib::server_iostream {
 
 // --------------------------------------------------------------------------------
 
+
 struct utcperiod_hasher {
     std::size_t operator()(const utcperiod&k) const {
         using boost::hash_value;
@@ -323,8 +357,8 @@ struct utcperiod_hasher {
 
 // NOTE: The following methods may be implemented in-class, remove inline in that case.
 
-template < class ContainerHandler >
-inline ts_info_vector_t server<ContainerHandler>::do_find_ts(const std::string& search_expression) {
+template < class ServerConfig >
+inline ts_info_vector_t server<ServerConfig>::do_find_ts(const std::string& search_expression) {
     // 1. filter shyft://<container>/
     auto pattern = extract_shyft_url_container(search_expression);
     if(pattern.size()) {
@@ -344,8 +378,8 @@ inline ts_info_vector_t server<ContainerHandler>::do_find_ts(const std::string& 
 }
 
 
-template < class ContainerHandler >
-inline void server<ContainerHandler>::do_cache_update_on_write(const ts_vector_t&tsv) {
+template < class ServerConfig >
+inline void server<ServerConfig>::do_cache_update_on_write(const ts_vector_t&tsv) {
     for (std::size_t i = 0; i<tsv.size(); ++i) {
         auto rts = dynamic_pointer_cast<aref_ts>(tsv[i].ts);
         ts_cache.add(rts->id, apoint_ts(rts->rep));
@@ -353,8 +387,8 @@ inline void server<ContainerHandler>::do_cache_update_on_write(const ts_vector_t
 }
 
 
-template < class ContainerHandler >
-inline void server<ContainerHandler>::do_store_ts(const ts_vector_t & tsv, bool overwrite_on_write, bool cache_on_write) {
+template < class ServerConfig >
+inline void server<ServerConfig>::do_store_ts(const ts_vector_t & tsv, bool overwrite_on_write, bool cache_on_write) {
     if(tsv.size()==0) return;
     // 1. filter out all shyft://<container>/<ts-path> elements
     //    and route these to the internal storage controller (threaded)
@@ -409,8 +443,8 @@ inline void server<ContainerHandler>::do_store_ts(const ts_vector_t & tsv, bool 
 }
 
 
-template < class ContainerHandler >
-inline void server<ContainerHandler>::do_merge_store_ts(const ts_vector_t& tsv,bool cache_on_write) {
+template < class ServerConfig >
+inline void server<ServerConfig>::do_merge_store_ts(const ts_vector_t& tsv,bool cache_on_write) {
     if(tsv.size()==0) return;
     //
     // 0. check&prepare the read time-series in tsv for the specified period of each ts
@@ -456,8 +490,8 @@ inline void server<ContainerHandler>::do_merge_store_ts(const ts_vector_t& tsv,b
 }
 
 
-template < class ContainerHandler >
-inline ts_vector_t server<ContainerHandler>::do_read(const id_vector_t & ts_ids, utcperiod p, bool use_ts_cached_read, bool update_ts_cache) {
+template < class ServerConfig >
+inline ts_vector_t server<ServerConfig>::do_read(const id_vector_t & ts_ids, utcperiod p, bool use_ts_cached_read, bool update_ts_cache) {
     if( ts_ids.size() == 0 )
         return ts_vector_t{};
 
@@ -536,8 +570,8 @@ inline ts_vector_t server<ContainerHandler>::do_read(const id_vector_t & ts_ids,
 }
 
 
-template < class ContainerHandler >
-inline void server<ContainerHandler>::do_bind_ts(utcperiod bind_period, ts_vector_t& atsv, bool use_ts_cached_read, bool update_ts_cache) {
+template < class ServerConfig >
+inline void server<ServerConfig>::do_bind_ts(utcperiod bind_period, ts_vector_t& atsv, bool use_ts_cached_read, bool update_ts_cache) {
 
     using shyft::time_series::dd::ts_bind_info;
 
@@ -577,23 +611,23 @@ inline void server<ContainerHandler>::do_bind_ts(utcperiod bind_period, ts_vecto
 }
 
 
-template < class ContainerHandler >
-inline ts_vector_t server<ContainerHandler>::do_evaluate_ts_vector(utcperiod bind_period, ts_vector_t& atsv,bool use_ts_cached_read,bool update_ts_cache) {
+template < class ServerConfig >
+inline ts_vector_t server<ServerConfig>::do_evaluate_ts_vector(utcperiod bind_period, ts_vector_t& atsv,bool use_ts_cached_read,bool update_ts_cache) {
     do_bind_ts(bind_period, atsv, use_ts_cached_read, update_ts_cache);
     return ts_vector_t{ shyft::time_series::dd::deflate_ts_vector<apoint_ts>(atsv) };
 }
 
 
-template < class ContainerHandler >
-inline ts_vector_t server<ContainerHandler>::do_evaluate_percentiles(utcperiod bind_period, ts_vector_t& atsv, gta_t const&ta, std::vector<int64_t> const& percentile_spec,bool use_ts_cached_read,bool update_ts_cache) {
+template < class ServerConfig >
+inline ts_vector_t server<ServerConfig>::do_evaluate_percentiles(utcperiod bind_period, ts_vector_t& atsv, gta_t const&ta, std::vector<int64_t> const& percentile_spec,bool use_ts_cached_read,bool update_ts_cache) {
     do_bind_ts(bind_period, atsv,use_ts_cached_read,update_ts_cache);
     std::vector<int> p_spec;for(const auto p:percentile_spec) p_spec.push_back(int(p));// convert
     return percentiles(atsv, ta, p_spec);// we can assume the result is trivial to serialize
 }
 
 
-template < class ContainerHandler >
-inline void server<ContainerHandler>::on_connect(
+template < class ServerConfig >
+inline void server<ServerConfig>::on_connect(
     std::istream & in,
     std::ostream & out,
     const std::string & foreign_ip,
