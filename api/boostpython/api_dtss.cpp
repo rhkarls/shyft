@@ -40,7 +40,7 @@ namespace shyft {
 	using time_series::dd::apoint_ts;
 	using time_series::dd::ats_vector;
 
-        struct py_server : server<container_wrapper<ts_db, krls_pred_db>> {
+        struct py_server : server<standard_dtss_config> {
             boost::python::object cb;///< callback for the read function
             boost::python::object fcb;///< callback for the find function
             boost::python::object scb;///< callback for the store function
@@ -264,20 +264,20 @@ namespace expose {
     static void dtss_server() {
 
         using DtsServer = shyft::dtss::py_server;
-        using shyft::dtss::server_container_type;
-        
-        enum_<server_container_type>("dtss_server_container_type",
-            doc_intro("Enumeration of the different containers that may be added to a DtsServer.")
-            doc_intro("")
-            doc_intro("The different containers exposed are:")
-            doc_intro(" * `TS_DB_CONTAINER`: this is the default database container type.")
-            doc_intro(" * `KRLS_PRED_CONTAINER`: This is a container training a KRLS predictor on all time-seies")
-            doc_intro("   stored in it, and read accesses retreive interpolated values from the KRLS predictor.")
-            )
-            .value("TS_DB_CONTAINER", server_container_type::TS_DB_CONTAINER)
-            .value("KRLS_PRED_CONTAINER", server_container_type::KRLS_PRED_CONTAINER)
-            .export_values()
-            ;
+        // using shyft::dtss::server_container_type;
+        // 
+        // enum_<server_container_type>("dtss_server_container_type",
+        //     doc_intro("Enumeration of the different containers that may be added to a DtsServer.")
+        //     doc_intro("")
+        //     doc_intro("The different containers exposed are:")
+        //     doc_intro(" * `TS_DB_CONTAINER`: this is the default database container type.")
+        //     doc_intro(" * `KRLS_PRED_CONTAINER`: This is a container training a KRLS predictor on all time-seies")
+        //     doc_intro("   stored in it, and read accesses retreive interpolated values from the KRLS predictor.")
+        //     )
+        //     .value("TS_DB_CONTAINER", server_container_type::TS_DB_CONTAINER)
+        //     .value("KRLS_PRED_CONTAINER", server_container_type::KRLS_PRED_CONTAINER)
+        //     .export_values()
+        //     ;
 
         class_<DtsServer, boost::noncopyable >("DtsServer",
             doc_intro("A distributed time-series server object")
@@ -404,14 +404,14 @@ namespace expose {
                 doc_see_also("cb,start_async(),is_running,clear()")
             )
             .def("set_container", &DtsServer::add_container, (py::arg("self"), py::arg("name"), py::arg("root_dir"),
-                                                              py::arg("container_type") = shyft::dtss::server_container_type::TS_DB_CONTAINER),
+                                                              py::arg("container_type") = std::string{}),
                  doc_intro("set ( or replaces) an internal shyft store container to the dtss-server.")
                  doc_intro("All ts-urls with shyft://<container>/ will resolve")
                  doc_intro("to this internal time-series storage for find/read/store operations")
                  doc_parameters()
                  doc_parameter("name","str","Name of the container as pr. url definition above")
                  doc_parameter("root_dir","str","A valid directory root for the container")
-                 // doc_parameter("container_type", "dtss_server_container_type", "Container type to add. See `dtss_server_container_type`.")
+                 doc_parameter("container_type", "str", "Container type to add.")  // TODO: document properly
                  doc_notes()
                  doc_note("currently this call should only be used when the server is not processing messages\n"
                           "- before starting, or after stopping listening operations\n"

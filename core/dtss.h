@@ -162,27 +162,17 @@ struct standard_dtss_config {
     using container_wrapper_t = container_wrapper<ts_db, krls_pred_db>;
 
 
-    /** \brief Enumeration of the different containers the server can host.
-    */
-    enum class container_types {
-        TS_DB_CONTAINER,  ///< Regular time-series database container. See \ref shyft::dtss::ts_db .
-        KRLS_PRED_CONTAINER,  ///< For containers hosting a krls predictor. See \ref shyft::dtss::ts_krls_pred .
-    };
-
-
     template < typename Srv >
     static void create_container(
-        const std::string & container_name, std::unordered_map<std::string, container_wrapper_t> & containers,
-        container_types cid,
+        const std::string & container_name,
+        std::unordered_map<std::string, container_wrapper_t> & containers,
+        const std::string & container_type,
         const std::string & root_path,
         Srv & srv
     ) {
-        switch ( cid ) {
-        case container_types::TS_DB_CONTAINER: {
+        if ( container_type.empty() || container_type == "ts_db" ) {
             containers[container_name] = container_wrapper_t{ ts_db{ root_path } };
-            break;
-        }
-        case container_types::KRLS_PRED_CONTAINER: {
+        } else if ( container_type == "krls" ) {
             containers["KRLS_"+container_name] = container_wrapper_t{ krls_pred_db{
                     root_path,
                     [&srv](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
@@ -191,13 +181,11 @@ struct standard_dtss_config {
                     }
                 }
             };
-            break;
-        }
-        default: {
+        } else {
             throw std::runtime_error{ "trying to construct dtss container with unknown type" };
         }
-        }
     }
+
 
     static const container_wrapper_t & get_container(
         const std::unordered_map<std::string, container_wrapper_t> & containers,
@@ -215,7 +203,6 @@ struct standard_dtss_config {
         
         return f->second;
     }
-
 };
 
 /** \brief A dtss server with time-series server-side functions
@@ -281,9 +268,9 @@ struct server : dlib::server_iostream {
     //-- container management
     void add_container(
         const std::string & container_name, const std::string & root_dir,
-        typename ServerConfig::container_types type = ServerConfig::container_types::TS_DB_CONTAINER
+        std::string container_type = std::string{}
     ) {
-        ServerConfig::create_container(container_name, this->container, type, root_dir, *this);
+        ServerConfig::create_container(container_name, this->container, container_type, root_dir, *this);
     }
 
     const cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
