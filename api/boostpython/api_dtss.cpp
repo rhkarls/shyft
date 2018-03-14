@@ -36,9 +36,9 @@ private:
 
 namespace shyft {
     namespace dtss {
-	using time_series::dd::gta_t;
-	using time_series::dd::apoint_ts;
-	using time_series::dd::ats_vector;
+    using time_series::dd::gta_t;
+    using time_series::dd::apoint_ts;
+    using time_series::dd::ats_vector;
 
         struct py_server : server<standard_dtss_config> {
             boost::python::object cb;///< callback for the read function
@@ -57,7 +57,7 @@ namespace shyft {
             ~py_server() {
                 cb = boost::python::object();
                 fcb = boost::python::object();
-				scb = boost::python::object();
+                scb = boost::python::object();
             }
 
             void handle_pyerror() {
@@ -205,7 +205,7 @@ namespace shyft {
 namespace expose {
 
     using namespace boost::python;
-	namespace py = boost::python;
+    namespace py = boost::python;
     void dtss_finalize() {
 #ifdef _WIN32
         WSACleanup();
@@ -218,7 +218,7 @@ namespace expose {
         class_<TsInfo>("TsInfo",
             doc_intro("Gives some information from the backend ts data-store")
             doc_intro("about the stored time-series, that could be useful in some contexts")
-			,init<>(py::arg("self"))
+            ,init<>(py::arg("self"))
             )
             .def(init<std::string, shyft::time_series::ts_point_fx, shyft::core::utctimespan, std::string, shyft::core::utcperiod, shyft::core::utctime, shyft::core::utctime>(
                 (py::arg("self"),py::arg("name"), py::arg("point_fx"), py::arg("delta_t"), py::arg("olson_tz_id"), py::arg("data_period"), py::arg("created"), py::arg("modified")),
@@ -254,7 +254,7 @@ namespace expose {
         typedef std::vector<TsInfo> TsInfoVector;
         class_<TsInfoVector>("TsInfoVector",
             doc_intro("A vector/list of TsInfo")
-			,init<>(py::arg("self"))
+            ,init<>(py::arg("self"))
             )
             .def(vector_indexing_suite<TsInfoVector>())
             .def(init<const TsInfoVector&>( (py::arg("self"),py::arg("clone_me"))))
@@ -286,11 +286,11 @@ namespace expose {
             doc_intro("- that typically involve reading time-series from a service or storage for the specified period")
             doc_intro("The server object will then compute the resulting time-series vector,")
             doc_intro("and respond back to clients with the results")
-			doc_intro("multi-node considerations:")
-			doc_intro("    1. firewall/routing: ensure that the port you are using are open for ip-traffic")
-			doc_intro("    2. currently we only support heterogenous client/server types(e.g. windows-windows, linux-linux)")
+            doc_intro("multi-node considerations:")
+            doc_intro("    1. firewall/routing: ensure that the port you are using are open for ip-traffic")
+            doc_intro("    2. currently we only support heterogenous client/server types(e.g. windows-windows, linux-linux)")
             doc_see_also("shyft.api.DtsClient"),
-			init<>(args("self"))
+            init<>(args("self"))
             )
             .def("set_listening_port", &DtsServer::set_listening_port, args("self","port_no"),
                 doc_intro("set the listening port for the service")
@@ -314,7 +314,7 @@ namespace expose {
                 doc_see_also("get_max_connections()")
             )
             .def("get_max_connections",&DtsServer::get_max_connections, (py::arg("self")),
-				doc_intro("returns the maximum number of connections to be served concurrently"))
+                doc_intro("returns the maximum number of connections to be served concurrently"))
             .def("clear",&DtsServer::clear, (py::arg("self")),
                 doc_intro("stop serving connections, gracefully.")
                 doc_see_also("cb, process_messages(msec),start_async()")
@@ -324,8 +324,8 @@ namespace expose {
                 doc_see_also("start_async(),process_messages(msec)")
             )
             .def("get_listening_port",&DtsServer::get_listening_port, (py::arg("self")),
-				"returns the port number it's listening at for serving incoming request"
-			)
+                "returns the port number it's listening at for serving incoming request"
+            )
             .def_readwrite("cb",&DtsServer::cb,
                 doc_intro("callback for binding unresolved time-series references to concrete time-series.")
                 doc_intro("Called *if* the incoming messages contains unbound time-series.")
@@ -462,37 +462,37 @@ namespace expose {
 
     static void dtss_client() {
         typedef shyft::dtss::py_client  DtsClient;
-		class_<DtsClient, boost::noncopyable >("DtsClient",
-			doc_intro("The client part of the DtsServer")
-			doc_intro("Capable of processing time-series messages and responding accordingly")
-			doc_intro("The user can setup callback to python to handle unbound symbolic time-series references")
-			doc_intro("- that typically involve reading time-series from a service or storage for the specified period")
-			doc_intro("The server object will then compute the resulting time-series vector,")
-			doc_intro("and respond back to clients with the results")
-			doc_see_also("DtsServer"), no_init
-			)
-			.def(init<const std::string&,bool,int>( (py::arg("self"),py::arg("host_port"),py::arg("auto_connect")=true,py::arg("timeout_ms")=1000),
-				doc_intro("constructs a dts-client with the specifed host_port parameter")
-				doc_intro("a connection is immediately done to the server at specified port.")
-				doc_intro("If no such connection can be made, it raises a RuntimeError.")
-				doc_parameter("host_port", "string", "a string of the format 'host:portnumber', e.g. 'localhost:20000'")
+        class_<DtsClient, boost::noncopyable >("DtsClient",
+            doc_intro("The client part of the DtsServer")
+            doc_intro("Capable of processing time-series messages and responding accordingly")
+            doc_intro("The user can setup callback to python to handle unbound symbolic time-series references")
+            doc_intro("- that typically involve reading time-series from a service or storage for the specified period")
+            doc_intro("The server object will then compute the resulting time-series vector,")
+            doc_intro("and respond back to clients with the results")
+            doc_see_also("DtsServer"), no_init
+            )
+            .def(init<const std::string&,bool,int>( (py::arg("self"),py::arg("host_port"),py::arg("auto_connect")=true,py::arg("timeout_ms")=1000),
+                doc_intro("constructs a dts-client with the specifed host_port parameter")
+                doc_intro("a connection is immediately done to the server at specified port.")
+                doc_intro("If no such connection can be made, it raises a RuntimeError.")
+                doc_parameter("host_port", "string", "a string of the format 'host:portnumber', e.g. 'localhost:20000'")
                 doc_parameter("auto_connect","bool","default True, connection pr. call. if false, connection last lifetime of object unless explicitely closed/reopened")
                 doc_parameter("timeout_ms","int","defalt 1000ms, used for timeout connect/reconnect/close operations" )
-				)
-			)
+                )
+            )
             .def(init<const std::vector<std::string>&,bool,int>((py::arg("self"), py::arg("host_ports"),py::arg("auto_connect"),py::arg("timeout_ms")),
-				doc_intro("constructs a dts-client with the specifed host_ports parameters")
-				doc_intro("a connection is immediately done to the server at specified port.")
-				doc_intro("If no such connection can be made, it raises a RuntimeError.")
+                doc_intro("constructs a dts-client with the specifed host_ports parameters")
+                doc_intro("a connection is immediately done to the server at specified port.")
+                doc_intro("If no such connection can be made, it raises a RuntimeError.")
                 doc_intro("If several servers are passed, the .evaluate and .percentile function will partition the ts-vector between the")
                 doc_intro("provided servers and scale out the computation")
-				doc_parameter("host_ports", "StringVector", "a a list of string of the format 'host:portnumber', e.g. 'localhost:20000'")
+                doc_parameter("host_ports", "StringVector", "a a list of string of the format 'host:portnumber', e.g. 'localhost:20000'")
                 doc_parameter("auto_connect","bool","default True, connection pr. call. if false, connection last lifetime of object unless explicitely closed/reopened")
                 doc_parameter("timeout_ms","int","defalt 1000ms, used for timeout connect/reconnect/close operations" )
-				)
-			)
+                )
+            )
 
-			.def("close", &DtsClient::close, (py::arg("self"), py::arg("timeout_ms") = 1000),
+            .def("close", &DtsClient::close, (py::arg("self"), py::arg("timeout_ms") = 1000),
                 doc_intro("close the connection")
             )
             .def("reopen",&DtsClient::reopen,(py::arg("self"),py::arg("timeout_ms")=1000),
@@ -542,7 +542,7 @@ namespace expose {
                 doc_intro("Store the time-series in the ts-vector in the dtss backend.")
                 doc_intro("The current internal shyft-container implementation overwrite the data by default, but can")
                 doc_intro("update existing data if called with `overwrite_on_write = False`.")
-				doc_intro("The intention is that the backend should overwrite the time-period they cover with")
+                doc_intro("The intention is that the backend should overwrite the time-period they cover with")
                 doc_intro("the new time-points unless asked explisitly to update it.")
                 doc_intro("The time-series should be created like this, with url and a concrete point-ts:")
                 doc_intro("")
@@ -567,7 +567,7 @@ namespace expose {
                 doc_intro("  1. read ts.total_period() from ts point store ")
                 doc_intro("  2. run the TimeSeries.merge_points(ts) on the read-ts")
                 doc_intro("  3. write the resulting merge-result back to the ts-store")
-				doc_intro("This function is suitable for typical data-collection tasks")
+                doc_intro("This function is suitable for typical data-collection tasks")
                 doc_intro("where the points collected is from an external source, appears as batches,")
                 doc_intro("that should just be added to the existing point-set")
                 doc_parameters()
@@ -595,7 +595,7 @@ namespace expose {
         using CacheStats = shyft::dtss::cache_stats;
         class_<CacheStats>("CacheStats",
             doc_intro("Cache statistics for the DtsServer."),
-			init<>(py::arg("self"))
+            init<>(py::arg("self"))
             )
             .def_readwrite("hits", &CacheStats::hits,
                 doc_intro("number of hits by time-series id")

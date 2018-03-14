@@ -51,69 +51,69 @@ dlib::logger dlog("dlib.log");
 TEST_SUITE("dtss") {
 
 TEST_CASE("dtss_lru_cache") {
-	using shyft::dtss::lru_cache;
-	using std::map;
-	using std::list;
-	using std::vector;
-	using std::string;
-	using std::back_inserter;
-	using shyft::time_series::dd::apoint_ts;
-	using shyft::time_series::dd::gta_t;
-	const auto stair_case=shyft::time_series::POINT_AVERAGE_VALUE;
-	lru_cache<string, apoint_ts, map > c(2);
+    using shyft::dtss::lru_cache;
+    using std::map;
+    using std::list;
+    using std::vector;
+    using std::string;
+    using std::back_inserter;
+    using shyft::time_series::dd::apoint_ts;
+    using shyft::time_series::dd::gta_t;
+    const auto stair_case=shyft::time_series::POINT_AVERAGE_VALUE;
+    lru_cache<string, apoint_ts, map > c(2);
 
-	apoint_ts r;
-	vector<string> mru;
-	gta_t ta(0, 1, 10);
+    apoint_ts r;
+    vector<string> mru;
+    gta_t ta(0, 1, 10);
 
-	TEST_SECTION("empty_cache") {
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
-	}
-	TEST_SECTION("add_one_item") {
-		c.add_item("a", apoint_ts(ta, 1.0, stair_case));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-		FAST_CHECK_EQ(ta.size(), r.time_axis().size());
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
-	}
-	TEST_SECTION("add_second_item") {
-		c.add_item("b", apoint_ts(ta, 2.0, stair_case));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-		FAST_CHECK_UNARY(c.try_get_item("b", r));
-		c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("b"), mru[0]);
-		FAST_CHECK_EQ(string("a"), mru[1]);
-	}
-	TEST_SECTION("mru_item_in_front") {
-		c.try_get_item("a", r);
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("a"), mru[0]);
-		FAST_CHECK_EQ(string("b"), mru[1]);
-	}
-	TEST_SECTION("excessive_lru_item_evicted_when_adding") {
-		c.add_item("c", apoint_ts(ta, 3.0, stair_case));
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
-		FAST_CHECK_UNARY(c.try_get_item("c", r));
-		FAST_CHECK_UNARY(c.try_get_item("a", r));
-	}
-	TEST_SECTION("remove_item") {
-		c.remove_item("a");
-		FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
-	}
-	TEST_SECTION("ensure_items_added_are_first") {
-		c.add_item("d", apoint_ts(ta, 4.0, stair_case));
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("d"), mru[0]);
-		FAST_CHECK_EQ(string("c"), mru[1]);
-	}
-	TEST_SECTION("update_existing") {
-		c.try_get_item("c", r);//just to ensure "c" is in first position
-		c.add_item("d", apoint_ts(ta, 4.2, stair_case)); //update "d"
-		c.try_get_item("d", r);
-		FAST_CHECK_GT(r.value(0), 4.1);
-		mru.clear(); c.get_mru_keys(back_inserter(mru));
-		FAST_CHECK_EQ(string("d"), mru[0]);
-		FAST_CHECK_EQ(string("c"), mru[1]);
-	}
+    TEST_SECTION("empty_cache") {
+        FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
+    }
+    TEST_SECTION("add_one_item") {
+        c.add_item("a", apoint_ts(ta, 1.0, stair_case));
+        FAST_CHECK_UNARY(c.try_get_item("a", r));
+        FAST_CHECK_EQ(ta.size(), r.time_axis().size());
+        FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
+    }
+    TEST_SECTION("add_second_item") {
+        c.add_item("b", apoint_ts(ta, 2.0, stair_case));
+        FAST_CHECK_UNARY(c.try_get_item("a", r));
+        FAST_CHECK_UNARY(c.try_get_item("b", r));
+        c.get_mru_keys(back_inserter(mru));
+        FAST_CHECK_EQ(string("b"), mru[0]);
+        FAST_CHECK_EQ(string("a"), mru[1]);
+    }
+    TEST_SECTION("mru_item_in_front") {
+        c.try_get_item("a", r);
+        mru.clear(); c.get_mru_keys(back_inserter(mru));
+        FAST_CHECK_EQ(string("a"), mru[0]);
+        FAST_CHECK_EQ(string("b"), mru[1]);
+    }
+    TEST_SECTION("excessive_lru_item_evicted_when_adding") {
+        c.add_item("c", apoint_ts(ta, 3.0, stair_case));
+        FAST_CHECK_UNARY_FALSE(c.try_get_item("b", r));
+        FAST_CHECK_UNARY(c.try_get_item("c", r));
+        FAST_CHECK_UNARY(c.try_get_item("a", r));
+    }
+    TEST_SECTION("remove_item") {
+        c.remove_item("a");
+        FAST_CHECK_UNARY_FALSE(c.try_get_item("a", r));
+    }
+    TEST_SECTION("ensure_items_added_are_first") {
+        c.add_item("d", apoint_ts(ta, 4.0, stair_case));
+        mru.clear(); c.get_mru_keys(back_inserter(mru));
+        FAST_CHECK_EQ(string("d"), mru[0]);
+        FAST_CHECK_EQ(string("c"), mru[1]);
+    }
+    TEST_SECTION("update_existing") {
+        c.try_get_item("c", r);//just to ensure "c" is in first position
+        c.add_item("d", apoint_ts(ta, 4.2, stair_case)); //update "d"
+        c.try_get_item("d", r);
+        FAST_CHECK_GT(r.value(0), 4.1);
+        mru.clear(); c.get_mru_keys(back_inserter(mru));
+        FAST_CHECK_EQ(string("d"), mru[0]);
+        FAST_CHECK_EQ(string("c"), mru[1]);
+    }
 }
 TEST_CASE("dtss_ts_cache") {
     using std::vector;
@@ -489,10 +489,10 @@ TEST_CASE("dlib_server_performance") {
         gta_t ta(t, dt, n);
         gta_t ta24(t, dt24, n24);
         bool throw_exception = false;
-		ts_vector_t from_disk; from_disk.reserve(n_ts);
-		double fv = 1.0;
-		for (int i = 0; i < n_ts; ++i)
-			from_disk.emplace_back(ta, fv += 1.0,shyft::time_series::ts_point_fx::POINT_AVERAGE_VALUE);
+        ts_vector_t from_disk; from_disk.reserve(n_ts);
+        double fv = 1.0;
+        for (int i = 0; i < n_ts; ++i)
+            from_disk.emplace_back(ta, fv += 1.0,shyft::time_series::ts_point_fx::POINT_AVERAGE_VALUE);
 
         read_call_back_t cb = [&from_disk, &throw_exception](id_vector_t ts_ids, core::utcperiod p)
             ->ts_vector_t {
@@ -518,18 +518,18 @@ TEST_CASE("dlib_server_performance") {
                     string host_port = string("localhost:") + to_string(port_no);
                     dlog << dlib::LINFO << "sending an expression ts to " << host_port;
                     std::vector<apoint_ts> tsl;
-					for (int x = 1; x <= n_ts; ++x) {// just make a  very thin request, that get loads of data back
+                    for (int x = 1; x <= n_ts; ++x) {// just make a  very thin request, that get loads of data back
 #if 0
-						auto ts_expr = apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x));
-						tsl.push_back(ts_expr);
+                        auto ts_expr = apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x));
+                        tsl.push_back(ts_expr);
 #else
-						auto ts_expr = 10.0 + 3.0*apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x));
-						if (x > 1) {
-							ts_expr = ts_expr - 3.0*apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x - 1));
-						}
-						tsl.push_back(ts_expr.average(ta));
+                        auto ts_expr = 10.0 + 3.0*apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x));
+                        if (x > 1) {
+                            ts_expr = ts_expr - 3.0*apoint_ts(string("netcdf://group/path/ts_") + std::to_string(x - 1));
+                        }
+                        tsl.push_back(ts_expr.average(ta));
 #endif
-					}
+                    }
 
                     client dtss(host_port);
                     auto t0 = timing::now();
@@ -567,8 +567,8 @@ TEST_CASE("dlib_server_performance") {
 }
 TEST_CASE("dtss_store_basics") {
         using namespace shyft::dtss;
-		using namespace shyft::time_series::dd;
-		using time_series::point_ts;
+        using namespace shyft::time_series::dd;
+        using time_series::point_ts;
 
         std::shared_ptr<core::calendar> utc = std::make_shared<core::calendar>();
         std::shared_ptr<core::calendar> osl = std::make_shared<core::calendar>("Europe/Oslo");
@@ -578,7 +578,7 @@ TEST_CASE("dtss_store_basics") {
         core::utctimespan dt_half = core::deltaminutes(30);
         std::size_t n = 24 * 365 * 2;//24*365*5;
 
-		// construct time-axis that we want to test.
+        // construct time-axis that we want to test.
         time_axis::fixed_dt fta(t, dt, n);
         time_axis::calendar_dt cta1(utc,t,dt,n);
         time_axis::calendar_dt cta2(osl,t,dt,n);
@@ -697,8 +697,8 @@ TEST_CASE("dtss_store_basics") {
         }
 
         TEST_SECTION("dtss_db_speed") {
-			int n_ts = 120;
-			vector<gts_t> tsv; tsv.reserve(n_ts);
+            int n_ts = 120;
+            vector<gts_t> tsv; tsv.reserve(n_ts);
             double fv = 1.0;
             for (int i = 0; i < n_ts; ++i)
                 tsv.emplace_back(gta_t(fta), fv += 1.0,shyft::time_series::ts_point_fx::POINT_AVERAGE_VALUE);
@@ -718,10 +718,10 @@ TEST_CASE("dtss_store_basics") {
             auto t2= timing::now();
             auto w_mb_s= n_ts*n/double(elapsed_ms(t0,t1))/1000.0;
             auto r_mb_s= n_ts*n/double(elapsed_ms(t1,t2))/1000.0;
-			// on windows(before workaround): ~ 6 mpts/sec write, 162 mpts/sec read (slow close->workaround with thread?)
-			// on linux: ~ 120 mpts/sec write, 180 mpts/sec read
+            // on windows(before workaround): ~ 6 mpts/sec write, 162 mpts/sec read (slow close->workaround with thread?)
+            // on linux: ~ 120 mpts/sec write, 180 mpts/sec read
             std::cout<<"write pts/s = "<<w_mb_s<<", read pts/s = "<<r_mb_s<<" pts = "<<n_ts*n<<", roundtrip ms="<< double(elapsed_ms(t0,t2)) <<"\n";
-			//std::cout << "open_ms:" << db.t_open << ", write_ms:" << db.t_write << ", t_close_ms:" << db.t_close << std::endl;
+            //std::cout << "open_ms:" << db.t_open << ", write_ms:" << db.t_write << ", t_close_ms:" << db.t_close << std::endl;
             FAST_CHECK_EQ(rv.size(),tsv.size());
             //fs::remove_all("*.db");
         }
@@ -797,7 +797,7 @@ TEST_CASE("dtss_store") { /*
     */
     using namespace shyft::dtss;
     using namespace shyft::time_series::dd;
-	using time_series::point_ts;
+    using time_series::point_ts;
     using time_series::ts_point_fx;
 
     auto utc=make_shared<calendar>();
@@ -903,7 +903,7 @@ TEST_CASE("dtss_store_merge_write") {
     namespace dtss = shyft::dtss;
     namespace ta = shyft::time_axis;
     namespace ts = shyft::time_series;
-	using shyft::time_series::dd::gta_t;
+    using shyft::time_series::dd::gta_t;
     // setup db
     auto dirname = "ts.db.test." + std::to_string(core::utctime_now());
     auto tmpdir = (fs::temp_directory_path()/dirname);
@@ -2143,7 +2143,7 @@ TEST_CASE("dtss_store_merge_write") {
 TEST_CASE("dtss_baseline") {
     using namespace shyft::dtss;
     using namespace shyft::time_series::dd;
-	using time_series::point_ts;
+    using time_series::point_ts;
     using time_series::ts_point_fx;
     using std::cout;
     auto utc=make_shared<calendar>();
@@ -2216,7 +2216,7 @@ TEST_CASE("dtss_ltm") {
     // for api type of ts-expressions,
     using namespace shyft::dtss;
     using namespace shyft::time_series::dd;
-	using shyft::time_series::point_ts;
+    using shyft::time_series::point_ts;
     using time_series::ts_point_fx;
     using std::cout;
     auto utc=make_shared<calendar>();
