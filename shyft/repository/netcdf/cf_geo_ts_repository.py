@@ -8,7 +8,7 @@ from shyft import api
 from shyft import shyftdata_dir
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
-from .utils import _limit, _numpy_to_geo_ts_vec, _make_time_slice, _slice_var_1D
+from .utils import _limit_1D, _numpy_to_geo_ts_vec, _make_time_slice, _slice_var_1D
 
 
 class CFDataRepositoryError(Exception):
@@ -80,7 +80,7 @@ class CFDataRepository(interfaces.GeoTsRepository):
 
         time_slice, issubset = _make_time_slice(time, utc_period, CFDataRepositoryError)
 
-        x, y, m_xy, xy_slice = _limit(x[:], y[:], data_cs.proj4, self.shyft_cs, geo_location_criteria, self._padding, CFDataRepositoryError)
+        x, y, m_xy, xy_slice = _limit_1D(x[:], y[:], data_cs.proj4, self.shyft_cs, geo_location_criteria, self._padding, CFDataRepositoryError)
 
         raw_data = {}
         for k in dataset.variables.keys():

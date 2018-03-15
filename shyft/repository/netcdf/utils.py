@@ -41,11 +41,106 @@ def _numpy_to_geo_ts_vec(data, x, y, z, batch_conversion=True):
             for idx in range(len(pts)):
                 tpe_v.append(
                     tpe(api.GeoPoint(*pts[idx]),
-                        api.TimeSeries(ta, api.DoubleVector.FromNdArray(data[:, idx]), self.series_type[key])))
+                        api.TimeSeries(ta, api.DoubleVector.FromNdArray(data[:, idx]), series_type[key])))
             res[key] = tpe_v
         return res
 
-def _limit(x, y, data_cs, target_cs, geo_location_criteria, padding, err):
+def _validate_geo_location_criteria(geo_location_criteria, err):
+    """
+    Validate geo_location_criteria.
+    """
+    if geo_location_criteria is not None:
+        if not isinstance(geo_location_criteria, (Polygon, MultiPolygon)):
+            raise err("Unrecognized geo_location_criteria. "
+                                           "It should be one of these shapley objects: (Polygon, MultiPolygon).")
+
+def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, clip_in_data_cs=True):
+    """
+    Parameters
+    ----------
+    x: np.ndarray
+        X coordinates in meters in cartesian coordinate system
+        specified by data_cs
+    y: np.ndarray
+        Y coordinates in meters in cartesian coordinate system
+        specified by data_cs
+    data_cs: string
+        Proj4 string specifying the cartesian coordinate system
+        of x and y
+    target_cs: string
+        Proj4 string specifying the target coordinate system
+    Returns
+    -------
+    x: np.ndarray
+        Coordinates in target coordinate system
+    y: np.ndarray
+        Coordinates in target coordinate system
+    x_mask: np.ndarray
+        Boolean index array
+    y_mask: np.ndarray
+        Boolean index array
+    """
+    _validate_geo_location_criteria(geo_location_criteria)
+    # Get coordinate system for arome data
+    data_proj = pyproj.Proj(data_cs)
+    target_proj = pyproj.Proj(target_cs)
+
+    if clip_in_data_cs:
+
+        # Find bounding box in arome projection
+        if geo_location_criteria is None:  # get all geo_pts in dataset
+            x_mask = np.ones(np.size(x), dtype=bool)
+            y_mask = np.ones(np.size(y), dtype=bool)
+            x_indx = np.nonzero(x_mask)[0]
+            y_indx = np.nonzero(y_mask)[0]
+            xy_in_poly = np.dstack(np.meshgrid(x, y)).reshape(-1, 2)
+            # Transform from source coordinates to target coordinates
+            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
+                                                    xy_in_poly[:, 1])  # in SHyFT coord sys
+            yi, xi = np.unravel_index(np.arange(len(xy_in_poly), dtype=int), (y_indx.shape[0], x_indx.shape[0]))
+        else:
+            project = partial(pyproj.transform, target_proj, data_proj)
+            poly = geo_location_criteria.buffer(padding)
+            poly_prj = transform(project, poly)
+            p_poly = prep(poly_prj)
+
+            # Extract points in poly envelop
+            xmin, ymin, xmax, ymax = poly_prj.bounds
+            x_mask = ((x > xmin) & (x < xmax))
+            y_mask = ((y > ymin) & (y < ymax))
+            x_indx = np.nonzero(x_mask)[0]
+            y_indx = np.nonzero(y_mask)[0]
+            #xb = (x_indx[0], x_indx[-1] + 1)
+            #yb = (y_indx[0], y_indx[-1] + 1)
+            x_in_box = x[x_indx]
+            y_in_box = y[y_indx]
+            xy_in_box = np.dstack(np.meshgrid(x_in_box, y_in_box)).reshape(-1, 2)
+            #nb_pts_in_box = len(xy_in_box)
+
+            pts_in_box = MultiPoint(xy_in_box)
+
+            #pts_in_file = MultiPoint(np.dstack((x, y)).reshape(-1, 2))
+            # xy_mask
+            pt_in_poly = np.array(list(map(p_poly.contains, pts_in_box)))
+
+            xy_in_poly = xy_in_box[pt_in_poly]
+            # Transform from source coordinates to target coordinates
+            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
+                                                              xy_in_poly[:, 1])  # in SHyFT coord sys
+
+            # Create the index for the points in the buffer polygon
+            yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (y_indx.shape[0], x_indx.shape[0]))
+            #idx_1D = np.nonzero(pt_in_poly)[0]
+            #nb_ext_ts = np.count_nonzero(pt_in_poly)
+
+            #(self.nc.variables[var][self.ti_1-t_shift:self.ti_2+1,0,self.yb[0]:self.yb[1],self.xb[0]:self.xb[1]])[:,self.yi,self.xi]
+
+        return x_in_poly, y_in_poly, (xi, yi), (slice(x_indx[0], x_indx[-1] + 1), slice(y_indx[0], y_indx[-1] + 1))
+    else:
+        x_targ, y_targ = transform(data_proj, target_proj, x, y)
+        return None
+
+def _limit_1D(x, y, data_cs, target_cs, geo_location_criteria, padding, err):
     """
     Project coordinates from data_cs to target_cs, identify points defined by geo_location_criteria as mask and find
     limiting slice
@@ -73,11 +168,7 @@ def _limit(x, y, data_cs, target_cs, geo_location_criteria, padding, err):
     xy_mask: np.ndarray
         Boolean index array
     """
-    if geo_location_criteria is not None:
-        if not isinstance(geo_location_criteria, (Polygon, MultiPolygon)):
-            raise err("Unrecognized geo_location_criteria. "
-                                               "It should be one of these shapley objects: (Polygon, MultiPolygon).")
-
+    _validate_geo_location_criteria(geo_location_criteria)
     # Get coordinate system for netcdf data
     data_proj = pyproj.Proj(data_cs)
     target_proj = pyproj.Proj(target_cs)
@@ -131,7 +222,7 @@ def _slice_var_1D(nc_var, xy_var_name, xy_slice, xy_mask, time_slice=None, ensem
         pure_arr = pure_arr.filled(np.nan)
     return pure_arr
 
-def _slice_var(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, time_slice=None, ensemble_member=None):
+def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, time_slice=None, ensemble_member=None):
     dims = nc_var.dimensions
     data_slice = len(nc_var.dimensions) * [slice(None)]
     if ensemble_member is not None and "ensemble_member" in dims:

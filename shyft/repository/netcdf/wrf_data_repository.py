@@ -38,8 +38,7 @@ class WRFDataRepository(interfaces.GeoTsRepository):
 
     _G = 9.80665  # WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, directory, filename=None, bounding_box=None,
-                 x_padding=5000.0, y_padding=5000.0, allow_subset=False):
+    def __init__(self, epsg, directory, filename=None, padding=5000., allow_subset=False):
         """
         Construct the netCDF4 dataset reader for data from WRF NWP model,
         and initialize data retrieval.
@@ -69,16 +68,14 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             Allow extraction of a subset of the given source fields
             instead of raising exception.
         """
-        directory = directory.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
+        directory = path.expandvars(directory)
         self._filename = path.join(directory, filename)
         self.allow_subset = allow_subset
         if not path.isdir(directory):
             raise WRFDataRepositoryError("No such directory '{}'".format(directory))
 
         self.shyft_cs = "+init=EPSG:{}".format(epsg)
-        self._x_padding = x_padding
-        self._y_padding = y_padding
-        self._bounding_box = bounding_box
+        self._padding = padding
 
         # Field names and mappings
         self.wrf_shyft_map = {
@@ -127,23 +124,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         with Dataset(filename) as dataset:
             return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria)
-
-    @property
-    def bounding_box(self):
-        # Add a padding to the bounding box to make sure the computational
-        # domain is fully enclosed in WRF dataset
-        if self._bounding_box is None:
-            raise WRFDataRepositoryError("A bounding box must be provided.")
-        bounding_box = np.array(self._bounding_box)
-        bounding_box[0][0] -= self._x_padding
-        bounding_box[0][1] += self._x_padding
-        bounding_box[0][2] += self._x_padding
-        bounding_box[0][3] -= self._x_padding
-        bounding_box[1][0] -= self._y_padding
-        bounding_box[1][1] -= self._y_padding
-        bounding_box[1][2] += self._y_padding
-        bounding_box[1][3] += self._y_padding
-        return bounding_box
 
     def _convert_to_timeseries(self, data):
         """Convert timeseries from numpy structures to shyft.api timeseries.
