@@ -19,7 +19,7 @@ class GeneratedStateRepository(interfaces.StateRepository):
         self.state_vec_t = model.state_with_id_t.vector_t
         self.init_values = init_values
 
-    def find_state(self, region_model_id_criteria=None, utc_period_criteria=None,
+    def find_state(self, region_model_id_criteria=None, utc_timestamp_criteria=None,
                    tag_criteria=None):
         return [interfaces.StateInfo(state_id=0)]
 
@@ -45,9 +45,3 @@ class GeneratedStateRepository(interfaces.StateRepository):
             state_with_id.id = state_with_id.cell_state(cell.geo)
             state_vct.append(state_with_id)
         return state_vct
-
-    def put_state(self, region_model_id, utc_timestamp, region_model_state, tags=None):
-        pass
-
-    def delete_state(self, state_id):
-        pass
