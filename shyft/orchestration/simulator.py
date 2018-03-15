@@ -244,16 +244,13 @@ class DefaultSimulator(object):
         if self.initial_state_repo is None:
             raise SimulatorError("No repo to fetch init state from. Pass in state explicitly.")
         else:
-            if hasattr(self.initial_state_repo, 'model'):  # No stored state, generated on-the-fly
-                state_id = 0
+            states = self.initial_state_repo.find_state(
+                region_model_id_criteria=self.region_model_id,
+                utc_timestamp_criteria=self.time_axis.start, tag_criteria=None)
+            if len(states) > 0:
+                state_id = states[0].state_id  # most_recent_state i.e. <= start time
             else:
-                states = self.initial_state_repo.find_state(
-                    region_model_id_criteria=self.region_model_id,
-                    utc_timestamp_criteria=self.time_axis.start, tag_criteria=None)
-                if len(states) > 0:
-                    state_id = states[0].state_id  # most_recent_state i.e. <= start time
-                else:
-                    raise SimulatorError('No initial state matching criteria.')
+                raise SimulatorError('No initial state matching criteria.')
             return self.initial_state_repo.get_state(state_id)
 
     def discharge_adjusted_state(self, obs_discharge, state=None):
