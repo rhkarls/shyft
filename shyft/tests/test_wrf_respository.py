@@ -9,6 +9,7 @@ from shyft import shyftdata_dir
 from shyft import api
 from shyft.repository.netcdf.wrf_data_repository import WRFDataRepository
 from shyft.repository.netcdf.wrf_data_repository import WRFDataRepositoryError
+from shapely.geometry import box
 
 
 class WRFDataRepositoryTestCase(unittest.TestCase):
@@ -16,7 +17,7 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         """
         Simple regression test of WRF data repository.
         """
-        EPSG, bbox = self.wrf_epsg_bbox
+        EPSG, bbox, bpoly = self.wrf_epsg_bbox
 
         # Period start
         n_hours = 60
@@ -28,9 +29,9 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
         f1 = "wrfout_d03_{}".format(date_str)
 
-        wrf1 = WRFDataRepository(EPSG, base_dir, filename=f1, bounding_box=bbox, allow_subset=True)
+        wrf1 = WRFDataRepository(EPSG, base_dir, filename=f1, allow_subset=True)
         wrf1_data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity", "radiation")
-        sources = wrf1.get_timeseries(wrf1_data_names, period, None)
+        sources = wrf1.get_timeseries(wrf1_data_names, period, geo_location_criteria=bpoly)
         self.assertTrue(len(sources) > 0)
 
         self.assertTrue(set(sources) == set(wrf1_data_names))
@@ -98,7 +99,8 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         ny = 121
         dx = 1000.0
         dy = 1000.0
-        return EPSG, ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy])
+        #return EPSG, ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy])
+        return EPSG, ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy]), box(x0, y0, x0 + dx * nx, y0 + dy * ny)
 
     def test_wrong_directory(self):
         with self.assertRaises(WRFDataRepositoryError) as context:
@@ -111,13 +113,14 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
             t0 = api.YMDhms(2015, 12, 25, 18)
             period = api.UtcPeriod(utc.time(t0), utc.time(t0) + api.deltahours(30))
             ar1 = WRFDataRepository(32632, shyftdata_dir, filename="plain_wrong.nc")
-            ar1.get_timeseries(("temperature",), period, None)
+            ar1.get_timeseries(("temperature",), period, geo_location_criteria=None)
         self.assertTrue(all(x in context.exception.args[0] for x in ["File", "not found"]))
 
     def test_non_overlapping_bbox(self):
-        EPSG, bbox = self.wrf_epsg_bbox
+        EPSG, bbox, bpoly = self.wrf_epsg_bbox
         bbox = list(bbox)
         bbox[0] = [-100000.0, -90000.0, -90000.0, -100000]
+        bpoly = box(min(bbox[0]), min(bbox[1]), max(bbox[0]), max(bbox[1]))
         # Period start
 
         year = 1999
@@ -130,15 +133,15 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
 
         base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
         filename = "wrfout_d03_{}".format(date_str)
-        reader = WRFDataRepository(EPSG, base_dir, filename=filename, bounding_box=bbox)
+        reader = WRFDataRepository(EPSG, base_dir, filename=filename)
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
         with self.assertRaises(WRFDataRepositoryError) as context:
-            reader.get_timeseries(data_names, period, None)
+            reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
         self.assertEqual("Bounding box doesn't intersect with dataset.",
                          context.exception.args[0])
 
     def test_missing_bbox(self):
-        EPSG, _ = self.wrf_epsg_bbox
+        EPSG, _, _ = self.wrf_epsg_bbox
         # Period start
         year = 1999
         month = 10
@@ -153,11 +156,11 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         reader = WRFDataRepository(EPSG, base_dir, filename=filename)
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
         with self.assertRaises(WRFDataRepositoryError) as context:
-            reader.get_timeseries(data_names, period, None)
+            reader.get_timeseries(data_names, period, geo_location_criteria=None)
         self.assertEqual("A bounding box must be provided.", context.exception.args[0])
 
     def test_tiny_bbox(self):
-        EPSG, _ = self.wrf_epsg_bbox
+        EPSG, _, _ = self.wrf_epsg_bbox
         x0 = 726270.0  # lower left
         y0 = 3525350.0  # lower right
         nx = 1
@@ -166,6 +169,7 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         dy = 1.0
         bbox = ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy])
         print(bbox)
+        bpoly = box(min(bbox[0]), min(bbox[1]), max(bbox[0]), max(bbox[1]))
 
         # Period start
         year = 1999
@@ -179,16 +183,16 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
         filename = "wrfout_d03_{}".format(date_str)
         reader = WRFDataRepository(EPSG, base_dir, filename=filename,
-                                   bounding_box=bbox, x_padding=0, y_padding=0)
+                                   padding=0)
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
 
-        tss = reader.get_timeseries(data_names, period, None)
+        tss = reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
 
         for name, ts in tss.items():
             self.assertTrue(len(ts) == 1)
 
     def test_subsets(self):
-        EPSG, bbox = self.wrf_epsg_bbox
+        EPSG, bbox, bpoly = self.wrf_epsg_bbox
         # Period start
         year = 1999
         month = 10
@@ -204,15 +208,15 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity", "radiation", "foo")
         allow_subset = False
         reader = WRFDataRepository(EPSG, base_dir, filename=filename,
-                                   bounding_box=bbox, allow_subset=allow_subset)
+                                   allow_subset=allow_subset)
         with self.assertRaises(WRFDataRepositoryError) as context:
-            reader.get_timeseries(data_names, period, None)
+            reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
         self.assertEqual("Could not find all data fields", context.exception.args[0])
         allow_subset = True
         reader = WRFDataRepository(EPSG, base_dir, filename=filename,
-                                   bounding_box=bbox, allow_subset=allow_subset)
+                                   allow_subset=allow_subset)
         try:
-            sources = reader.get_timeseries(data_names, period, None)
+            sources = reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
         except WRFDataRepositoryError as e:
             self.fail("AromeDataRepository.get_timeseries(data_names, period, None) "
                       "raised AromeDataRepositoryError unexpectedly.")
@@ -222,7 +226,7 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
 
         print("rel hum test: ")
         # relative humidity needs temperature and pressure to be calculated
-        EPSG, bbox = self.wrf_epsg_bbox
+        EPSG, bbox, bpoly = self.wrf_epsg_bbox
         # Period start
         year = 1999
         month = 10
@@ -236,8 +240,8 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         filename = "wrfout_d03_{}".format(date_str)
 
         data_names = ["relative_humidity"]
-        reader = WRFDataRepository(EPSG, base_dir, filename=filename, bounding_box=bbox)
-        sources = reader.get_timeseries(data_names, period, None)
+        reader = WRFDataRepository(EPSG, base_dir, filename=filename)
+        sources = reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
 
         self.assertTrue(list(sources.keys()) == ["relative_humidity"])
 

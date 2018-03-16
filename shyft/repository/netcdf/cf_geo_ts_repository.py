@@ -50,12 +50,6 @@ class CFDataRepository(interfaces.GeoTsRepository):
 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
         """
-        Parameters
-        ----------
-        see interfaces.GeoTsRepository
-
-        Returns
-        -------
         see interfaces.GeoTsRepository
         """
 

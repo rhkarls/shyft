@@ -80,67 +80,121 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
     y_mask: np.ndarray
         Boolean index array
     """
-    _validate_geo_location_criteria(geo_location_criteria)
+    _validate_geo_location_criteria(geo_location_criteria, err)
     # Get coordinate system for arome data
-    data_proj = pyproj.Proj(data_cs)
+    if data_cs.startswith('+'):
+        data_proj = pyproj.Proj(data_cs)
+    else:
+        data_proj = pyproj.Proj(proj=data_cs)
     target_proj = pyproj.Proj(target_cs)
 
-    if clip_in_data_cs:
+    if x.shape != y.shape:
+        err("x and y coords do not have the same dimensions.")
+    if not(1 <= len(x.shape) <=2):
+        err("x and y coords should have one or two dimensions.")
 
-        # Find bounding box in arome projection
+    if len(x.shape) == 1:
         if geo_location_criteria is None:  # get all geo_pts in dataset
             x_mask = np.ones(np.size(x), dtype=bool)
             y_mask = np.ones(np.size(y), dtype=bool)
             x_indx = np.nonzero(x_mask)[0]
             y_indx = np.nonzero(y_mask)[0]
             xy_in_poly = np.dstack(np.meshgrid(x, y)).reshape(-1, 2)
-            # Transform from source coordinates to target coordinates
-            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
-                                                    xy_in_poly[:, 1])  # in SHyFT coord sys
             yi, xi = np.unravel_index(np.arange(len(xy_in_poly), dtype=int), (y_indx.shape[0], x_indx.shape[0]))
         else:
-            project = partial(pyproj.transform, target_proj, data_proj)
             poly = geo_location_criteria.buffer(padding)
-            poly_prj = transform(project, poly)
-            p_poly = prep(poly_prj)
+            if clip_in_data_cs:
+                # Find bounding polygon in data coordinate system
+                project = partial(pyproj.transform, target_proj, data_proj)
+                #poly = geo_location_criteria.buffer(padding)
+                poly_prj = transform(project, poly)
+                p_poly = prep(poly_prj)
+            else:
+                p_poly = prep(poly)
+                x, y = pyproj.transform(data_proj, target_proj, x, y)
 
             # Extract points in poly envelop
-            xmin, ymin, xmax, ymax = poly_prj.bounds
+            xmin, ymin, xmax, ymax = poly.bounds
             x_mask = ((x > xmin) & (x < xmax))
             y_mask = ((y > ymin) & (y < ymax))
             x_indx = np.nonzero(x_mask)[0]
             y_indx = np.nonzero(y_mask)[0]
-            #xb = (x_indx[0], x_indx[-1] + 1)
-            #yb = (y_indx[0], y_indx[-1] + 1)
             x_in_box = x[x_indx]
             y_in_box = y[y_indx]
             xy_in_box = np.dstack(np.meshgrid(x_in_box, y_in_box)).reshape(-1, 2)
-            #nb_pts_in_box = len(xy_in_box)
-
+            if len(xy_in_box) == 0:
+                err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
             pts_in_box = MultiPoint(xy_in_box)
-
-            #pts_in_file = MultiPoint(np.dstack((x, y)).reshape(-1, 2))
-            # xy_mask
             pt_in_poly = np.array(list(map(p_poly.contains, pts_in_box)))
-
-            xy_in_poly = xy_in_box[pt_in_poly]
-            # Transform from source coordinates to target coordinates
-            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
-                                                              xy_in_poly[:, 1])  # in SHyFT coord sys
-
             # Create the index for the points in the buffer polygon
             yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (y_indx.shape[0], x_indx.shape[0]))
-            #idx_1D = np.nonzero(pt_in_poly)[0]
-            #nb_ext_ts = np.count_nonzero(pt_in_poly)
+            xy_in_poly = xy_in_box[pt_in_poly]
+            if len(xy_in_poly) == 0:
+                err("No points in dataset which are within the geo_location_criteria polygon.")
 
-            #(self.nc.variables[var][self.ti_1-t_shift:self.ti_2+1,0,self.yb[0]:self.yb[1],self.xb[0]:self.xb[1]])[:,self.yi,self.xi]
+        if clip_in_data_cs:
+            # Transform from source coordinates to target coordinates
+            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
+                                                    xy_in_poly[:, 1])  # in SHyFT coord sys
+        else:
+            x_in_poly, y_in_poly = xy_in_poly[:, 0], xy_in_poly[:, 1]
 
         return x_in_poly, y_in_poly, (xi, yi), (slice(x_indx[0], x_indx[-1] + 1), slice(y_indx[0], y_indx[-1] + 1))
     else:
-        x_targ, y_targ = transform(data_proj, target_proj, x, y)
-        return None
+        if geo_location_criteria is None:  # get all geo_pts in dataset
+            x_mask = np.ones(np.size(x), dtype=bool)
+            y_mask = np.ones(np.size(y), dtype=bool)
+            x_indx = np.nonzero(x_mask)[0]
+            y_indx = np.nonzero(y_mask)[0]
+            xy_in_poly = np.dstack(np.meshgrid(x, y)).reshape(-1, 2)
+            yi, xi = np.unravel_index(np.arange(len(xy_in_poly), dtype=int), (y_indx.shape[0], x_indx.shape[0]))
+        else:
+            poly = geo_location_criteria.buffer(padding)
+            if clip_in_data_cs:
+                # Find bounding polygon in data coordinate system
+                project = partial(pyproj.transform, target_proj, data_proj)
+                # poly = geo_location_criteria.buffer(padding)
+                poly_prj = transform(project, poly)
+                p_poly = prep(poly_prj)
+            else:
+                p_poly = prep(poly)
+                x, y = pyproj.transform(data_proj, target_proj, x, y)
 
-def _limit_1D(x, y, data_cs, target_cs, geo_location_criteria, padding, err):
+            # Extract points in poly envelop
+            xmin, ymin, xmax, ymax = poly.bounds
+            # x_mask = ((x > xmin) & (x < xmax))
+            # y_mask = ((y > ymin) & (y < ymax))
+            # x_indx = np.nonzero(x_mask)[0]
+            # y_indx = np.nonzero(y_mask)[0]
+            # x_in_box = x[x_indx]
+            # y_in_box = y[y_indx]
+            # xy_in_box = np.dstack(np.meshgrid(x_in_box, y_in_box)).reshape(-1, 2)
+            mask = ((x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax))
+            a = np.argwhere(mask)
+            (ystart, xstart), (ystop, xstop) = a.min(0), a.max(0) + 1
+            xy_in_box = np.dstack((x,y))[ystart:ystop, xstart:xstop, :].reshape(-1, 2)
+            if len(xy_in_box) == 0:
+                err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
+            pts_in_box = MultiPoint(xy_in_box)
+            pt_in_poly = np.array(list(map(p_poly.contains, pts_in_box)))
+            # Create the index for the points in the buffer polygon
+            #yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (y_indx.shape[0], x_indx.shape[0]))
+            yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (ystop-ystart, xstop-xstart))
+            xy_in_poly = xy_in_box[pt_in_poly]
+            if len(xy_in_poly) == 0:
+                err("No points in dataset which are within the geo_location_criteria polygon.")
+
+        if clip_in_data_cs:
+            # Transform from source coordinates to target coordinates
+            x_in_poly, y_in_poly = pyproj.transform(data_proj, target_proj, xy_in_poly[:, 0],
+                                                    xy_in_poly[:, 1])  # in SHyFT coord sys
+        else:
+            x_in_poly, y_in_poly = xy_in_poly[:, 0], xy_in_poly[:, 1]
+
+        return x_in_poly, y_in_poly, (xi, yi), (slice(xstart, xstop), slice(ystart, ystop))
+
+
+def _limit_1D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, clip_in_data_cs=True):
     """
     Project coordinates from data_cs to target_cs, identify points defined by geo_location_criteria as mask and find
     limiting slice
@@ -168,28 +222,40 @@ def _limit_1D(x, y, data_cs, target_cs, geo_location_criteria, padding, err):
     xy_mask: np.ndarray
         Boolean index array
     """
-    _validate_geo_location_criteria(geo_location_criteria)
+    _validate_geo_location_criteria(geo_location_criteria, err)
     # Get coordinate system for netcdf data
-    data_proj = pyproj.Proj(data_cs)
+    if data_cs.startswith('+'):
+        data_proj = pyproj.Proj(data_cs)
+    else:
+        data_proj = pyproj.Proj(proj=data_cs)
     target_proj = pyproj.Proj(target_cs)
 
     if geo_location_criteria is None:   # get all geo_pts in dataset
         xy_mask = np.ones(np.size(x), dtype=bool)
-
     else:
-        poly = geo_location_criteria
+        poly = geo_location_criteria.buffer(padding)
+        if clip_in_data_cs:
+            # Find bounding polygon in data coordinate system
+            project = partial(pyproj.transform, target_proj, data_proj)
+            # poly = geo_location_criteria.buffer(padding)
+            poly_prj = transform(project, poly)
+            p_poly = prep(poly_prj)
+        else:
+            p_poly = prep(poly)
+            x, y = pyproj.transform(data_proj, target_proj, x, y)
+
         pts_in_file = MultiPoint(np.dstack((x, y)).reshape(-1, 2))
-        project = partial(pyproj.transform, target_proj, data_proj)
-        poly_prj = transform(project, poly)
-        p_poly = prep(poly_prj.buffer(padding))
         xy_mask = np.array(list(map(p_poly.contains, pts_in_file)))
 
     # Check if there is at least one point extaracted and raise error if there isn't
     if not xy_mask.any():
-        raise err("No points in dataset which satisfy geo_selection_criteria.")
+        raise err("No points in dataset which are within the geo_location_criteria polygon.")
     xy_inds = np.nonzero(xy_mask)[0]
-    # Transform from source coordinates to target coordinates
-    xx, yy = pyproj.transform(data_proj, target_proj, x[xy_mask], y[xy_mask])
+    if clip_in_data_cs:
+        # Transform from source coordinates to target coordinates
+        xx, yy = pyproj.transform(data_proj, target_proj, x[xy_mask], y[xy_mask])
+    else:
+        xx, yy = x[xy_mask], y[xy_mask]
     return xx, yy, xy_mask, slice(xy_inds[0], xy_inds[-1] + 1)
 
 def _make_time_slice(time, utc_period, err):

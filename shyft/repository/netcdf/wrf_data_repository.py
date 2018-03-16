@@ -4,12 +4,10 @@ from glob import glob
 from os import path
 import numpy as np
 from netCDF4 import Dataset
-from pyproj import Proj
-from pyproj import transform
 from shyft import api
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
-
+from .utils import _limit_2D, _slice_var_2D, _numpy_to_geo_ts_vec, _make_time_slice
 
 class WRFDataRepositoryError(Exception):
     pass
@@ -99,21 +97,10 @@ class WRFDataRepository(interfaces.GeoTsRepository):
                                 "wind_speed": api.WindSpeedSource}
 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
-        """Get shyft source vectors of time series for input_source_types
-        Parameters
-        ----------
-        input_source_types: list
-            List of source types to retrieve (precipitation, temperature..)
-        geo_location_criteria: object, optional
-            Some type (to be decided), extent (bbox + coord.ref)
-        utc_period: api.UtcPeriod
-            The utc time period that should (as a minimum) be covered.
-        Returns
-        -------
-        geo_loc_ts: dictionary
-            dictionary keyed by time series name, where values are api vectors of geo
-            located timeseries.
         """
+        see shyft.repository.interfaces.GeoTsRepository
+        """
+
         filename = self._filename
         if not path.isfile(filename):
             if '*' in filename:
@@ -125,75 +112,75 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria)
 
-    def _convert_to_timeseries(self, data):
-        """Convert timeseries from numpy structures to shyft.api timeseries.
-        We assume the time axis is regular, and that we can use a point time
-        series with a parametrized time axis definition and corresponding
-        vector of values. If the time series is missing on the data, we insert
-        it into non_time_series.
-        Returns
-        -------
-        timeseries: dict
-            Time series arrays keyed by type
-        """
-        tsc = api.TsFactory().create_point_ts
-        time_series = {}
-        for key, (data, ta) in data.items():
-            def construct(d):
-                if ta.size() != d.size:
-                    raise WRFDataRepositoryError("Time axis size {} not equal to the number of "
-                                                 "data points ({}) for {}"
-                                                 "".format(ta.size(), d.size, key))
-                return tsc(ta.size(), ta.start, ta.delta_t,
-                           api.DoubleVector_FromNdArray(d), api.point_interpretation_policy.POINT_AVERAGE_VALUE)
+    # def _convert_to_timeseries(self, data):
+    #     """Convert timeseries from numpy structures to shyft.api timeseries.
+    #     We assume the time axis is regular, and that we can use a point time
+    #     series with a parametrized time axis definition and corresponding
+    #     vector of values. If the time series is missing on the data, we insert
+    #     it into non_time_series.
+    #     Returns
+    #     -------
+    #     timeseries: dict
+    #         Time series arrays keyed by type
+    #     """
+    #     tsc = api.TsFactory().create_point_ts
+    #     time_series = {}
+    #     for key, (data, ta) in data.items():
+    #         def construct(d):
+    #             if ta.size() != d.size:
+    #                 raise WRFDataRepositoryError("Time axis size {} not equal to the number of "
+    #                                              "data points ({}) for {}"
+    #                                              "".format(ta.size(), d.size, key))
+    #             return tsc(ta.size(), ta.start, ta.delta_t,
+    #                        api.DoubleVector_FromNdArray(d), api.point_interpretation_policy.POINT_AVERAGE_VALUE)
+    #
+    #         time_series[key] = np.array([construct(data[:, i]) for i in range(data.shape[1])])
+    #     return time_series
 
-            time_series[key] = np.array([construct(data[:, i]) for i in range(data.shape[1])])
-        return time_series
-
-    def _limit(self, x, y, data_cs, target_cs):
-        """
-        Parameters
-        ----------
-        x: np.ndarray
-            X coordinates in meters in cartesian coordinate system
-            specified by data_cs
-        y: np.ndarray
-            Y coordinates in meters in cartesian coordinate system
-            specified by data_cs
-        data_cs: string
-            Proj4 string specifying the cartesian coordinate system
-            of x and y
-        target_cs: string
-            Proj4 string specifying the target coordinate system
-        Returns
-        -------
-        x: np.ndarray
-            Coordinates in target coordinate system
-        y: np.ndarray
-            Coordinates in target coordinate system
-        x_mask: np.ndarray
-            Boolean index array
-        y_mask: np.ndarray
-            Boolean index array
-        """
-        # Get coordinate system for WRF data
-        data_proj = Proj(proj=data_cs)
-        target_proj = Proj(target_cs)
-
-        # Find bounding box in WRF projection
-        x_targ, y_targ = transform(data_proj, target_proj, x, y)
-        bbox = self.bounding_box
-        x_min, x_max = min(bbox[0]), max(bbox[0])
-        y_min, y_max = min(bbox[1]), max(bbox[1])
-        # Mask for the limits
-        mask = ((x_targ >= x_min) & (x_targ <= x_max) & (y_targ >= y_min) & (y_targ <= y_max))
-
-        if not mask.any():
-            raise WRFDataRepositoryError("Bounding box doesn't intersect with dataset.")
-
-        # Transform from source coordinates to target coordinates
-        xx, yy = x_targ[mask], y_targ[mask]
-        return xx, yy, mask
+    # def _limit(self, x, y, data_cs, target_cs):
+    #     """
+    #     Parameters
+    #     ----------
+    #     x: np.ndarray
+    #         X coordinates in meters in cartesian coordinate system
+    #         specified by data_cs
+    #     y: np.ndarray
+    #         Y coordinates in meters in cartesian coordinate system
+    #         specified by data_cs
+    #     data_cs: string
+    #         Proj4 string specifying the cartesian coordinate system
+    #         of x and y
+    #     target_cs: string
+    #         Proj4 string specifying the target coordinate system
+    #     Returns
+    #     -------
+    #     x: np.ndarray
+    #         Coordinates in target coordinate system
+    #     y: np.ndarray
+    #         Coordinates in target coordinate system
+    #     x_mask: np.ndarray
+    #         Boolean index array
+    #     y_mask: np.ndarray
+    #         Boolean index array
+    #     """
+    #     # Get coordinate system for WRF data
+    #     data_proj = Proj(proj=data_cs)
+    #     target_proj = Proj(target_cs)
+    #
+    #     # Find bounding box in WRF projection
+    #     x_targ, y_targ = transform(data_proj, target_proj, x, y)
+    #     bbox = self.bounding_box
+    #     x_min, x_max = min(bbox[0]), max(bbox[0])
+    #     y_min, y_max = min(bbox[1]), max(bbox[1])
+    #     # Mask for the limits
+    #     mask = ((x_targ >= x_min) & (x_targ <= x_max) & (y_targ >= y_min) & (y_targ <= y_max))
+    #
+    #     if not mask.any():
+    #         raise WRFDataRepositoryError("Bounding box doesn't intersect with dataset.")
+    #
+    #     # Transform from source coordinates to target coordinates
+    #     xx, yy = x_targ[mask], y_targ[mask]
+    #     return xx, yy, mask
 
     def _calculate_rel_hum(self, T2, PSFC, Q2):
         # constants
@@ -236,15 +223,15 @@ class WRFDataRepository(interfaces.GeoTsRepository):
                 input_source_types.append("temperature")  # Needed for rel_hum calculation
 
         raw_data = {}
-        x = dataset.variables.get("XLONG", None)
-        y = dataset.variables.get("XLAT", None)
+        x_var = dataset.variables.get("XLONG", None)
+        y_var = dataset.variables.get("XLAT", None)
         time = dataset.variables.get("XTIME", None)
-        if not all([x, y, time]):
+        if not all([x_var, y_var, time]):
             raise WRFDataRepositoryError("Something is wrong with the dataset."
                                          " x/y coords or time not found.")
         # TODO: make a check that dim1 is time, dim2 is ..., dim3 is ...
-        x = x[0, :, :].reshape(x.shape[1] * x.shape[2])
-        y = y[0, :, :].reshape(y.shape[1] * y.shape[2])
+        # x = x[0, :, :].reshape(x.shape[1] * x.shape[2])
+        # y = y[0, :, :].reshape(y.shape[1] * y.shape[2])
         time = convert_netcdf_time(time.units, time)
         # TODO: Make sure that "latlong" is the correct coordinate system in WRF data
         # data_cs_proj4 = "+proj=lcc +lon_0=78.9356 +lat_0=31.6857 +lat_1=30 +lat_2=60 +R=6.371e+06 +units=m +no_defs"
@@ -252,11 +239,13 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         if data_cs_proj4 is None:
             raise WRFDataRepositoryError("No coordinate system information in dataset.")
 
-        idx_min = np.searchsorted(time, utc_period.start, side='left')
-        idx_max = np.searchsorted(time, utc_period.end, side='right')
-        issubset = True if idx_max < len(time) - 1 else False
-        time_slice = slice(idx_min, idx_max)
-        x, y, mask = self._limit(x, y, data_cs_proj4, self.shyft_cs)
+        # idx_min = np.searchsorted(time, utc_period.start, side='left')
+        # idx_max = np.searchsorted(time, utc_period.end, side='right')
+        # issubset = True if idx_max < len(time) - 1 else False
+        # time_slice = slice(idx_min, idx_max)
+        time_slice, issubset = _make_time_slice(time, utc_period, WRFDataRepositoryError)
+        #x, y, mask = self._limit(x, y, data_cs_proj4, self.shyft_cs)
+        x, y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(x_var[0], y_var[0], data_cs_proj4, self.shyft_cs, geo_location_criteria, self._padding, WRFDataRepositoryError, clip_in_data_cs=False)
         for k in dataset.variables.keys():
             if self.wrf_shyft_map.get(k, None) in input_source_types:
                 if k in self._shift_fields and issubset:  # Add one to time slice
@@ -264,26 +253,31 @@ class WRFDataRepository(interfaces.GeoTsRepository):
                 else:
                     data_time_slice = time_slice
                 data = dataset.variables[k]
-                # TODO: make a check that data's dim1 is time, dim2 is ..., dim3 is ...
-                data = data[:].reshape(data.shape[0], data.shape[1] * data.shape[2])
-                data_slice = [slice(None), slice(None)]
-                # if ensemble_member is not None:
-                #    data_slice[dims.index("ensemble_member")] = ensemble_member
-                data_slice[0] = data_time_slice
-                data_slice[1] = mask
-                pure_arr = data[data_slice]
-                if isinstance(pure_arr, np.ma.core.MaskedArray):
-                    pure_arr = pure_arr.filled(np.nan)
+                # # TODO: make a check that data's dim1 is time, dim2 is ..., dim3 is ...
+                # data = data[:].reshape(data.shape[0], data.shape[1] * data.shape[2])
+                # data_slice = [slice(None), slice(None)]
+                # # if ensemble_member is not None:
+                # #    data_slice[dims.index("ensemble_member")] = ensemble_member
+                # data_slice[0] = data_time_slice
+                # data_slice[1] = mask
+                # pure_arr = data[data_slice]
+                # if isinstance(pure_arr, np.ma.core.MaskedArray):
+                #     pure_arr = pure_arr.filled(np.nan)
+                # data = dataset.variables[k]
+                pure_arr = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds,
+                                           time_slice=data_time_slice, ensemble_member=ensemble_member)
                 raw_data[self.wrf_shyft_map[k]] = pure_arr, k
 
         if 'HGT' in dataset.variables.keys():
             data = dataset.variables['HGT']
-            data = data[0, :, :].reshape(data.shape[1] * data.shape[2])  # get the first entry in time
-            z = data[mask]
+            # data = data[0, :, :].reshape(data.shape[1] * data.shape[2])  # get the first entry in time
+            # z = data[mask]
+            z = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds, time_slice=0,
+                          ensemble_member=None)
         else:
             raise WRFDataRepositoryError("No elevations found in dataset.")
 
-        pts = np.stack((x, y, z), axis=-1)
+        #pts = np.stack((x, y, z), axis=-1)
 
         # Make sure requested fields are valid, and that dataset contains the requested data.
         if not self.allow_subset and not (set(raw_data.keys()).issuperset(input_source_types)):
@@ -302,7 +296,8 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             raw_data["relative_humidity"] = self._calculate_rel_hum(temperature, pressure,
                                                                     mixing_ratio), "relative_humidity_2m"
         extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
+        #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
+        return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
 
     def _transform_raw(self, data, time, issubset=False):
         """
@@ -348,19 +343,19 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             res[k] = convert_map[ak](v, time)
         return res
 
-    def _geo_ts_to_vec(self, data, pts):
-        res = {}
-        for name, ts in data.items():
-            tpe = self.source_type_map[name]
-            # SiH: Unfortunately, I have not got the boost.python to eat list of non-basic object
-            # into the constructor of vectors like this:
-            # res[name] = tpe.vector_t([tpe(api.GeoPoint(*pts[idx]), ts[idx]) for idx in np.ndindex(pts.shape[:-1])])
-            #     so until then, we have to do the loop
-            tpe_v = tpe.vector_t()
-            for idx in range(len(ts)):
-                tpe_v.append(tpe(api.GeoPoint(*pts[idx]), ts[idx]))
-            res[name] = tpe_v
-        return res
+    # def _geo_ts_to_vec(self, data, pts):
+    #     res = {}
+    #     for name, ts in data.items():
+    #         tpe = self.source_type_map[name]
+    #         # SiH: Unfortunately, I have not got the boost.python to eat list of non-basic object
+    #         # into the constructor of vectors like this:
+    #         # res[name] = tpe.vector_t([tpe(api.GeoPoint(*pts[idx]), ts[idx]) for idx in np.ndindex(pts.shape[:-1])])
+    #         #     so until then, we have to do the loop
+    #         tpe_v = tpe.vector_t()
+    #         for idx in range(len(ts)):
+    #             tpe_v.append(tpe(api.GeoPoint(*pts[idx]), ts[idx]))
+    #         res[name] = tpe_v
+    #     return res
 
     def _get_files(self, t_c, date_pattern):
         utc = api.Calendar()
