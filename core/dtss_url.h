@@ -15,8 +15,10 @@ inline constexpr std::size_t char_str_length(const char(&a)[N]) {
     return N-1;  // don't count \0 char
 }
 
+
 // TODO: inline when vs implements P0386R2: Inline variables
 constexpr char shyft_prefix[] = "shyft://";  ///< marks all internal handled urls
+
 
 /** Construct a shyft-url from a container and a ts-name. */
 inline std::string shyft_url(const std::string & container, const std::string & ts_name) {
@@ -38,7 +40,7 @@ inline std::string shyft_url(const std::string & container, const std::string & 
  * \param url like pattern above
  * \return <container> or empty string if no match
  */
-inline std::string extract_shyft_url_container(const std::string& url) {
+inline std::string extract_shyft_url_container(const std::string & url) {
     if ( (url.size() < char_str_length(shyft_prefix) + 2) || !std::equal(std::begin(shyft_prefix), std::prev(std::end(shyft_prefix)), begin(url)) )
         return std::string{};
     // path after container?
@@ -47,6 +49,22 @@ inline std::string extract_shyft_url_container(const std::string& url) {
         return std::string{};
     return url.substr(char_str_length(shyft_prefix), ce - char_str_length(shyft_prefix));
 }
+
+
+inline std::string extract_shyft_url_path(const std::string & url) {
+    if ( url.size() < (char_str_length(shyft_prefix) + 2) || ! std::equal(std::begin(shyft_prefix), std::prev(std::end(shyft_prefix)), begin(url)) )
+        return std::string{};
+    auto ce = url.find_first_of('/', char_str_length(shyft_prefix));  // container end
+    if ( ce == url.npos )
+        return std::string{};
+    auto qs = url.find('?', ce);
+    if ( qs == url.npos ) {
+        return url.substr(ce + 1);
+    } else {
+        return url.substr(ce + 1, qs - ce - 1);
+    }
+}
+
 
 /** Extract any query parameters from a url.
  *

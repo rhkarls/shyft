@@ -173,7 +173,7 @@ struct standard_dtss_config {
         if ( container_type.empty() || container_type == "ts_db" ) {
             containers[container_name] = container_wrapper_t{ ts_db{ root_path } };
         } else if ( container_type == "krls" ) {
-            containers["KRLS_"+container_name] = container_wrapper_t{ krls_pred_db{
+            containers[std::string{"KRLS_"} + container_name] = container_wrapper_t{ krls_pred_db{
                     root_path,
                     [&srv](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
                         id_vector_t id_vec{ tsid };
@@ -182,7 +182,7 @@ struct standard_dtss_config {
                 }
             };
         } else {
-            throw std::runtime_error{ "trying to construct dtss container with unknown type" };
+            throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
     }
 
@@ -191,15 +191,15 @@ struct standard_dtss_config {
         const std::unordered_map<std::string, container_wrapper_t> & containers,
         const std::string & container_name, const std::string & container_query
     ) {
-        std::unordered_map<std::string, container_wrapper_t>::const_iterator f;
+        std::remove_reference_t<decltype(containers)>::const_iterator f;
         if ( container_query.empty() || container_query == "ts_db" ) {
             f = containers.find(container_name);
         } else if ( container_query == "krls" ) {
-            f = containers.find("KRLS_"+container_name);
+            f = containers.find(std::string{"KRLS_"} + container_name);
         }
 
         if( f == std::end(containers) )
-            throw runtime_error(std::string("Failed to find shyft container:")+container_name);
+            throw runtime_error(std::string("Failed to find shyft container: ")+container_name);
         
         return f->second;
     }
@@ -330,6 +330,9 @@ struct server : dlib::server_iostream {
 
 // --------------------------------------------------------------------------------
 
+namespace detail {  // namespace for implementation details not considered public api
+
+// formerly this was only implemented and used in the dtss.cpp translation unit
 
 struct utcperiod_hasher {
     std::size_t operator()(const utcperiod&k) const {
@@ -342,20 +345,22 @@ struct utcperiod_hasher {
     }
 };
 
+}
+
 // NOTE: The following methods may be implemented in-class, remove inline in that case.
 
 template < class ServerConfig >
 inline ts_info_vector_t server<ServerConfig>::do_find_ts(const std::string& search_expression) {
     // 1. filter shyft://<container>/
     auto pattern = extract_shyft_url_container(search_expression);
-    if(pattern.size()) {
+    if ( pattern.size() > 0 ) {
         // assume it is a shyft url -> look for query flags
         auto queries = extract_shyft_url_query_parameters(search_expression);
         if ( ! queries.empty() && queries.count("container") > 0 ) {
             std::string container = queries["container"];
-            return internal(pattern, container).find(search_expression.substr(char_str_length(shyft_prefix)+pattern.size()+1), queries);
+            return internal(pattern, container).find(extract_shyft_url_path(search_expression), queries);
         } else {
-            return internal(pattern).find(search_expression.substr(char_str_length(shyft_prefix)+pattern.size()+1), queries);
+            return internal(pattern).find(extract_shyft_url_path(search_expression), queries);
         }
     } else if (find_ts_cb) {
         return find_ts_cb(search_expression);
@@ -367,7 +372,7 @@ inline ts_info_vector_t server<ServerConfig>::do_find_ts(const std::string& sear
 
 template < class ServerConfig >
 inline void server<ServerConfig>::do_cache_update_on_write(const ts_vector_t&tsv) {
-    for (std::size_t i = 0; i<tsv.size(); ++i) {
+    for (std::size_t i = 0; i < tsv.size(); ++i) {
         auto rts = dynamic_pointer_cast<aref_ts>(tsv[i].ts);
         ts_cache.add(rts->id, apoint_ts(rts->rep));
     }
@@ -383,24 +388,24 @@ inline void server<ServerConfig>::do_store_ts(const ts_vector_t & tsv, bool over
     //
     std::vector<std::size_t> other;
     other.reserve(tsv.size());
-    for(std::size_t i=0;i<tsv.size();++i) {
+    for( std::size_t i = 0; i < tsv.size(); ++i ) {
         auto rts = dynamic_pointer_cast<aref_ts>(tsv[i].ts);
         if ( ! rts )
             throw std::runtime_error("dtss store: require ts with url-references");
 
         auto c = extract_shyft_url_container(rts->id);
-        if(c.size()) {
+        if( c.size() > 0 ) {
             auto queries = extract_shyft_url_query_parameters(rts->id);
             if ( ! queries.empty() && queries.count("container") > 0 ) {
                 internal(c, queries["container"]).save(
-                    rts->id.substr(char_str_length(shyft_prefix)+c.size()+1),  // path
+                    extract_shyft_url_path(rts->id),  // path
                     rts->core_ts(),      // ts to save
                     overwrite_on_write,  // should do overwrite instead of merge
                     queries              // query key/values from url
                 );
             } else {
                 internal(c).save(
-                    rts->id.substr(char_str_length(shyft_prefix)+c.size()+1),  // path
+                    extract_shyft_url_path(rts->id),  // path
                     rts->core_ts(),      // ts to save
                     overwrite_on_write,  // should do overwrite instead of merge
                     queries              // query key/values from url
@@ -438,7 +443,7 @@ inline void server<ServerConfig>::do_merge_store_ts(const ts_vector_t& tsv,bool 
     // (we optimize a little bit grouping on common period, and reading in batches with equal periods)
     //
     id_vector_t ts_ids;ts_ids.reserve(tsv.size());
-    std::unordered_map<utcperiod, id_vector_t, utcperiod_hasher> read_map;
+    std::unordered_map<utcperiod, id_vector_t, detail::utcperiod_hasher> read_map;
     std::unordered_map<std::string, apoint_ts> id_map;
     for(std::size_t i=0;i<tsv.size();++i) {
         auto rts = dynamic_pointer_cast<aref_ts>(tsv[i].ts);
@@ -508,10 +513,10 @@ inline ts_vector_t server<ServerConfig>::do_read(const id_vector_t & ts_ids, utc
                     auto queries = extract_shyft_url_query_parameters(ts_ids[i]);
                     if ( ! queries.empty() && queries.count("container") > 0 ) {
                         results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c, queries["container"]).read(
-                            ts_ids[i].substr(char_str_length(shyft_prefix) + c.size() + 1), p, queries)));
+                            extract_shyft_url_path(ts_ids[i]), p, queries)));
                     } else {
                         results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c).read(
-                            ts_ids[i].substr(char_str_length(shyft_prefix) + c.size() + 1), p, queries)));
+                            extract_shyft_url_path(ts_ids[i]), p, queries)));
                     }
                     // caching?
                     if ( cache_read_results )
