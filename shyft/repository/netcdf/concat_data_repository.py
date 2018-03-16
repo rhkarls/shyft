@@ -11,7 +11,7 @@ from shyft import api
 from shyft import shyftdata_dir
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
-from .utils  import calc_RH
+from .utils  import calc_RH, calc_P
 import warnings
 from shyft.repository.interfaces import ForecastSelectionCriteria
 
@@ -122,6 +122,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         # Mapping netcdf_name: shyft_name. See also _transform_raw which contains associated transformations methods
         self._shyft_map = {"dew_point_temperature_2m": "dew_point_temperature_2m",
                            "surface_air_pressure": "surface_air_pressure",
+                           "sea_level_pressure": "sea_level_pressure",
                            "relative_humidity_2m": "relative_humidity",
                            "air_temperature_2m": "temperature",
                            "precipitation_amount": "precipitation",
@@ -134,6 +135,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         # Assumed unit for fields. These are checked against netcdf content in _validate_input
         self.var_units = {"dew_point_temperature_2m": ['K'],
                           "surface_air_pressure": ['Pa'],
+                          "sea_level_pressure": ['Pa'],
                           "relative_humidity_2m": ['1'],
                           "air_temperature_2m": ['K'],
                           "precipitation_amount": ['kg/m^2'],
@@ -192,8 +194,11 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             raise  ConcatDataRepositoryError("'nb_lead_intervals_to_drop' + 'nb_lead_intervals' is too large")
         time_shift_with_drop = time + self.lead_times_in_sec[nb_lead_intervals_to_drop]
         # TODO: Errorhandling for idx_max required?
-        idx_max = np.argmax(time[0] + self.lead_times_in_sec >= time_shift_with_drop[fc_periodicity])
-        self.fc_len_to_concat = idx_max - nb_lead_intervals_to_drop
+        if len(time) == 1:
+            self.fc_len_to_concat = None
+        else:
+            idx_max = np.argmax(time[0] + self.lead_times_in_sec >= time_shift_with_drop[fc_periodicity])
+            self.fc_len_to_concat = idx_max - nb_lead_intervals_to_drop
 
         # Validate ensemble_member
         if 'ensemble_member' in dataset.dimensions:
@@ -222,6 +227,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
+        if self.fc_len_to_concat is None:
+            return self.get_forecast_ensemble(input_source_types, utc_period, utc_period.start, geo_location_criteria)
         no_shift_fields = set([self._shyft_map[k] for k in self._shift_fields]).isdisjoint(input_source_types)
         if self.fc_len_to_concat < 0 \
             or no_shift_fields and self.nb_lead_intervals_to_drop + self.fc_len_to_concat > len(self.lead_time) \
@@ -271,6 +278,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         """
         # return self.get_timeseries_ensemble(input_source_types, utc_period, geo_location_criteria)[self.ensemble_member]
         # Same as get_timeseries_collection, but for only one member
+        if self.fc_len_to_concat is None:
+            return self.get_forecast(input_source_types, utc_period, utc_period.start, geo_location_criteria)
         no_shift_fields = set([self._shyft_map[k] for k in self._shift_fields]).isdisjoint(input_source_types)
         if self.fc_len_to_concat < 0 \
             or no_shift_fields and self.nb_lead_intervals_to_drop + self.fc_len_to_concat > len(self.lead_time) \
@@ -464,7 +473,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             else:
                 nb_lead_intervals = self.nb_lead_intervals
         if nb_lead_intervals_to_drop + nb_lead_intervals > len(lead_times_in_sec):
-            raise  ConcatDataRepositoryError("'nb_lead_intervals_to_drop' + 'nb_lead_intervals' i too large")
+            raise  ConcatDataRepositoryError("'nb_lead_intervals_to_drop' + 'nb_lead_intervals' is too large")
         issubset = True if len(lead_times_in_sec) > nb_lead_intervals_to_drop + nb_lead_intervals + 1 else False
         time_slice, lead_time_slice, m_t = \
             self._make_time_slice(nb_lead_intervals_to_drop, nb_lead_intervals, fc_selection_criteria)
@@ -530,6 +539,13 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                 sfc_t, _ = raw_data.pop("temperature") if no_temp else raw_data["temperature"]
                 ncf_name_rh = next((n_nm for n_nm, s_nm in self._shyft_map.items() if s_nm == "relative_humidity"), None)
                 raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, sfc_p), ncf_name_rh
+            elif set(("sea_level_pressure", "dew_point_temperature_2m")).issubset(raw_data):
+                sea_p, _ = raw_data.pop("sea_level_pressure")
+                dpt_t, _ = raw_data.pop("dew_point_temperature_2m")
+                sfc_t, _ = raw_data.pop("temperature") if no_temp else raw_data["temperature"]
+                ncf_name_rh = next((n_nm for n_nm, s_nm in self._shyft_map.items() if s_nm == "relative_humidity"), None)
+                z = np.array([pt.z for pt in geo_pts])
+                raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, calc_P(z, sea_p)), ncf_name_rh
             else:
                 raise ConcatDataRepositoryError("Not able to retrieve relative_humidity from dataset")
 
@@ -572,8 +588,12 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         if rh_not_ok:
             if not isinstance(input_source_types, list):
                 input_source_types = list(input_source_types)  # We change input list, so take a copy
-            input_source_types.remove("relative_humidity")
-            input_source_types.extend(["surface_air_pressure", "dew_point_temperature_2m"])
+            if all([var in dataset.variables for var in ["surface_air_pressure", "dew_point_temperature_2m"]]):
+                input_source_types.remove("relative_humidity")
+                input_source_types.extend(["surface_air_pressure", "dew_point_temperature_2m"])
+            elif all([var in dataset.variables for var in ["sea_level_pressure", "dew_point_temperature_2m"]]):
+                input_source_types.remove("relative_humidity")
+                input_source_types.extend(["sea_level_pressure", "dew_point_temperature_2m"])
             if no_temp: input_source_types.extend(["temperature"])
 
         return input_source_types, no_temp, rh_not_ok, no_x_wind, no_y_wind, wind_not_ok
@@ -713,7 +733,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             time_slice = ((time <= v_shift_first) & (time >= v_shift_last))
             if not any(time_slice):
                 raise ConcatDataRepositoryError(
-                    "No forecasts found that cover period {} with restrictions 'fc_nb_to_drop'={} "
+                    "No forecasts found that cover period {} with restrictions 'nb_lead_intervals_to_drop'={} "
                     "and 'nb_lead_intervals'={}.".format(v.to_string(), nb_lead_intervals_to_drop, nb_lead_intervals))
         elif k == 'latest_available_forecasts':
             t = v['forecasts_older_than']
