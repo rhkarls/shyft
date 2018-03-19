@@ -116,48 +116,50 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
             ar1.get_timeseries(("temperature",), period, geo_location_criteria=None)
         self.assertTrue(all(x in context.exception.args[0] for x in ["File", "not found"]))
 
-    def test_non_overlapping_bbox(self):
-        EPSG, bbox, bpoly = self.wrf_epsg_bbox
-        bbox = list(bbox)
-        bbox[0] = [-100000.0, -90000.0, -90000.0, -100000]
-        bpoly = box(min(bbox[0]), min(bbox[1]), max(bbox[0]), max(bbox[1]))
-        # Period start
+    # TODO: geo_location_criteria is now of type shapely.geometry.Polygon. Replace with test verifying that error is raised when no point is found within polygon.
+    # def test_non_overlapping_bbox(self):
+    #     EPSG, bbox, bpoly = self.wrf_epsg_bbox
+    #     bbox = list(bbox)
+    #     bbox[0] = [-100000.0, -90000.0, -90000.0, -100000]
+    #     bpoly = box(min(bbox[0]), min(bbox[1]), max(bbox[0]), max(bbox[1]))
+    #     # Period start
+    #
+    #     year = 1999
+    #     month = 10
+    #     n_hours = 30
+    #     date_str = "{}-{:02}".format(year, month)
+    #     utc = api.Calendar()  # No offset gives Utc
+    #     t0 = api.YMDhms(year, month)
+    #     period = api.UtcPeriod(utc.time(t0), utc.time(t0) + api.deltahours(n_hours))
+    #
+    #     base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
+    #     filename = "wrfout_d03_{}".format(date_str)
+    #     reader = WRFDataRepository(EPSG, base_dir, filename=filename)
+    #     data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
+    #     with self.assertRaises(WRFDataRepositoryError) as context:
+    #         reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
+    #     self.assertEqual("Bounding box doesn't intersect with dataset.",
+    #                      context.exception.args[0])
 
-        year = 1999
-        month = 10
-        n_hours = 30
-        date_str = "{}-{:02}".format(year, month)
-        utc = api.Calendar()  # No offset gives Utc
-        t0 = api.YMDhms(year, month)
-        period = api.UtcPeriod(utc.time(t0), utc.time(t0) + api.deltahours(n_hours))
-
-        base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
-        filename = "wrfout_d03_{}".format(date_str)
-        reader = WRFDataRepository(EPSG, base_dir, filename=filename)
-        data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
-        with self.assertRaises(WRFDataRepositoryError) as context:
-            reader.get_timeseries(data_names, period, geo_location_criteria=bpoly)
-        self.assertEqual("Bounding box doesn't intersect with dataset.",
-                         context.exception.args[0])
-
-    def test_missing_bbox(self):
-        EPSG, _, _ = self.wrf_epsg_bbox
-        # Period start
-        year = 1999
-        month = 10
-        n_hours = 30
-        date_str = "{}-{:02}".format(year, month)
-        utc = api.Calendar()  # No offset gives Utc
-        t0 = api.YMDhms(year, month)
-        period = api.UtcPeriod(utc.time(t0), utc.time(t0) + api.deltahours(n_hours))
-
-        base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
-        filename = "wrfout_d03_{}".format(date_str)
-        reader = WRFDataRepository(EPSG, base_dir, filename=filename)
-        data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
-        with self.assertRaises(WRFDataRepositoryError) as context:
-            reader.get_timeseries(data_names, period, geo_location_criteria=None)
-        self.assertEqual("A bounding box must be provided.", context.exception.args[0])
+    # TODO: geo_location_criteria=None now returns all points in dataset. Replace with test verifying that all points are returned when geo_location_criteria=None.
+    # def test_missing_bbox(self):
+    #     EPSG, _, _ = self.wrf_epsg_bbox
+    #     # Period start
+    #     year = 1999
+    #     month = 10
+    #     n_hours = 30
+    #     date_str = "{}-{:02}".format(year, month)
+    #     utc = api.Calendar()  # No offset gives Utc
+    #     t0 = api.YMDhms(year, month)
+    #     period = api.UtcPeriod(utc.time(t0), utc.time(t0) + api.deltahours(n_hours))
+    #
+    #     base_dir = path.join(shyftdata_dir, "repository", "wrf_data_repository")
+    #     filename = "wrfout_d03_{}".format(date_str)
+    #     reader = WRFDataRepository(EPSG, base_dir, filename=filename)
+    #     data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity")
+    #     with self.assertRaises(WRFDataRepositoryError) as context:
+    #         reader.get_timeseries(data_names, period, geo_location_criteria=None)
+    #     self.assertEqual("A bounding box must be provided.", context.exception.args[0])
 
     def test_tiny_bbox(self):
         EPSG, _, _ = self.wrf_epsg_bbox

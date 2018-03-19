@@ -264,20 +264,25 @@ class WRFDataRepository(interfaces.GeoTsRepository):
                 # if isinstance(pure_arr, np.ma.core.MaskedArray):
                 #     pure_arr = pure_arr.filled(np.nan)
                 # data = dataset.variables[k]
-                pure_arr = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds,
-                                           time_slice=data_time_slice, ensemble_member=ensemble_member)
+                pure_arr = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds, WRFDataRepositoryError,
+                                         slices={'Time': data_time_slice, 'ensemble_member': ensemble_member}
+                                          # time_slice=data_time_slice, ensemble_member=ensemble_member
+                )
                 raw_data[self.wrf_shyft_map[k]] = pure_arr, k
 
         if 'HGT' in dataset.variables.keys():
             data = dataset.variables['HGT']
             # data = data[0, :, :].reshape(data.shape[1] * data.shape[2])  # get the first entry in time
             # z = data[mask]
-            z = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds, time_slice=0,
-                          ensemble_member=None)
+            z = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds, WRFDataRepositoryError,
+                              slices={'Time': 0}
+                              #time_slice=0,ensemble_member=None
+            )
         else:
             raise WRFDataRepositoryError("No elevations found in dataset.")
 
         #pts = np.stack((x, y, z), axis=-1)
+        print(x.shape, y.shape, z.shape)
 
         # Make sure requested fields are valid, and that dataset contains the requested data.
         if not self.allow_subset and not (set(raw_data.keys()).issuperset(input_source_types)):
@@ -307,12 +312,12 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         def noop_time(t):
             t0 = int(t[0])
             t1 = int(t[1])
-            return api.TimeAxisFixedDeltaT(t0, t1 - t0, len(t))
+            return api.TimeAxis(t0, t1 - t0, len(t))
 
         def dacc_time(t):
             t0 = int(t[0])
             t1 = int(t[1])
-            return noop_time(t) if issubset else api.TimeAxisFixedDeltaT(t0, t1 - t0, len(t) - 1)
+            return noop_time(t) if issubset else api.TimeAxis(t0, t1 - t0, len(t) - 1)
 
         def noop_space(x):
             return x

@@ -274,13 +274,18 @@ def _make_time_slice(time, utc_period, err):
     time_slice = slice(idx_min, idx_max+1)
     return time_slice, issubset
 
-def _slice_var_1D(nc_var, xy_var_name, xy_slice, xy_mask, time_slice=None, ensemble_member=None):
+def _slice_var_1D(nc_var, xy_var_name, xy_slice, xy_mask, slices={}): # , time_slice=None, ensemble_member=None):
     dims = nc_var.dimensions
     data_slice = len(nc_var.dimensions) * [slice(None)]
-    if ensemble_member is not None and "ensemble_member" in dims:
-        data_slice[dims.index("ensemble_member")] = ensemble_member
+    # if time_slice is not None and "time" in dims:
+    #     data_slice[dims.index("time")] = time_slice
+    # if ensemble_member is not None and "ensemble_member" in dims:
+    #     data_slice[dims.index("ensemble_member")] = ensemble_member
+    for k, v in slices.items():
+        if k in dims:
+            data_slice[dims.index(k)] = v
     data_slice[dims.index(xy_var_name)] = xy_slice
-    data_slice[dims.index("time")] = time_slice  # data_time_slice
+    #data_slice[dims.index("time")] = time_slice  # data_time_slice
     xy_slice_mask = [xy_mask[xy_slice] if dim == xy_var_name else slice(None) for dim in dims]
     pure_arr = nc_var[data_slice][xy_slice_mask]
     if isinstance(pure_arr, np.ma.core.MaskedArray):
@@ -288,29 +293,41 @@ def _slice_var_1D(nc_var, xy_var_name, xy_slice, xy_mask, time_slice=None, ensem
         pure_arr = pure_arr.filled(np.nan)
     return pure_arr
 
-def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, time_slice=None, ensemble_member=None):
+def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, err, slices={}): #, time_slice=None, ensemble_member=None):
     dims = nc_var.dimensions
     data_slice = len(nc_var.dimensions) * [slice(None)]
-    if ensemble_member is not None and "ensemble_member" in dims:
-        data_slice[dims.index("ensemble_member")] = ensemble_member
+    # if time_slice is not None and "time" in dims:
+    #     data_slice[dims.index("time")] = time_slice
+    # if ensemble_member is not None and "ensemble_member" in dims:
+    #     data_slice[dims.index("ensemble_member")] = ensemble_member
+    for k, v in slices.items():
+        if k in dims:
+            data_slice[dims.index(k)] = v
     # from the whole dataset, slice pts within the polygons's bounding box
     data_slice[dims.index(x_var_name)] = x_slice  # m_x
     data_slice[dims.index(y_var_name)] = y_slice  # m_y
-    if time_slice is not None and "time" in dims:
-        data_slice[dims.index("time")] = time_slice
     # from the points within the bounding box, slice pts within the polygon
     new_slice = len(nc_var.dimensions) * [slice(None)]
     new_slice[dims.index(x_var_name)] = x_inds
     new_slice[dims.index(y_var_name)] = y_inds
+    new_slice = [s for i,s in enumerate(new_slice) if not isinstance(data_slice[i], int)]
     # identify the height dimension, which should have a length of 1 and set its slice to 0
-    hgt_dim_nm = [nm for nm in dims if nm not in ['time', 'ensemble_member', x_var_name, y_var_name]][0]
-    if "ensemble_member" in dims:
-        dims_flat = [d for d in dims if d != x_var_name]
-        slc = [0 if d == hgt_dim_nm else slice(None) for d in dims_flat]
-        return nc_var[data_slice][new_slice][slc]
-    else:
-        new_slice[dims.index(hgt_dim_nm)] = 0
+    # hgt_dim_nm = [nm for nm in dims if nm not in ['time', 'ensemble_member', x_var_name, y_var_name]][0]
+    dim_nms = [x_var_name, y_var_name] + list(slices.keys())
+    extra_dim = [nm for nm in dims if nm not in dim_nms]
+    if len(extra_dim) == 1:
+        hgt_dim_nm = [nm for nm in dims if nm not in dim_nms][0]
+        if "ensemble_member" in dims:
+            dims_flat = [d for d in dims if d != x_var_name]
+            slc = [0 if d == hgt_dim_nm else slice(None) for d in dims_flat]
+            return nc_var[data_slice][new_slice][slc]
+        else:
+            new_slice[dims.index(hgt_dim_nm)] = 0
+            return nc_var[data_slice][new_slice]
+    elif len(extra_dim) == 0:
         return nc_var[data_slice][new_slice]
+    else:
+        raise err("Variable '{}' has more dimensions than required.".format(nc_var.name))
 
 
 def calc_RH(T, Td, p):
