@@ -89,7 +89,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         ensemble_member: int, optional
             Ensemble member returned by get_timeseries, get_forecast and get_forecast_collection if dataset is of
             ensemble type (has dimension 'ensemble_member'). Must be non-negative integer less than dimension size of
-            'ensemble_member*
+            'ensemble_member'
         padding: float, optional
             Longidutinal and latitudinal padding in meters, added east, west, north and south
         use_filled_values: bool
@@ -206,6 +206,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             if self.ensemble_member >= nb_ensemble_member:
                 raise ConcatDataRepositoryError(
                     "ensemble_member must be non-negative integer between 0 and {}".format(nb_ensemble_member))
+        else:
+            self.ensemble_member = 0
 
     def get_timeseries_ensemble(self, input_source_types, utc_period, geo_location_criteria=None):
         """
