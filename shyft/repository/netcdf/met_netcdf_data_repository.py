@@ -195,7 +195,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria, ensemble_member=self.ensemble_member)
 
-    def get_timeseries_ensembles(self, input_source_types, utc_period, geo_location_criteria=None):
+    def get_timeseries_ensemble(self, input_source_types, utc_period, geo_location_criteria=None):
         """
         Parameters
         ----------
