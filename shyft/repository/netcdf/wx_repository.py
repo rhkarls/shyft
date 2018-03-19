@@ -1,3 +1,4 @@
+import os
 from shyft import api
 from netCDF4 import Dataset
 from .time_conversion import convert_netcdf_time
@@ -11,7 +12,7 @@ class WXRepositoryError(Exception):
 
 class WXRepository(GeoTsRepository):
 
-    def __init__(self, epsg, file_name, flattened=False):
+    def __init__(self, epsg, filename, padding=15000., flattened=False):
         """
         Construct the netCDF4 dataset reader for concatenated gridded forecasts and initialize data retrieval.
 
@@ -25,10 +26,11 @@ class WXRepository(GeoTsRepository):
             Flags whether grid_points are flattened
         """
         if flattened:
-            self.wx_repo = ConcatDataRepository(epsg, file_name)
+            self.wx_repo = ConcatDataRepository(epsg, filename, padding=padding)
         elif not flattened:
-            self.wx_repo = MetNetcdfDataRepository(epsg, None, file_name)
-            with Dataset(file_name) as dataset:
+            self.wx_repo = MetNetcdfDataRepository(epsg, None, filename, padding=padding)
+            filename = os.path.expandvars(filename)
+            with Dataset(filename) as dataset:
                 time = dataset.variables.get("time", None)
                 time = convert_netcdf_time(time.units, time)
                 self.wx_repo.time = time
