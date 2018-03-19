@@ -5,6 +5,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 
 namespace shyft {
@@ -51,6 +52,10 @@ inline std::string extract_shyft_url_container(const std::string & url) {
 }
 
 
+/** \brief Extract the path part from a shyft url.
+ * \param  url  String url to extract the path from.
+ * \return The string path if the url is a valid shyft url, else an empty string.
+ */
 inline std::string extract_shyft_url_path(const std::string & url) {
     if ( url.size() < (char_str_length(shyft_prefix) + 2) || ! std::equal(std::begin(shyft_prefix), std::prev(std::end(shyft_prefix)), begin(url)) )
         return std::string{};
@@ -106,7 +111,7 @@ inline std::map<std::string, std::string> extract_shyft_url_query_parameters(con
         key_str.assign(it, end);  // found key!
 
         // locate value
-        it = end + 1;  // skip pask =
+        it = end + 1;  // skip past =
         end = std::find(it, url.cend(), '&');
         if ( std::distance(it, end) == 0 ) {
             // no value after = -> use empty string
@@ -124,6 +129,31 @@ inline std::map<std::string, std::string> extract_shyft_url_query_parameters(con
         }
     }
     return queries;
+}
+
+
+/** \brief Returns the shyft url without any query parameters.
+ * \param  url  String url to remove queries from.
+ * \return The string url without queries if the url is a valid shyft url, else an empty string.
+ */
+inline std::string remove_shyft_url_queries(std::string_view url) {
+    if ( url.size() < (char_str_length(shyft_prefix) + 2) || ! std::equal(std::begin(shyft_prefix), std::prev(std::end(shyft_prefix)), begin(url)) )
+        return std::string{};
+    return std::string{ url.substr(0, url.find('?')) };
+}
+
+
+/** \brief Remove queries from the map of parsed queries.
+ * \tparam  StrContainer  A container type supporting for-each style iterating,
+ *      where the elements yielded are implicitly convertible to std::string.
+ * \param  queries  Map of parsed queries.
+ * \param  remove  The sequence of query keys to remove.
+ */
+template < typename StrContainer >
+inline void filter_shyft_url_parsed_queries(std::map<std::string, std::string> & queries, const StrContainer & remove) {
+    for ( const auto & str : remove ) {
+        queries.erase(std::string{str});
+    }
 }
 
 }

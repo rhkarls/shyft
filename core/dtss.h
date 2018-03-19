@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -157,11 +158,16 @@ public:
 
 struct standard_dtss_config {
 
+    using queries_t = std::map<std::string, std::string>;
+    
     /** \brief Alias for the wrapping of containers.
      */
     using container_wrapper_t = container_wrapper<ts_db, krls_pred_db>;
 
 
+    inline static const std::array<std::string, 1> remove_queries{{ std::string{"container"} }};
+
+    
     template < typename Srv >
     static void create_container(
         const std::string & container_name,
@@ -358,8 +364,10 @@ inline ts_info_vector_t server<ServerConfig>::do_find_ts(const std::string& sear
         auto queries = extract_shyft_url_query_parameters(search_expression);
         if ( ! queries.empty() && queries.count("container") > 0 ) {
             std::string container = queries["container"];
+            filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
             return internal(pattern, container).find(extract_shyft_url_path(search_expression), queries);
         } else {
+            filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
             return internal(pattern).find(extract_shyft_url_path(search_expression), queries);
         }
     } else if (find_ts_cb) {
@@ -397,6 +405,7 @@ inline void server<ServerConfig>::do_store_ts(const ts_vector_t & tsv, bool over
         if( c.size() > 0 ) {
             auto queries = extract_shyft_url_query_parameters(rts->id);
             if ( ! queries.empty() && queries.count("container") > 0 ) {
+                filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
                 internal(c, queries["container"]).save(
                     extract_shyft_url_path(rts->id),  // path
                     rts->core_ts(),      // ts to save
@@ -404,6 +413,7 @@ inline void server<ServerConfig>::do_store_ts(const ts_vector_t & tsv, bool over
                     queries              // query key/values from url
                 );
             } else {
+                filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
                 internal(c).save(
                     extract_shyft_url_path(rts->id),  // path
                     rts->core_ts(),      // ts to save
@@ -436,48 +446,53 @@ inline void server<ServerConfig>::do_store_ts(const ts_vector_t & tsv, bool over
 
 
 template < class ServerConfig >
-inline void server<ServerConfig>::do_merge_store_ts(const ts_vector_t& tsv,bool cache_on_write) {
-    if(tsv.size()==0) return;
+inline void server<ServerConfig>::do_merge_store_ts(const ts_vector_t& tsv, bool cache_on_write) {
+    if ( tsv.size() == 0 )
+        return;
+
     //
-    // 0. check&prepare the read time-series in tsv for the specified period of each ts
-    // (we optimize a little bit grouping on common period, and reading in batches with equal periods)
+    // 0. check & prepare the read time-series in tsv for the specified period of each ts
+    //    (we optimize a little bit grouping on common period, and reading in batches with equal periods)
     //
-    id_vector_t ts_ids;ts_ids.reserve(tsv.size());
+    id_vector_t ts_ids; ts_ids.reserve(tsv.size());
     std::unordered_map<utcperiod, id_vector_t, detail::utcperiod_hasher> read_map;
     std::unordered_map<std::string, apoint_ts> id_map;
-    for(std::size_t i=0;i<tsv.size();++i) {
+
+    for ( std::size_t i=0; i < tsv.size(); ++i ) {
         auto rts = dynamic_pointer_cast<aref_ts>(tsv[i].ts);
-        if(!rts) throw std::runtime_error("dtss store merge: require ts with url-references");
+        if ( ! rts )
+            throw std::runtime_error("dtss store merge: require ts with url-references");
         // sanity check
-        if(id_map.find(rts->id)!= end(id_map))
-            throw std::runtime_error("dtss store merge requires distinct set of ids, first duplicate found:"+rts->id);
-        id_map[rts->id]=apoint_ts(rts->rep);
+        if ( id_map.find(rts->id) != end(id_map) )
+            throw std::runtime_error("dtss store merge requires distinct set of ids, first duplicate found:" + rts->id);
+        id_map[rts->id] = apoint_ts(rts->rep);
         // then just build up map[period] = list of time-series to read
-        auto rp=rts->rep->total_period();
-        if(read_map.find(rp) != end(read_map)) {
+        auto rp = rts->rep->total_period();
+        if ( read_map.find(rp) != end(read_map) ) {
             read_map[rp].push_back(rts->id);
         } else {
-            read_map[rp]=id_vector_t{rts->id};
+            read_map[rp] = id_vector_t{ rts->id };
         }
     }
+
     //
-    // .1 do the read-merge for each common period, append to final minimal write list
+    // 1. do the read-merge for each common period, append to final minimal write list
     //
-    ts_vector_t tsv_store;tsv_store.reserve(tsv.size());
-    for(auto rr=read_map.begin();rr!=read_map.end();++rr) {
-        auto read_ts= do_read(rr->second,rr->first,cache_on_write,cache_on_write);
+    ts_vector_t tsv_store; tsv_store.reserve(tsv.size());
+    for ( auto rr = read_map.begin(); rr != read_map.end(); ++rr ) {
+        auto read_ts = do_read(rr->second, rr->first, cache_on_write, cache_on_write);
         // read_ts is in the order of the ts-id-list rr->second
-        for(std::size_t i=0;i<read_ts.size();++i) {
-            auto ts_id =rr->second[i];
+        for ( std::size_t i = 0; i < read_ts.size(); ++i ) {
+            auto ts_id = rr->second[i];
             read_ts[i].merge_points(id_map[ts_id]);
-            tsv_store.push_back(apoint_ts(ts_id,read_ts[i]));
+            tsv_store.push_back(apoint_ts(ts_id, read_ts[i]));
         }
     }
 
     // 
-    // (2) finally write the merged result back to whatever store is there
+    // 2. finally write the merged result back to whatever store is there
     //
-    do_store_ts(tsv_store,false,cache_on_write);
+    do_store_ts(tsv_store, false, cache_on_write);
 
 }
 
@@ -512,9 +527,11 @@ inline ts_vector_t server<ServerConfig>::do_read(const id_vector_t & ts_ids, utc
                     // check for queries in shyft:// url's
                     auto queries = extract_shyft_url_query_parameters(ts_ids[i]);
                     if ( ! queries.empty() && queries.count("container") > 0 ) {
+                        filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
                         results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c, queries["container"]).read(
                             extract_shyft_url_path(ts_ids[i]), p, queries)));
                     } else {
+                        filter_shyft_url_parsed_queries(queries, ServerConfig::remove_queries);
                         results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c).read(
                             extract_shyft_url_path(ts_ids[i]), p, queries)));
                     }

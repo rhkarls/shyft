@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #endif
 #include <fcntl.h>
+#include <string_view>
 
 namespace  fs=boost::filesystem;
 #include <armadillo>
@@ -804,6 +805,37 @@ TEST_CASE("extract_shyft_url_query") {
     auto m4 = extract_shyft_url_query_parameters("grugge?query");
     FAST_CHECK_EQ( m4.size(), 0 );
 }
+TEST_CASE("remove_shyft_url_queries") {
+
+    using shyft::dtss::remove_shyft_url_queries;
+
+    auto url1 = remove_shyft_url_queries("shyft://abc/something/else?query=string&here=");
+    FAST_CHECK_EQ( url1, "shyft://abc/something/else" );
+
+    auto url2 = remove_shyft_url_queries("grugge");
+    FAST_CHECK_EQ( url2, "" );
+
+    auto url3 = remove_shyft_url_queries("grugge?query");
+    FAST_CHECK_EQ( url3, "" );
+}
+TEST_CASE("filter_shyft_url_parsed_queries") {
+
+    using shyft::dtss::filter_shyft_url_parsed_queries;
+
+    std::array<std::string, 2> to_remove{{ "key02", "key06" }};
+    std::map<std::string, std::string> queries{{
+        {"key01", "value01" }, {"key02", "value02" },
+        {"key03", "value03" }, {"key04", "value04" },
+        {"key05", "value05" }, {"key06", "value06" }
+    }};
+
+    filter_shyft_url_parsed_queries(queries, to_remove);
+
+    FAST_CHECK_EQ( queries.size(), 4 );
+    FAST_CHECK_EQ( queries.find("key02"), queries.cend() );
+    FAST_CHECK_EQ( queries.find("key06"), queries.cend() );
+}
+
 TEST_CASE("dtss_store") { /*
     This test simply create and host a dtss on port 20000,
     then uses shyft:// prefix to test
@@ -2420,6 +2452,8 @@ struct test_dtss_container {
         FAST_REQUIRE_NE( q, queries.cend() );
         FAST_CHECK_EQ( q->first, std::string{"my_query"} );
         FAST_CHECK_EQ( q->second, std::string{"some_value"} );
+
+        FAST_CHECK_EQ( queries.find("removed"), queries.cend() );
     }
 
     gts_t read(const std::string & fn, core::utcperiod p, const queries_t & queries = queries_t{}) const {
@@ -2430,6 +2464,8 @@ struct test_dtss_container {
         FAST_REQUIRE_NE( q, queries.cend() );
         FAST_CHECK_EQ( q->first, std::string{"my_query"} );
         FAST_CHECK_EQ( q->second, std::string{"some_value"} );
+
+        FAST_CHECK_EQ( queries.find("removed"), queries.cend() );
         return gts_t{};
     }
 
@@ -2441,6 +2477,8 @@ struct test_dtss_container {
         FAST_REQUIRE_NE( q, queries.cend() );
         FAST_CHECK_EQ( q->first, std::string{"my_query"} );
         FAST_CHECK_EQ( q->second, std::string{"some_value"} );
+
+        FAST_CHECK_EQ( queries.find("removed"), queries.cend() );
     }
 
     ts_info get_ts_info(const std::string & fn, const queries_t & queries = queries_t{}) const {
@@ -2451,6 +2489,9 @@ struct test_dtss_container {
         FAST_REQUIRE_NE( q, queries.cend() );
         FAST_CHECK_EQ( q->first, std::string{"my_query"} );
         FAST_CHECK_EQ( q->second, std::string{"some_value"} );
+
+        FAST_CHECK_EQ( queries.find("removed"), queries.cend() );
+
         return ts_info{};
     }
 
@@ -2459,13 +2500,19 @@ struct test_dtss_container {
         FAST_REQUIRE_NE( q, queries.cend() );
         FAST_CHECK_EQ( q->first, std::string{"my_query"} );
         FAST_CHECK_EQ( q->second, std::string{"some_value"} );
+
+        FAST_CHECK_EQ( queries.find("removed"), queries.cend() );
+
         return std::vector<ts_info>{};
     };
 };
 
 struct query_test_dtss_dispatcher {
 
+    using queries_t = std::map<std::string, std::string>;
     using container_wrapper_t = dtss::container_wrapper<test_dtss_container>;
+
+    inline static const std::array<std::string, 1> remove_queries{{ "removed" }};
 
     template < typename Srv >
     static void create_container(
@@ -2536,7 +2583,7 @@ TEST_CASE("dtss_server_query_to_containers") {
         ts_vector_t vec{};
         for( std::size_t i = 0; i < 10; ++i ) {
             vec.emplace_back(
-                shyft::dtss::shyft_url(container, to_string(i), queries_t{ {"my_query", "some_value"} }),
+                shyft::dtss::shyft_url(container, to_string(i), queries_t{ {"my_query", "some_value"}, {"removed", "value"} }),
                 apoint_ts{ ta, i*10.0, ts_point_fx::POINT_INSTANT_VALUE }
             );
         }
@@ -2550,7 +2597,7 @@ TEST_CASE("dtss_server_query_to_containers") {
         ts_vector_t vec{};
         for( std::size_t i = 0; i < 10; ++i ) {
             vec.emplace_back(
-                apoint_ts{ shyft::dtss::shyft_url(container, to_string(i), queries_t{ {"my_query", "some_value"} }) }
+                apoint_ts{ shyft::dtss::shyft_url(container, to_string(i), queries_t{ {"my_query", "some_value"}, {"removed", "value"} }) }
             );
         }
 
@@ -2558,7 +2605,7 @@ TEST_CASE("dtss_server_query_to_containers") {
     }
 
     SUBCASE("Find using url's with queries") {
-        cli.find(std::string{"shyft://"} + container + "/path/to/something?my_query=some_value");
+        cli.find(shyft::dtss::shyft_url(container, "/path/to/something", queries_t{ {"my_query", "some_value"}, {"removed", "value"} }));
     }
 }
 
