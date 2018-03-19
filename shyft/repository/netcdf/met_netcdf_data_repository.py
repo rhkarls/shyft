@@ -64,7 +64,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
     _G = 9.80665 #  WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, directory, filename=None, #bounding_box=None,
+    def __init__(self, epsg, directory, filename=None, ensemble_member=0,
                  padding=5000., elevation_file=None, allow_subset=False):
         """
         Construct the netCDF4 dataset reader for data from Arome NWP model,
@@ -101,6 +101,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             instead of raising exception.
         """
         #directory = directory.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
+        self.ensemble_member = ensemble_member
         self._directory = directory
         if directory is not None:
             self._directory = os.path.expandvars(directory)
@@ -192,6 +193,26 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             raise MetNetcdfDataRepositoryError("File '{}' not found".format(filename))
         with Dataset(filename) as dataset:
             return self._get_data_from_dataset(dataset, input_source_types,
+                                               utc_period, geo_location_criteria, ensemble_member=self.ensemble_member)
+
+    def get_timeseries_ensembles(self, input_source_types, utc_period, geo_location_criteria=None):
+        """
+        Parameters
+        ----------
+        see interfaces.GeoTsRepository
+
+        Returns
+        -------
+        see interfaces.GeoTsRepository
+        """
+        if self._directory is not None:
+            filename = os.path.join(self._directory, self._filename)
+        else:
+            filename = self._filename
+        if not os.path.isfile(filename):
+            raise MetNetcdfDataRepositoryError("File '{}' not found".format(filename))
+        with Dataset(filename) as dataset:
+            return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria)
 
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):
@@ -207,7 +228,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         filename = self._get_files(t_c)
         with Dataset(filename) as dataset:
             return self._get_data_from_dataset(dataset, input_source_types, utc_period,
-                                               geo_location_criteria)
+                                               geo_location_criteria, ensemble_member=self.ensemble_member)
 
     def get_forecast_ensemble(self, input_source_types, utc_period,
                               t_c, geo_location_criteria=None):
