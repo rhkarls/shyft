@@ -101,16 +101,19 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             instead of raising exception.
         """
         #directory = directory.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
-        self._directory = os.path.expandvars(directory)
+        self._directory = directory
+        if directory is not None:
+            self._directory = os.path.expandvars(directory)
         self._filename = filename
         if filename is None:
             self._filename = "(\d{4})(\d{2})(\d{2})[T_](\d{2})Z?.nc$"
         self.allow_subset = allow_subset
-        if not os.path.isdir(self._directory):
-            raise MetNetcdfDataRepositoryError("No such directory '{}'".format(self._directory))
+        if not os.path.isfile(filename):
+            if not os.path.isdir(self._directory):
+                raise MetNetcdfDataRepositoryError("No such directory '{}'".format(self._directory))
 
         if elevation_file is not None:
-            self.elevation_file = os.path.join(self._directory, elevation_file)
+            # self.elevation_file = os.path.join(self._directory, elevation_file)
             if not os.path.isfile(self.elevation_file):
                 raise MetNetcdfDataRepositoryError(
                     "Elevation file '{}' not found".format(self.elevation_file))
@@ -181,7 +184,10 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
-        filename = os.path.join(self._directory, self._filename)
+        if self._directory is not None:
+            filename = os.path.join(self._directory, self._filename)
+        else:
+            filename = self._filename
         if not os.path.isfile(filename):
             raise MetNetcdfDataRepositoryError("File '{}' not found".format(filename))
         with Dataset(filename) as dataset:
