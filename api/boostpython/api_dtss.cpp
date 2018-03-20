@@ -40,7 +40,7 @@ namespace shyft {
     using time_series::dd::apoint_ts;
     using time_series::dd::ats_vector;
 
-        struct py_server : server<standard_dtss_config> {
+        struct py_server : server<standard_dtss_dispatcher> {
             boost::python::object cb;///< callback for the read function
             boost::python::object fcb;///< callback for the find function
             boost::python::object scb;///< callback for the store function

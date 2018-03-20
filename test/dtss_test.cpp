@@ -353,7 +353,7 @@ TEST_CASE("dlib_server_basics") {
             return r;
         };
 
-        server<standard_dtss_config> our_server(cb,fcb);
+        server<standard_dtss_dispatcher> our_server(cb,fcb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -433,11 +433,11 @@ TEST_CASE("dlib_multi_server_basics") {
         };
 
         size_t n_servers=2;
-        vector<unique_ptr<server<standard_dtss_config>>> servers;
+        vector<unique_ptr<server<standard_dtss_dispatcher>>> servers;
         vector<string> host_ports;
         int base_port=21000;
         for(size_t i=0;i<n_servers;++i) {
-            auto srv = make_unique<server<standard_dtss_config>>(rcb);
+            auto srv = make_unique<server<standard_dtss_dispatcher>>(rcb);
             srv->set_listening_ip("127.0.0.1");
             srv->set_listening_port(base_port +i);
             srv->start_async();
@@ -503,7 +503,7 @@ TEST_CASE("dlib_server_performance") {
             }
             return from_disk;
         };
-        server<standard_dtss_config> our_server(cb);
+        server<standard_dtss_dispatcher> our_server(cb);
 
         // set up the server object we have made
         our_server.set_listening_ip("127.0.0.1");
@@ -854,7 +854,7 @@ TEST_CASE("dtss_store") { /*
 
     // make dtss server
     auto tmpdir = fs::temp_directory_path()/"shyft.c.test";
-    server<standard_dtss_config> our_server{};
+    server<standard_dtss_dispatcher> our_server{};
     string tc{"tc"};
     our_server.add_container(tc,tmpdir.string());
     our_server.set_listening_ip("127.0.0.1");
@@ -2421,7 +2421,7 @@ TEST_CASE("dtss_container_wrapping") {
 
 namespace {
 
-struct test_dtss_container {
+struct query_test_dtss_container {
 
     using ts_info = shyft::dtss::ts_info;
     using gta_t = shyft::time_axis::generic_dt;
@@ -2430,19 +2430,19 @@ struct test_dtss_container {
 
     std::string root;
 
-    test_dtss_container() = default;
-    ~test_dtss_container() = default;
+    query_test_dtss_container() = default;
+    ~query_test_dtss_container() = default;
 
-    test_dtss_container(const std::string & root_dir) : root{ root_dir } {}
+    query_test_dtss_container(const std::string & root_dir) : root{ root_dir } {}
 
-    test_dtss_container(const test_dtss_container &) = default;
-    test_dtss_container & operator=(const test_dtss_container &) = default;
+    query_test_dtss_container(const query_test_dtss_container &) = default;
+    query_test_dtss_container & operator=(const query_test_dtss_container &) = default;
 
-    test_dtss_container(test_dtss_container &&) = default;
-    test_dtss_container & operator=(test_dtss_container &&) = default;
+    query_test_dtss_container(query_test_dtss_container &&) = default;
+    query_test_dtss_container & operator=(query_test_dtss_container &&) = default;
 
     /*  Container API
-    * =============== */
+     * =============== */
 
     void save(const std::string & fn, const gts_t & ts, bool overwrite = true, const queries_t & queries = queries_t{}) const {
 
@@ -2510,37 +2510,36 @@ struct test_dtss_container {
 struct query_test_dtss_dispatcher {
 
     using queries_t = std::map<std::string, std::string>;
-    using container_wrapper_t = dtss::container_wrapper<test_dtss_container>;
+    using container_wrapper_t = dtss::container_wrapper<query_test_dtss_container>;
 
-    inline static const std::array<std::string, 1> remove_queries{{ "removed" }};
+    inline static const std::string container_query{ "container" };
+    inline static const std::array<std::string, 2> remove_queries{{ "removed", container_query }};
 
-    template < typename Srv >
     static void create_container(
         const std::string & container_name,
-        std::unordered_map<std::string, container_wrapper_t> & containers,
         const std::string & container_type,
         const std::string & root_path,
-        Srv & srv
+        shyft::dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "test" ) {
-            containers[std::string{"TEST_"} + container_name] = container_wrapper_t{ test_dtss_container{ root_path } };
+            dtss_server.container[std::string{"TEST_"} + container_name] = container_wrapper_t{ query_test_dtss_container{ root_path } };
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
     }
 
     static const container_wrapper_t & get_container(
-        const std::unordered_map<std::string, container_wrapper_t> & containers,
-        const std::string & container_name, const std::string & container_query
+        const std::string & container_name, const std::string & container_query,
+        const dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
-        std::remove_reference_t<decltype(containers)>::const_iterator f;
+        decltype(dtss_server.container)::const_iterator f;
         if ( container_query.empty() || container_query == "test" ) {
-            f = containers.find(std::string{"TEST_"} + container_name);
+            f = dtss_server.container.find(std::string{"TEST_"} + container_name);
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_query };
         }
 
-        if( f == std::end(containers) )
+        if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
 
         return f->second;
@@ -2550,7 +2549,6 @@ struct query_test_dtss_dispatcher {
 }
 
 TEST_CASE("dtss_server_query_to_containers") {
-    
 
     shyft::core::calendar utc;
 
@@ -2606,6 +2604,189 @@ TEST_CASE("dtss_server_query_to_containers") {
 
     SUBCASE("Find using url's with queries") {
         cli.find(shyft::dtss::shyft_url(container, "/path/to/something", queries_t{ {"my_query", "some_value"}, {"removed", "value"} }));
+    }
+}
+
+
+namespace {
+
+template < int Idx >
+struct multicontainer_test_dtss_container {
+
+    using ts_info = shyft::dtss::ts_info;
+    using gta_t = shyft::time_axis::generic_dt;
+    using gts_t = shyft::time_series::point_ts<gta_t>;
+    using queries_t = std::map<std::string, std::string>;
+
+    std::string root;
+
+    multicontainer_test_dtss_container() = default;
+    ~multicontainer_test_dtss_container() = default;
+
+    multicontainer_test_dtss_container(const std::string & root_dir) : root{ root_dir } {}
+
+    multicontainer_test_dtss_container(const multicontainer_test_dtss_container &) = default;
+    multicontainer_test_dtss_container & operator=(const multicontainer_test_dtss_container &) = default;
+
+    multicontainer_test_dtss_container(multicontainer_test_dtss_container &&) = default;
+    multicontainer_test_dtss_container & operator=(multicontainer_test_dtss_container &&) = default;
+
+    /*  Container API
+    * =============== */
+
+    void save(const std::string & fn, const gts_t & ts, bool overwrite = true, const queries_t & queries = queries_t{}) const {
+
+        FAST_CHECK_UNARY( fn.find("?") == fn.npos );  // there should be no query part in the filename
+
+        auto q = queries.find("value");
+        FAST_REQUIRE_NE( q, queries.cend() );
+        FAST_CHECK_EQ( q->first, std::string{"value"} );
+        FAST_CHECK_EQ( q->second, std::to_string(Idx) );
+    }
+
+    gts_t read(const std::string & fn, core::utcperiod p, const queries_t & queries = queries_t{}) const {
+
+        FAST_CHECK_UNARY( fn.find("?") == fn.npos );  // there should be no query part in the filename
+
+        auto q = queries.find("value");
+        FAST_REQUIRE_NE( q, queries.cend() );
+        FAST_CHECK_EQ( q->first, std::string{"value"} );
+        FAST_CHECK_EQ( q->second, std::to_string(Idx) );
+        return gts_t{};
+    }
+
+    void remove(const std::string & fn, const queries_t & queries = queries_t{}) const {
+
+        FAST_CHECK_UNARY( fn.find("?") == fn.npos );  // there should be no query part in the filename
+
+        auto q = queries.find("value");
+        FAST_REQUIRE_NE( q, queries.cend() );
+        FAST_CHECK_EQ( q->first, std::string{"value"} );
+        FAST_CHECK_EQ( q->second, std::to_string(Idx) );
+    }
+
+    ts_info get_ts_info(const std::string & fn, const queries_t & queries = queries_t{}) const {
+
+        FAST_CHECK_UNARY( fn.find("?") == fn.npos );  // there should be no query part in the filename
+
+        auto q = queries.find("value");
+        FAST_REQUIRE_NE( q, queries.cend() );
+        FAST_CHECK_EQ( q->first, std::string{"value"} );
+        FAST_CHECK_EQ( q->second, std::to_string(Idx) );
+
+        return ts_info{};
+    }
+
+    std::vector<ts_info> find(const std::string & match, const queries_t & queries = queries_t{}) const {
+        auto q = queries.find("value");
+        FAST_REQUIRE_NE( q, queries.cend() );
+        FAST_CHECK_EQ( q->first, std::string{"value"} );
+        FAST_CHECK_EQ( q->second, std::to_string(Idx) );
+
+        return std::vector<ts_info>{};
+    };
+};
+
+struct multicontainer_test_dtss_dispatcher {
+
+    using queries_t = std::map<std::string, std::string>;
+    using container_wrapper_t = dtss::container_wrapper<
+        multicontainer_test_dtss_container<0>, multicontainer_test_dtss_container<1> >;
+
+    inline static const std::string container_query{ "container" };
+    inline static const std::array<std::string, 2> remove_queries{{ "removed", container_query }};
+
+    static void create_container(
+        const std::string & container_name,
+        const std::string & container_type,
+        const std::string & root_path,
+        shyft::dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
+    ) {
+        if ( container_type.empty() || container_type == "first" ) {
+            dtss_server.container[std::string{"FIRST_"} + container_name] = container_wrapper_t{ multicontainer_test_dtss_container<0>{ root_path } };
+        } else if ( container_type == "second" ) {
+            dtss_server.container[std::string{"SECOND_"} + container_name] = container_wrapper_t{ multicontainer_test_dtss_container<1>{ root_path } };
+        } else {
+            throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
+        }
+    }
+     
+    static const container_wrapper_t & get_container(
+        const std::string & container_name, const std::string & container_query,
+        const dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
+    ) {
+        decltype(dtss_server.container)::const_iterator f;
+        if ( container_query.empty() || container_query == "first" ) {
+            f = dtss_server.container.find(std::string{"FIRST_"} + container_name);
+        } else if ( container_query == "second" ) {
+            f = dtss_server.container.find(std::string{"SECOND_"} + container_name);
+        } else {
+            throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_query };
+        }
+
+        if( f == std::end(dtss_server.container) )
+            throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
+
+        return f->second;
+    }
+};
+
+}
+
+TEST_CASE("dtss_server_with_multiple_containers") {
+
+    shyft::core::calendar utc;
+
+    using shyft::time_axis::generic_dt;
+    using shyft::time_series::dd::apoint_ts;
+    using shyft::time_series::ts_point_fx;
+    using ts_vector_t = shyft::time_series::dd::ats_vector;
+    using test_server_t = shyft::dtss::server<multicontainer_test_dtss_dispatcher>;
+    using queries_t = std::map<std::string, std::string>;
+
+    const int port = 40336;
+
+    test_server_t srv{};
+    srv.set_listening_port(port);
+    srv.add_container("container", "foo/bar/first", "first");
+    srv.add_container("container", "foo/bar/second", "second");
+    srv.start_async();
+
+    shyft::dtss::client cli{ std::string{"localhost:"} + std::to_string(port) };
+
+    /* NOTE: `remove` and `get_ts_info` are not called from the server...
+    */
+
+    SUBCASE("Save dispatched to the correct container") {
+        core::utctime t = utc.time(2016, 1, 1);
+        core::utctimespan dt = core::deltahours(1);
+        size_t n = 10;
+        generic_dt ta{ t, dt, n };
+
+        ts_vector_t vec{};
+        vec.emplace_back(
+            shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "0"}, {"container", "first"} }),
+            apoint_ts{ ta, 0*10.0, ts_point_fx::POINT_INSTANT_VALUE } );
+        vec.emplace_back(
+            shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "1"}, {"container", "second"} }),
+            apoint_ts{ ta, 1*10.0, ts_point_fx::POINT_INSTANT_VALUE } );
+
+        cli.store_ts(vec, false, false);
+    }
+
+    SUBCASE("Read dispatched to the correct container") {
+        utcperiod period{ utc.time(2016, 1, 1), utc.time(2017, 1, 1) };
+
+        ts_vector_t vec{};
+        vec.emplace_back(shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "0"}, {"container", "first"} }) );
+        vec.emplace_back(shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "1"}, {"container", "second"} }) );
+
+        auto res = cli.evaluate(vec, period, false, false);
+    }
+
+    SUBCASE("Find dispatched to the correct container") {
+        cli.find(shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "0"}, {"container", "first"} }));
+        cli.find(shyft::dtss::shyft_url("container", "foo/bar/baz", queries_t{ {"value", "1"}, {"container", "second"} }));
     }
 }
 
