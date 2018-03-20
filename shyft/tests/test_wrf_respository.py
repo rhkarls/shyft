@@ -170,7 +170,6 @@ class WRFDataRepositoryTestCase(unittest.TestCase):
         dx = 1.0
         dy = 1.0
         bbox = ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy])
-        print(bbox)
         bpoly = box(min(bbox[0]), min(bbox[1]), max(bbox[0]), max(bbox[1]))
 
         # Period start

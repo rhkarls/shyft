@@ -1,3 +1,5 @@
+import os
+import re
 import numpy as np
 import pyproj
 from shapely.ops import transform
@@ -328,6 +330,23 @@ def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_in
         return nc_var[data_slice][new_slice]
     else:
         raise err("Variable '{}' has more dimensions than required.".format(nc_var.name))
+
+def _get_files(_directory, _filename, t_c, err):
+    file_names = [g for g in os.listdir(_directory) if re.findall(_filename, g)]
+    if len(file_names) == 0:
+        raise err('No matches found for file_pattern = {}'.format(_filename))
+    match_files = []
+    match_times = []
+    for fn in file_names:
+
+        t = UTC.time(*[int(x) for x in re.search(_filename, fn).groups()])
+        if t <= t_c:
+            match_files.append(fn)
+            match_times.append(t)
+    if match_files:
+        return os.path.join(_directory, match_files[np.argsort(match_times)[-1]])
+    raise err("No matches found for file_pattern = {} and t_c = {} "
+                               "".format(_filename, UTC.to_string(t_c)))
 
 
 def calc_RH(T, Td, p):
