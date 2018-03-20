@@ -105,6 +105,8 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         self._directory = directory
         if directory is not None:
             self._directory = os.path.expandvars(directory)
+        else:
+            filename = os.path.expandvars(filename)
         self._filename = filename
         if filename is None:
             self._filename = "(\d{4})(\d{2})(\d{2})[T_](\d{2})Z?.nc$"
