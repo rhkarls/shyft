@@ -34,8 +34,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         http://www2.mmm.ucar.edu/wrf/users/docs/user_guide_V3/users_guide_chap5.htm
     """
 
-    _G = 9.80665  # WMO-defined gravity constant to calculate the height in metres from geopotential
-
     def __init__(self, epsg, directory, filename=None, padding=5000., allow_subset=False):
         """
         Construct the netCDF4 dataset reader for data from WRF NWP model,
@@ -122,10 +120,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
 
     def _get_data_from_dataset(self, dataset, input_source_types, utc_period,
                                geo_location_criteria, ensemble_member=None):
-
-        if geo_location_criteria is not None:
-            self._bounding_box = geo_location_criteria
-
         input_source_types_orig = list(input_source_types)
         if "wind_speed" in input_source_types:
             input_source_types = list(input_source_types)  # We change input list, so take a copy

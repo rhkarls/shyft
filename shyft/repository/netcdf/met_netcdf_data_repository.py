@@ -23,7 +23,7 @@ class MetNetcdfDataRepositoryError(Exception):
 
 class MetNetcdfDataRepository(interfaces.GeoTsRepository):
     """
-    Repository for geo located timeseries given as Arome(*) data in
+    Repository for geo located timeseries given as Arome(*) or EC(**) data in
     netCDF files.
 
     NetCDF dataset assumptions:
@@ -52,7 +52,8 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
     (*) Arome NWP model output is from:
         http://thredds.met.no/thredds/catalog/arome25/catalog.html
-
+    (**) EC model output is from:
+        http://thredds.met.no/thredds/catalog/arome25/catalog.html
         Contact:
             Name: met.no
             Organization: met.no
@@ -63,10 +64,9 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
     _G = 9.80665 #  WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, directory, filename=None, #bounding_box=None,
-                 padding=5000., elevation_file=None, allow_subset=False):
+    def __init__(self, epsg, directory, filename=None, padding=5000., elevation_file=None, allow_subset=False):
         """
-        Construct the netCDF4 dataset reader for data from Arome NWP model,
+        Construct the netCDF4 dataset reader for data from Arome or EC NWP model,
         and initialize data retrieval.
 
         Parameters
@@ -79,18 +79,10 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             os.path.isdir(directory) should be true, or exception is raised.
         filename: string, optional
             Name of netcdf file in directory that contains spatially
-            distributed input data. Can be a glob pattern as well, in case
+            distributed input data. Can be a regex pattern as well, in case
             it is used for forecasts or ensambles.
-        bounding_box: list, optional
-            A list on the form:
-            [[x_ll, x_lr, x_ur, x_ul],
-             [y_ll, y_lr, y_ur, y_ul]],
-            describing the outer boundaries of the domain that shoud be
-            extracted. Coordinates are given in epsg coordinate system.
-        x_padding: float, optional
-            Longidutinal padding in meters, added both east and west
-        y_padding: float, optional
-            Latitudinal padding in meters, added both north and south
+        padding: float, optional
+            padding in meters
         elevation_file: string, optional
             Name of netcdf file of same dimensions in x and y, subject to
             constraints given by bounding box and padding, that contains
@@ -99,7 +91,6 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             Allow extraction of a subset of the given source fields
             instead of raising exception.
         """
-        #directory = directory.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
         self._directory = os.path.expandvars(directory)
         self._filename = filename
         if filename is None:
@@ -117,10 +108,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             self.elevation_file = None
 
         self.shyft_cs = "+init=EPSG:{}".format(epsg)
-        #self._x_padding = x_padding
-        #self._y_padding = y_padding
         self._padding = padding
-        #self._bounding_box = bounding_box
 
         # Field names and mappings
         self._arome_shyft_map = {
