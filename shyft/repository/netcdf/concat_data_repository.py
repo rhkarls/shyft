@@ -388,18 +388,26 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
+        if t_c is None and utc_period is None:
+            t_c = api.utctime_now()
+        else:
+            t_c = utc_period.start
         with Dataset(self._filename) as dataset:
-            fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
-            time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
-                                                                     self.nb_lead_intervals, fsc)
-            time = self.time[time_slice][m_t[time_slice]]
-            ref_time = time[np.argmin(time <= t_c) - 1]
-            if ref_time.size == 0:
-                raise ConcatDataRepositoryError(
-                    "Not able to find forecast that cover the requested period with the provided restrictions "
-                    "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
-                        format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
-            fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
+            if utc_period is None:
+                fsc = ForecastSelectionCriteria(latest_available_forecasts=
+                                              {'number_of_forecasts': 1, 'forecasts_older_than':t_c})
+            else:
+                fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
+                time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
+                                                                         self.nb_lead_intervals, fsc)
+                time = self.time[time_slice][m_t[time_slice]]
+                ref_time = time[np.argmin(time <= t_c) - 1]
+                if ref_time.size == 0:
+                    raise ConcatDataRepositoryError(
+                        "Not able to find forecast that cover the requested period with the provided restrictions "
+                        "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
+                            format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
+                fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
             return self.get_forecast_ensemble_collection(input_source_types, fsc, geo_location_criteria)[0]
 
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):
@@ -415,18 +423,26 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
+        if t_c is None and utc_period is None:
+            t_c = api.utctime_now()
+        else:
+            t_c = utc_period.start
         with Dataset(self._filename) as dataset:
-            fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
-            time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
-                                                                     self.nb_lead_intervals, fsc)
-            time = self.time[time_slice][m_t[time_slice]]
-            ref_time = time[np.argmin(time <= t_c) - 1]
-            if ref_time.size == 0:
-                raise ConcatDataRepositoryError(
-                    "Not able to find forecast that cover the requested period with the provided restrictions "
-                    "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
-                        format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
-            fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
+            if utc_period is None:
+                fsc = ForecastSelectionCriteria(latest_available_forecasts=
+                                                {'number_of_forecasts': 1, 'forecasts_older_than': t_c})
+            else:
+                fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
+                time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
+                                                                         self.nb_lead_intervals, fsc)
+                time = self.time[time_slice][m_t[time_slice]]
+                ref_time = time[np.argmin(time <= t_c) - 1]
+                if ref_time.size == 0:
+                    raise ConcatDataRepositoryError(
+                        "Not able to find forecast that cover the requested period with the provided restrictions "
+                        "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
+                            format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
+                fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
             return self.get_forecast_collection(input_source_types, fsc, geo_location_criteria)[0]
 
     def _get_data_from_dataset(self, dataset, input_source_types, fc_selection_criteria, geo_location_criteria,
