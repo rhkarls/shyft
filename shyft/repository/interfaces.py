@@ -344,7 +344,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned time-series should at least cover the
             requested period. It could return *more* data than in
@@ -395,7 +395,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned forecast time-series should at least cover the
             requested period. It could return *more* data than in
@@ -447,7 +447,7 @@ class GeoTsRepository(object):
         Returns
         -------
         List of geo_loc_ts:
-            List of dictionaries keyed by time series name, where values are
+            List of dictionaries keyed by source type, where values are
             api vectors of geo located timeseries.
         """
         raise NotImplementedError(
@@ -470,7 +470,7 @@ class GeoTsRepository(object):
         -------
         List (collection) of lists (ensemble members) of geo_loc_ts:
             List (collection indexed) of lists (ensemble indexed) dictionaries
-            keyed by time series name, where values are api vectors of geo located
+            keyed by source type, where values are api vectors of geo located
             timeseries.
         """
         raise NotImplementedError(
