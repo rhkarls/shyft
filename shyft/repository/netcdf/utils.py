@@ -109,12 +109,14 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
                 # Find bounding polygon in data coordinate system
                 project = partial(pyproj.transform, target_proj, data_proj)
                 #poly = geo_location_criteria.buffer(padding)
-                poly_prj = transform(project, poly)
-                p_poly = prep(poly_prj)
+                #poly_prj = transform(project, poly)
+                poly = transform(project, poly)
+                #p_poly = prep(poly_prj)
             else:
-                p_poly = prep(poly)
+                #p_poly = prep(poly)
                 x, y = pyproj.transform(data_proj, target_proj, x, y)
 
+            p_poly = prep(poly)
             # Extract points in poly envelop
             xmin, ymin, xmax, ymax = poly.bounds
             x_mask = ((x > xmin) & (x < xmax))
@@ -156,12 +158,14 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
                 # Find bounding polygon in data coordinate system
                 project = partial(pyproj.transform, target_proj, data_proj)
                 # poly = geo_location_criteria.buffer(padding)
-                poly_prj = transform(project, poly)
-                p_poly = prep(poly_prj)
+                # poly_prj = transform(project, poly)
+                poly = transform(project, poly)
+                # p_poly = prep(poly_prj)
             else:
-                p_poly = prep(poly)
+                # p_poly = prep(poly)
                 x, y = pyproj.transform(data_proj, target_proj, x, y)
 
+            p_poly = prep(poly)
             # Extract points in poly envelop
             xmin, ymin, xmax, ymax = poly.bounds
             # x_mask = ((x > xmin) & (x < xmax))

@@ -22,7 +22,7 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
     """
     _G = 9.80665  # WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, filename, padding=5000.):
+    def __init__(self, epsg, filename, padding=5000., allow_subset=True):
         """
         Construct the netCDF4 dataset reader for data from ERAInterim,
         and initialize data retrieval.
@@ -35,10 +35,9 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
             raise ERAInterimDataRepositoryError("No such file '{}'".format(filename))
             
         self._filename = filename # path.join(directory, filename)
-        self.allow_subset = True # allow_subset
+        self.allow_subset = allow_subset
         self._padding = padding
         
-        #self.elevation_file = None
         self.analysis_hours = [0, 12]
         self.cal = api.Calendar()
 
@@ -54,18 +53,6 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
                                "ssrd": "radiation"}
 
         self._shift_fields = ("tp","ssrd")
-
-        # self.source_type_map = {"relative_humidity": api.RelHumSource,
-        #                         "temperature": api.TemperatureSource,
-        #                         "precipitation": api.PrecipitationSource,
-        #                         "radiation": api.RadiationSource,
-        #                         "wind_speed": api.WindSpeedSource}
-        #
-        # self.series_type = {"relative_humidity": api.POINT_INSTANT_VALUE,
-        #                         "temperature": api.POINT_INSTANT_VALUE,
-        #                         "precipitation": api.POINT_AVERAGE_VALUE,
-        #                         "radiation": api.POINT_AVERAGE_VALUE,
-        #                         "wind_speed": api.POINT_INSTANT_VALUE}
                                 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
         """
@@ -77,61 +64,6 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
         with Dataset(filename) as dataset:
             return self._get_data_from_dataset(dataset, input_source_types,
                                                utc_period, geo_location_criteria)
-
-    # def _convert_to_timeseries(self, data):
-    #     tsc = api.TsFactory().create_point_ts
-    #     time_series = {}
-    #     for key, (data, ta) in data.items():
-    #         fslice = (len(data.shape) - 2)*[slice(None)]
-    #         I, J = data.shape[-2:]
-    #
-    #         def construct(d):
-    #             if ta.size() != d.size:
-    #                 raise ERAInterimDataRepositoryError("Time axis size {} not equal to the number of "
-    #                                                "data points ({}) for {}"
-    #                                                "".format(ta.size(), d.size, key))
-    #             return tsc(ta.size(), ta.start, ta.delta_t,
-    #                        api.DoubleVector_FromNdArray(d.flatten()), self.series_type[key])
-    #
-    #         time_series[key] = np.array([[construct(data[fslice + [i, j]])
-    #                                       for j in range(J)] for i in range(I)])
-    #     return time_series
-    #
-    # def _limit(self, lon, lat, target_cs): # TODO: lat long boundaries are not rectangular
-    #     data_proj = Proj("+init=EPSG:4326")  # WGS84
-    #     target_proj = Proj(target_cs)
-    #
-    #     # Find bounding box in ERA projection
-    #     bbox = self.bounding_box
-    #     bb_proj = transform(target_proj, data_proj, bbox[0], bbox[1])
-    #     lon_min, lon_max = min(bb_proj[0]), max(bb_proj[0])
-    #     lat_min, lat_max = min(bb_proj[1]), max(bb_proj[1])
-    #     #print(lon_min,lon_max,lat_min,lat_max)
-    #
-    #     # Limit data
-    #     lon_upper = lon >= lon_min
-    #     lon_lower = lon <= lon_max
-    #
-    #     lat_upper = lat >= lat_min
-    #     lat_lower = lat <= lat_max
-    #
-    #     lon_inds = np.nonzero(lon_upper == lon_lower)[0]
-    #     lat_inds = np.nonzero(lat_upper == lat_lower)[0]
-    #     # Masks
-    #     lon_mask = lon_upper == lon_lower
-    #     lat_mask = lat_upper == lat_lower
-    #
-    #     #print (lon_inds,lat_inds)
-    #     #print (lon[lon_inds],lat[lat_inds])
-    #
-    #     if lon_inds.size == 0:
-    #         raise ERAInterimDataRepositoryError("Bounding box longitudes don't intersect with dataset.")
-    #     if lat_inds.size == 0:
-    #         raise ERAInterimDataRepositoryError("Bounding box latitudes don't intersect with dataset.")
-    #
-    #     x, y = transform(data_proj, target_proj, *np.meshgrid(lon[lon_inds], lat[lat_inds]))
-    #
-    #     return x, y, (lon_mask, lat_mask), (lon_inds, lat_inds)
 
     def _get_data_from_dataset(self, dataset, input_source_types, utc_period,
                                geo_location_criteria):
@@ -156,20 +88,8 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
             raise ERAInterimDataRepositoryError("Something is wrong with the dataset."
                                          " lat/lon coords or time not found.")
         time = convert_netcdf_time(time.units,time)
-        #print (time[0])
-        #t_indx = np.argsort(time)
-        #time = time[t_indx]
-        #self.time=time
-        
-        # idx_min = time.searchsorted(utc_period.start, side='left')
-        # idx_max = time.searchsorted(utc_period.end, side='right')
-        # issubset = True if idx_max < len(time) - 1 else False
-        # time_slice = slice(idx_min, idx_max)
-        #print (idx_min, idx_max)
-
         time_slice, issubset = _make_time_slice(time, utc_period, ERAInterimDataRepositoryError)
 
-        #x, y, (m_lon, m_lat), _ = self._limit(lon[:], lat[:], self.shyft_cs)data_proj = Proj("+init=EPSG:4326")  # WGS84
         x, y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(
             lon[:], lat[:], data_cs, self.shyft_cs, geo_location_criteria, self._padding, ERAInterimDataRepositoryError, clip_in_data_cs=True)
 
@@ -180,17 +100,6 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
                 else:
                     data_time_slice = time_slice
                 data = dataset.variables[k]
-                # data_slice = len(data.dimensions)*[slice(None)]
-                # #data_slice[data.dimensions.index("ens")] = self.ensemble_idx
-                # data_slice[data.dimensions.index("longitude")] = m_lon
-                # data_slice[data.dimensions.index("latitude")] = m_lat
-                # data_slice[data.dimensions.index("time")] = data_time_slice
-                #
-                # pure_arr = data[data_slice]
-                #
-                # if isinstance(pure_arr, np.ma.core.MaskedArray):
-                #     #print(pure_arr.fill_value)
-                #     pure_arr = pure_arr.filled(np.nan)
                 pure_arr = _slice_var_2D(data, lon.name, lat.name, x_slice, y_slice, x_inds,
                                          y_inds, ERAInterimDataRepositoryError,
                                          slices={'time': data_time_slice})
@@ -198,16 +107,10 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
                 
         if "z" in dataset.variables.keys():
             data = dataset.variables["z"]
-            # dims = data.dimensions
-            # data_slice = len(data.dimensions)*[slice(None)]
-            # data_slice[dims.index("longitude")] = m_lon
-            # data_slice[dims.index("latitude")] = m_lat
-            # z = data[data_slice]/self._G # Converting from geopotential to m
             z = _slice_var_2D(data, lon.name, lat.name, x_slice, y_slice, x_inds, y_inds, ERAInterimDataRepositoryError)/self._G # Converting from geopotential to m
         else:
             raise ERAInterimDataRepositoryError("No elevations found in dataset")
-        #pts = np.dstack((x, y, z)).reshape(*(x.shape + (3,)))
-        
+
         # Make sure requested fields are valid, and that dataset contains the requested data.
         if not self.allow_subset and not (set(raw_data.keys()).issuperset(input_source_types)):
             raise ERAInterimDataRepositoryError("Could not find all data fields")
@@ -225,7 +128,6 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
                 sfc_t, _ = raw_data["temperature"]
             raw_data["relative_humidity"] = calc_RH(sfc_t,dpt_t,sfc_p), "relative_humidity"
         extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
         return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
 
     def _transform_raw(self, data, time, issubset=False):
@@ -271,41 +173,3 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
         for k, (v, ak) in data.items():
             res[k] = convert_map[ak](v, time)
         return res
-
-    # def _geo_ts_to_vec(self, data, pts):
-    #     res = {}
-    #     for name, ts in iteritems(data):
-    #         tpe = self.source_type_map[name]
-    #         # YSA: It seems that the boost-based interface does not handle conversion straight from list of non-primitive objects
-    #         #res[name] = tpe.vector_t([tpe(api.GeoPoint(*pts[idx]),
-    #         #                          ts[idx]) for idx in np.ndindex(pts.shape[:-1])])
-    #         tpe_v=tpe.vector_t()
-    #         for idx in np.ndindex(pts.shape[:-1]):
-    #             tpe_v.append(tpe(api.GeoPoint(*pts[idx]), ts[idx]))
-    #         res[name] = tpe_v
-    #     return res
-    #
-    #
-    # @classmethod
-    # def calc_q(cls,T,p,alpha):
-    #     e_w = cls.__a1_w*np.exp(cls.__a3_w*((T-cls.__T0)/(T-cls.__a4_w)))
-    #     e_i = cls.__a1_i*np.exp(cls.__a3_i*((T-cls.__T0)/(T-cls.__a4_i)))
-    #     q_w = 0.622*e_w/(p-(1-0.622)*e_w)
-    #     q_i = 0.622*e_i/(p-(1-0.622)*e_i)
-    #     return alpha*q_w+(1-alpha)*q_i
-    #
-    # @classmethod
-    # def calc_alpha(cls,T):
-    #     alpha=np.zeros(T.shape,dtype='float')
-    #     #alpha[T<=Tice]=0.
-    #     alpha[T>=cls.__T0]=1.
-    #     indx=(T<cls.__T0)&(T>cls.__Tice)
-    #     alpha[indx]=np.square((T[indx]-cls.__Tice)/(cls.__T0-cls.__Tice))
-    #     return alpha
-    #
-    # @classmethod
-    # def calc_RH(cls,T,Td,p):
-    #     alpha = cls.calc_alpha(T)
-    #     qsat = cls.calc_q(T,p,alpha)
-    #     q = cls.calc_q(Td,p,alpha)
-    #     return q/qsat
