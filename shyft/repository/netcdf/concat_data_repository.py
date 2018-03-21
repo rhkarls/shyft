@@ -388,10 +388,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
-        if t_c is None and utc_period is None:
-            t_c = api.utctime_now()
-        else:
-            t_c = utc_period.start
+        if t_c is None:
+            t_c = api.utctime_now() if utc_period is None else utc_period.start
         with Dataset(self._filename) as dataset:
             if utc_period is None:
                 fsc = ForecastSelectionCriteria(latest_available_forecasts=
@@ -423,10 +421,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
-        if t_c is None and utc_period is None:
-            t_c = api.utctime_now()
-        else:
-            t_c = utc_period.start
+        if t_c is None:
+            t_c = api.utctime_now() if utc_period is None else utc_period.start
         with Dataset(self._filename) as dataset:
             if utc_period is None:
                 fsc = ForecastSelectionCriteria(latest_available_forecasts=
