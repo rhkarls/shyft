@@ -371,10 +371,11 @@ inline ts_info_vector_t server<ContainerDispatcher>::do_find_ts(const std::strin
     if ( pattern.size() > 0 ) {
         // assume it is a shyft url -> look for query flags
         auto queries = extract_shyft_url_query_parameters(search_expression);
-        if ( ! queries.empty() && queries.count(ContainerDispatcher::container_query) > 0 ) {
-            std::string container = queries[ContainerDispatcher::container_query];
+        auto container_query_it = queries.find(ContainerDispatcher::container_query);
+        if ( ! queries.empty() && container_query_it != queries.end() ) {
+            auto container_query = container_query_it->second;
             filter_shyft_url_parsed_queries(queries, ContainerDispatcher::remove_queries);
-            return internal(pattern, container).find(extract_shyft_url_path(search_expression), queries);
+            return internal(pattern, container_query).find(extract_shyft_url_path(search_expression), queries);
         } else {
             filter_shyft_url_parsed_queries(queries, ContainerDispatcher::remove_queries);
             return internal(pattern).find(extract_shyft_url_path(search_expression), queries);
@@ -413,9 +414,11 @@ inline void server<ContainerDispatcher>::do_store_ts(const ts_vector_t & tsv, bo
         auto c = extract_shyft_url_container(rts->id);
         if( c.size() > 0 ) {
             auto queries = extract_shyft_url_query_parameters(rts->id);
-            if ( ! queries.empty() && queries.count(ContainerDispatcher::container_query) > 0 ) {
+            auto container_query_it = queries.find(ContainerDispatcher::container_query);
+            if ( ! queries.empty() && container_query_it != queries.end() ) {
+                auto container_query = container_query_it->second;
                 filter_shyft_url_parsed_queries(queries, ContainerDispatcher::remove_queries);
-                internal(c, queries[ContainerDispatcher::container_query]).save(
+                internal(c, container_query).save(
                     extract_shyft_url_path(rts->id),  // path
                     rts->core_ts(),      // ts to save
                     overwrite_on_write,  // should do overwrite instead of merge
@@ -535,9 +538,11 @@ inline ts_vector_t server<ContainerDispatcher>::do_read(const id_vector_t & ts_i
                 if ( c.size() > 0 ) {
                     // check for queries in shyft:// url's
                     auto queries = extract_shyft_url_query_parameters(ts_ids[i]);
-                    if ( ! queries.empty() && queries.count(ContainerDispatcher::container_query) > 0 ) {
+                    auto container_query_it = queries.find(ContainerDispatcher::container_query);
+                    if ( ! queries.empty() && container_query_it != queries.end() ) {
+                        auto container_query = container_query_it->second;
                         filter_shyft_url_parsed_queries(queries, ContainerDispatcher::remove_queries);
-                        results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c, queries[ContainerDispatcher::container_query]).read(
+                        results[i] = apoint_ts(make_shared<gpoint_ts>(internal(c, container_query).read(
                             extract_shyft_url_path(ts_ids[i]), p, queries)));
                     } else {
                         filter_shyft_url_parsed_queries(queries, ContainerDispatcher::remove_queries);
