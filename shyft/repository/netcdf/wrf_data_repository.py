@@ -48,8 +48,7 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             os.path.isdir(directory) should be true, or exception is raised.
         filename: string, optional
             Name of netcdf file in directory that contains spatially
-            distributed input data. Can be a glob pattern as well, in case
-            it is used for forecasts or ensambles.
+            distributed input data. Can be a regex pattern as well
         padding: float, optional
             padding in meters
         allow_subset: bool
@@ -58,7 +57,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         """
         directory = path.expandvars(directory)
         self._directory = directory
-        #self._filename = path.join(directory, filename)
         if filename is None:
             filename = "wrfout_d03_(\d{4})-(\d{2})"
         self._filename = filename
@@ -142,12 +140,7 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         if not all([x_var, y_var, time]):
             raise WRFDataRepositoryError("Something is wrong with the dataset."
                                          " x/y coords or time not found.")
-        # TODO: make a check that dim1 is time, dim2 is ..., dim3 is ...
-        # x = x[0, :, :].reshape(x.shape[1] * x.shape[2])
-        # y = y[0, :, :].reshape(y.shape[1] * y.shape[2])
         time = convert_netcdf_time(time.units, time)
-        # TODO: Make sure that "latlong" is the correct coordinate system in WRF data
-        # data_cs_proj4 = "+proj=lcc +lon_0=78.9356 +lat_0=31.6857 +lat_1=30 +lat_2=60 +R=6.371e+06 +units=m +no_defs"
         data_cs_proj4 = "latlong"
         if data_cs_proj4 is None:
             raise WRFDataRepositoryError("No coordinate system information in dataset.")
@@ -168,8 +161,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
 
         if 'HGT' in dataset.variables.keys():
             data = dataset.variables['HGT']
-            # data = data[0, :, :].reshape(data.shape[1] * data.shape[2])  # get the first entry in time
-            # z = data[mask]
             z = _slice_var_2D(data, x_var.dimensions[2], y_var.dimensions[1], x_slice, y_slice, x_inds, y_inds, WRFDataRepositoryError,
                               slices={'Time': 0}
             )
@@ -193,7 +184,6 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             raw_data["relative_humidity"] = self._calculate_rel_hum(temperature, pressure,
                                                                     mixing_ratio), "relative_humidity_2m"
         extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
         return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
 
     def _transform_raw(self, data, time, issubset=False):
