@@ -288,7 +288,7 @@ def _slice_var_1D(nc_var, xy_var_name, xy_slice, xy_mask, slices={}): # , time_s
     # if ensemble_member is not None and "ensemble_member" in dims:
     #     data_slice[dims.index("ensemble_member")] = ensemble_member
     for k, v in slices.items():
-        if k in dims:
+        if k in dims and v is not None:
             data_slice[dims.index(k)] = v
     data_slice[dims.index(xy_var_name)] = xy_slice
     #data_slice[dims.index("time")] = time_slice  # data_time_slice
@@ -307,7 +307,7 @@ def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_in
     # if ensemble_member is not None and "ensemble_member" in dims:
     #     data_slice[dims.index("ensemble_member")] = ensemble_member
     for k, v in slices.items():
-        if k in dims:
+        if k in dims and v is not None:
             data_slice[dims.index(k)] = v
     # from the whole dataset, slice pts within the polygons's bounding box
     data_slice[dims.index(x_var_name)] = x_slice  # m_x
