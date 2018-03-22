@@ -229,8 +229,10 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         -------
         see interfaces.GeoTsRepository
         """
-        if self.fc_len_to_concat is None:
-            return self.get_forecast_ensemble(input_source_types, utc_period, utc_period.start, geo_location_criteria)
+        if self.fc_len_to_concat is None: # case with only one time stamp in file
+            t_c = api.utctime_now() if utc_period is None else None
+            return self.get_forecast_ensemble(input_source_types, utc_period, t_c, geo_location_criteria)
+
         no_shift_fields = set([self._shyft_map[k] for k in self._shift_fields]).isdisjoint(input_source_types)
         if self.fc_len_to_concat < 0 \
             or no_shift_fields and self.nb_lead_intervals_to_drop + self.fc_len_to_concat > len(self.lead_time) \
@@ -239,7 +241,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                           .format(self.nb_lead_intervals_to_drop)
                 raise ConcatDataRepositoryError(err_msg)
         with Dataset(self._filename) as dataset:
-            # fc_selection_criteria ={'forecasts_with_start_within_period': utc_period}
+            if utc_period is None:
+                utc_period = api.UtcPeriod(int(self.time[0]), int(self.time[-1]))
             fc_selection_criteria = ForecastSelectionCriteria(forecasts_with_start_within_period=utc_period)
             extracted_data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                                   geo_location_criteria,
@@ -280,8 +283,10 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         """
         # return self.get_timeseries_ensemble(input_source_types, utc_period, geo_location_criteria)[self.ensemble_member]
         # Same as get_timeseries_collection, but for only one member
-        if self.fc_len_to_concat is None:
+        if self.fc_len_to_concat is None: # case with only one time stamp in file
+            t_c = api.utctime_now() if utc_period is None else None
             return self.get_forecast(input_source_types, utc_period, utc_period.start, geo_location_criteria)
+
         no_shift_fields = set([self._shyft_map[k] for k in self._shift_fields]).isdisjoint(input_source_types)
         if self.fc_len_to_concat < 0 \
             or no_shift_fields and self.nb_lead_intervals_to_drop + self.fc_len_to_concat > len(self.lead_time) \
@@ -290,7 +295,8 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                           .format(self.nb_lead_intervals_to_drop)
                 raise ConcatDataRepositoryError(err_msg)
         with Dataset(self._filename) as dataset:
-            # fc_selection_criteria ={'forecasts_with_start_within_period': utc_period}
+            if utc_period is None:
+                utc_period = api.UtcPeriod(int(self.time[0]), int(self.time[-1]))
             fc_selection_criteria = ForecastSelectionCriteria(forecasts_with_start_within_period=utc_period)
             extracted_data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                                   geo_location_criteria,
