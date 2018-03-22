@@ -3,10 +3,9 @@ from __future__ import print_function
 
 import numpy as np
 from netCDF4 import Dataset
-from pyproj import Proj
-from pyproj import transform
 from shyft import api
 from .. import interfaces
+from .utils import _slice_var_2D, _limit_2D, _make_time_slice, _numpy_to_geo_ts_vec
 
 
 class GFSDataRepositoryError(Exception):
@@ -48,7 +47,7 @@ class GFSDataRepository(interfaces.GeoTsRepository):
     __time_a = 3600*24.0  # utc = (t_gfs - self.time_b)*self.time_a
     __time_b = 719164.0
 
-    def __init__(self, epsg, dem_file, utc=None, bounding_box=None):
+    def __init__(self, epsg, dem_file, padding=5000., utc=None):
         self.shyft_cs = "+init=EPSG:{}".format(epsg)
         self.dem_file = dem_file
         self.ensemble_idx = 0
@@ -65,37 +64,17 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                                                                                 ymd.hour//6*6)
         else:
             self.grf_url = None
-        self.bounding_box = bounding_box
-
+        self._padding = padding
         self._gfs_shyft_map = {"ugrd10m": "x_wind",
                                "vgrd10m": "y_wind",
                                "tmp2m": "temperature",
                                "pratesfc": "precipitation",
                                "rh2m": "relative_humidity",
                                "dswrfsfc": "radiation"}
-        self.source_type_map = {"relative_humidity": api.RelHumSource,
-                                "temperature": api.TemperatureSource,
-                                "precipitation": api.PrecipitationSource,
-                                "radiation": api.RadiationSource,
-                                "wind_speed": api.WindSpeedSource}
 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
-        """Get shyft source vectors of time series for input_source_types
-
-        Parameters
-        ----------
-        input_source_types: list
-            List of source types to retrieve (precipitation, temperature..)
-        geo_location_criteria: object, optional
-            Some type (to be decided), extent (bbox + coord.ref)
-        utc_period: api.UtcPeriod
-            The utc time period that should (as a minimum) be covered.
-
-        Returns
-        -------
-        geo_loc_ts: dictionary
-            dictionary keyed by time series name, where values are api vectors of geo
-            located timeseries.
+        """
+        see shyft.repository.interfaces.GeoTsRepository
         """
         if self.gfs_url is None:
             raise GFSDataRepositoryError("Repository not initialized properly "
@@ -106,10 +85,7 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                                                         utc_period, geo_location_criteria)
 
     def _get_ensemble_data_from_dataset(self, dataset, input_source_types,
-                                        utc_period, geo_location_criteria): 
-        if geo_location_criteria is not None:
-            self.bounding_box = geo_location_criteria
-
+                                        utc_period, geo_location_criteria):
         if "wind_speed" in input_source_types:
             input_source_types = list(input_source_types)  # Copy the possible mutable input list
             input_source_types.remove("wind_speed")
@@ -119,52 +95,58 @@ class GFSDataRepository(interfaces.GeoTsRepository):
         lon = dataset.variables.get("lon", None)
         lat = dataset.variables.get("lat", None)
         time = dataset.variables.get("time", None)
+        data_cs = "+init=EPSG:4326"  # WGS84
         if not all([lon, lat, time]):
             raise GFSDataRepositoryError("Something is wrong with the dataset."
                                          " lat/lon coords or time not found.")
         time = self.ad_to_utc(time)  # Fetch all times
-        idx_min = time.searchsorted(utc_period.start, side='left')
-        idx_max = time.searchsorted(utc_period.end, side='right')
+        time_slice, _ = _make_time_slice(time, utc_period, GFSDataRepositoryError)
 
-        if 0 < idx_min < len(time) and time[idx_min]> utc_period.start:
-            idx_min -= 1  # requirement! return data to cover request period if possible
-
-        if idx_max + 1 < len(time) and time[idx_max] < utc_period.end:
-            idx_max += 1  # requirement! return data to cover request period if possible
-
-        time_slice = slice(idx_min, idx_max)
-        time = time[time_slice]
-
-        x, y, _, (m_lon, m_lat), _ = self._limit(lon[:], lat[:], self.shyft_cs)
+        #x, y, _, (m_lon, m_lat), _ = self._limit(lon[:], lat[:], self.shyft_cs)
+        x, y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(
+            lon[:], lat[:], data_cs, self.shyft_cs, geo_location_criteria, self._padding, GFSDataRepositoryError,
+            clip_in_data_cs=False)
 
         for k in dataset.variables.keys():
             if self._gfs_shyft_map.get(k, None) in input_source_types:
                 data = dataset.variables[k]
-                data_slice = len(data.dimensions)*[slice(None)]
-                data_slice[data.dimensions.index("ens")] = self.ensemble_idx
-                data_slice[data.dimensions.index("lon")] = m_lon
-                data_slice[data.dimensions.index("lat")] = m_lat
-                data_slice[data.dimensions.index("time")] = time_slice
-                raw_data[self._gfs_shyft_map[k]] = data[data_slice]
+                # data_slice = len(data.dimensions)*[slice(None)]
+                # data_slice[data.dimensions.index("ens")] = self.ensemble_idx
+                # data_slice[data.dimensions.index("lon")] = m_lon
+                # data_slice[data.dimensions.index("lat")] = m_lat
+                # data_slice[data.dimensions.index("time")] = time_slice
+                # raw_data[self._gfs_shyft_map[k]] = data[data_slice]
+                raw_data[self._gfs_shyft_map[k]] = _slice_var_2D(data, lon.name, lat.name, x_slice, y_slice, x_inds,
+                                         y_inds, GFSDataRepositoryError,
+                                         slices={'time': time_slice, 'ens': self.ensemble_idx})
         with Dataset(self.dem_file) as dataset:
             alts = dataset.variables["altitude"]
-            lats = dataset.variables["latitude"][:]
-            longs = dataset.variables["longitude"][:]
-            alts = alts[np.round(lats) == lats, np.round(longs) == longs]
-            lats = lats[np.round(lats) == lats]
-            longs = longs[np.round(longs) == longs]
-            _x, _y, z, (_m_lon, _m_lat), _ = self._limit(longs, lats, self.shyft_cs, alts)
+            # lats = dataset.variables["latitude"][:]
+            # longs = dataset.variables["longitude"][:]
+            # alts = alts[np.round(lats) == lats, np.round(longs) == longs]
+            # lats = lats[np.round(lats) == lats]
+            # longs = longs[np.round(longs) == longs]
+            #_x, _y, z, (_m_lon, _m_lat), _ = self._limit(longs, lats, self.shyft_cs, alts)
+            lats = dataset.variables["latitude"]
+            longs = dataset.variables["longitude"]
+            _x, _y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(
+                longs[:], lats[:], data_cs, self.shyft_cs, geo_location_criteria, self._padding, GFSDataRepositoryError,
+                clip_in_data_cs=False)
+            z = _slice_var_2D(alts, longs.name, lats.name, x_slice, y_slice, x_inds, y_inds, GFSDataRepositoryError)
             assert np.linalg.norm(x - _x + y - _y) < 1.0e-10  # x/y coordinates must match
-            pts = np.dstack((x, y, z)).reshape(*(x.shape + (3,)))
+            # pts = np.dstack((x, y, z)).reshape(*(x.shape + (3,)))
         if set(("x_wind", "y_wind")).issubset(raw_data):
             x_wind = raw_data.pop("x_wind")
             y_wind = raw_data.pop("y_wind")
             raw_data["wind_speed"] = np.sqrt(np.square(x_wind) + np.square(y_wind))
-        extracted_data = self._transform_raw(raw_data, time)
-        return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
+        #extracted_data = self._transform_raw(raw_data, time)
+        #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
+        return _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice]), x, y, z)
 
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):
-        """See base class."""
+        """
+        see shyft.repository.interfaces.GeoTsRepository
+        """
         ens = 0  # Choose zero ensemble by default
         cal = api.Calendar()
         ymd = cal.calendar_units(t_c)
@@ -178,7 +160,9 @@ class GFSDataRepository(interfaces.GeoTsRepository):
 
     def get_forecast_ensemble(self, input_source_types, utc_period,
                               t_c, geo_location_criteria=None):
-        """See base class: ..interfaces.GeoTsRepository"""
+        """
+        see shyft.repository.interfaces.GeoTsRepository
+        """
         cal = api.Calendar()
         ymd = cal.calendar_units(t_c)
         res = []
@@ -194,12 +178,7 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                 res.append(self._get_ensemble_data_from_dataset(dataset, input_source_types, utc_period, geo_location_criteria))
         return res
 
-        
-
     def _transform_raw(self, data, time):
-
-        #def noop_time(t):
-        #    return api.TimeAxisFixedDeltaT(api.utctime(t[0]), api.timespan(t[1] - t[0]), len(t))
 
         def noop_space(x):
             return x
@@ -216,85 +195,11 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                        "precipitation": lambda x, ta: (prec_conv(x), ta),
                        "relative_humidity": lambda x, ta: (noop_space(x), ta)}
 
-        ta = api.TimeAxisFixedDeltaT(int(time[0]), int(time[1] - time[0]), len(time))
+        ta = api.TimeAxis(int(time[0]), int(time[1] - time[0]), len(time))
         res = {}
         for k, v in data.items():
             res[k] = convert_map[k](v, ta)
         return res
-
-    def _convert_to_timeseries(self, data):
-        tsc = api.TsFactory().create_point_ts
-        time_series = {}
-        for key, (data, ta) in data.items():
-            fslice = (len(data.shape) - 2)*[slice(None)]
-            I, J = data.shape[-2:]
-
-            def construct(d):
-                if ta.size() != d.size:
-                    raise GFSDataRepositoryError("Time axis size {} not equal to the number of "
-                                                   "data points ({}) for {}"
-                                                   "".format(ta.size(), d.size, key))
-                return tsc(ta.size(), ta.start, ta.delta_t,
-                     api.DoubleVector_FromNdArray(d.flatten()), api.point_interpretation_policy.POINT_AVERAGE_VALUE)
-
-            time_series[key] = np.array([[construct(data[fslice + [i, j]])
-                                          for j in range(J)] for i in range(I)])
-        return time_series
-
-    def _geo_ts_to_vec(self, data, pts):
-        res = {}
-        for name, ts in data.items():
-            tpe = self.source_type_map[name] 
-            ids = [idx for idx in np.ndindex(pts.shape[:-1])]
-            #res[name] = tpe.vector_t([tpe(api.GeoPoint(*pts[idx]), ts[idx]) for idx in np.ndindex(pts.shape[:-1])])
-            tpe_v=tpe.vector_t()
-            for idx in np.ndindex(pts.shape[:-1]):
-                tpe_v.append(tpe(api.GeoPoint(*pts[idx]), ts[idx]))
-            res[name] = tpe_v
-        return res
-
-    def _limit(self, lon, lat, target_cs, altitudes=None):
-        data_proj = Proj("+init=EPSG:4326")  # WGS84, TODO: How to treat vertical transform?
-        target_proj = Proj(target_cs)
-
-        # Find bounding box in arome projection
-        bbox = self.bounding_box
-        bb_proj = transform(target_proj, data_proj, bbox[0], bbox[1])
-        lon_min, lon_max = min(bb_proj[0]), max(bb_proj[0])
-        lat_min, lat_max = min(bb_proj[1]), max(bb_proj[1])
-
-        # Limit data
-        lon_upper = lon >= lon_min
-        lon_lower = lon <= lon_max
-        if sum(lon_upper == lon_lower) < 2:
-            lon_upper[np.argmax(lon_upper) - 1] = True
-            lon_lower[np.argmin(lon_lower)] = True
-
-        lat_upper = lat >= lat_min
-        lat_lower = lat <= lat_max
-        if sum(lat_upper == lat_lower) < 2:
-            lat_upper[np.argmax(lat_upper) - 1] = True
-            lat_lower[np.argmin(lat_lower)] = True
-        lon_inds = np.nonzero(lon_upper == lon_lower)[0]
-        lat_inds = np.nonzero(lat_upper == lat_lower)[0]
-        # Masks
-        lon_mask = lon_upper == lon_lower
-        lat_mask = lat_upper == lat_lower
-
-        if lon_inds.size == 0:
-            raise GFSDataRepositoryError("Bounding box longitudes don't intersect with dataset.")
-        if lat_inds.size == 0:
-            raise GFSDataRepositoryError("Bounding box latitudes don't intersect with dataset.")
-
-        if altitudes is not None:
-            alts = np.clip(altitudes[lat_inds[:, None], lon_inds], 0.0, 100000)
-            xyz = np.meshgrid(lon[lon_inds], lat[lat_inds]) + [alts]
-            t_xyz = transform(data_proj, target_proj, xyz[0].ravel(), xyz[1].ravel(), xyz[2].ravel())
-            x, y, z = [tmp.reshape(xyz[0].shape) for tmp in t_xyz]
-        else:
-            x, y = transform(data_proj, target_proj, *np.meshgrid(lon[lon_inds], lat[lat_inds]))
-            z = None
-        return x, y, z, (lon_mask, lat_mask), (lon_inds, lat_inds)
 
     @classmethod
     def ad_to_utc(cls, T):

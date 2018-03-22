@@ -127,8 +127,7 @@ class ERAInterimDataRepository(interfaces.GeoTsRepository):
             else:
                 sfc_t, _ = raw_data["temperature"]
             raw_data["relative_humidity"] = calc_RH(sfc_t,dpt_t,sfc_p), "relative_humidity"
-        extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
+        return _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice], issubset=issubset), x, y, z)
 
     def _transform_raw(self, data, time, issubset=False):
         """
