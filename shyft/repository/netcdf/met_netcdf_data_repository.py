@@ -45,9 +45,9 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
 
     (*) Arome NWP model output is from:
-        http://thredds.met.no/thredds/catalog/arome25/catalog.html
+        http://thredds.met.no/thredds/catalog/meps25files/catalog.html
     (**) EC model output is from:
-        http://thredds.met.no/thredds/catalog/arome25/catalog.html
+        https://thredds.met.no/thredds/catalog/ecmwf/atmo/catalog.html
         Contact:
             Name: met.no
             Organization: met.no
