@@ -7,6 +7,8 @@ addons:
     - ubuntu-toolchain-r-test
     packages:
     - liblapack-dev
+    - libblas-dev
+    - libatlas-base-dev
     - libpng-dev
     - g++-7
     - gcc-7
@@ -37,6 +39,7 @@ install:
   - ls ${HOME}/build/statkraft/miniconda
   - ls ${HOME}/build/statkraft
   - ls ${HOME}/build
+  - cmake --version
   - echo ${MINICONDA_DIR}
   - echo ${SHYFT_DEPENDENCIES_DIR}
   - ls ${HOME}/build/statkraft/miniconda

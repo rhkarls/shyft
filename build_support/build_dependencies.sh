@@ -3,7 +3,7 @@ export WORKSPACE=$(readlink --canonicalize --no-newline `dirname ${0}`/../..)
 # to align the cmake support:
 export SHYFT_DEPENDENCIES_DIR=${WORKSPACE}/shyft_dependencies
 armadillo_name=armadillo-8.400.0
-dlib_name=dlib-19.9
+dlib_name=dlib-19.10
 boost_ver=1_66_0
 pybind11_ver=v2.2.2
 cmake_common="-DCMAKE_INSTALL_MESSAGE=NEVER"
@@ -41,7 +41,7 @@ if [ ! -d ${dlib_name} ]; then
     tar -xf ${dlib_name}.tar.bz2
     pushd ${dlib_name}
     mkdir -p build
-    dlib_cfg="-DDLIB_PNG_SUPPORT=0 -DDLIB_GIF_SUPPORT=0 -DDLIB_LINK_WITH_SQLITE3=0 -DDLIB_NO_GUI_SUPPORT=1 -DDLIB_JPEG_SUPPORT=0 -DDLIB_USE_BLAS=0 -DDLIB_USE_LAPACK=0"
+    dlib_cfg="-DDLIB_PNG_SUPPORT=0 -DDLIB_GIF_SUPPORT=0 -DDLIB_LINK_WITH_SQLITE3=0 -DDLIB_NO_GUI_SUPPORT=1 -DDLIB_JPEG_SUPPORT=0 -DDLIB_USE_BLAS=0 -DDLIB_USE_LAPACK=0 -DBUILD_SHARED_LIBS=ON"
     cd build && cmake .. -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DCMAKE_INSTALL_LIBDIR=lib ${cmake_common} ${dlib_cfg} && cmake --build . --config Release --target dlib && make install
     popd
 fi;

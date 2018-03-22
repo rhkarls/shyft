@@ -63,8 +63,8 @@
 		<Linker>
 			<Add option="-pthread" />
 			<Add option="-Wl,-rpath=\\$$$ORIGIN/../../shyft/lib" />
-			<Add library="shyftcore" />
-			<Add library="shyftapi" />
+			<Add library="shyft_core" />
+			<Add library="shyft_api" />
 			<Add library="pthread" />
 			<Add library="boost_filesystem" />
 			<Add library="boost_system" />
