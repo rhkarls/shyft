@@ -6,7 +6,7 @@ from shyft.repository.interfaces import GeoTsRepository, ForecastSelectionCriter
 from shyft.repository.netcdf.concat_data_repository import ConcatDataRepository
 from shyft.repository.netcdf.met_netcdf_data_repository import MetNetcdfDataRepository
 import numpy as np
-# from .utils  import _clip_ensemble_of_geo_timeseries
+from .utils  import _clip_ensemble_of_geo_timeseries
 
 
 
@@ -54,13 +54,6 @@ class WXRepository(GeoTsRepository):
                                 "radiation": api.RadiationSourceVector,
                                 "wind_speed": api.WindSpeedSourceVector}
 
-        # ts point interpretation policy
-        self.series_type = {"relative_humidity": api.POINT_INSTANT_VALUE,
-                            "temperature": api.POINT_INSTANT_VALUE,
-                            "precipitation": api.POINT_AVERAGE_VALUE,
-                            "radiation": api.POINT_AVERAGE_VALUE,
-                            "wind_speed": api.POINT_INSTANT_VALUE}
-
     def get_timeseries_ensemble(self, input_source_types, utc_period, geo_location_criteria=None):
         """
         Get ensemble of shyft source vectors of time series covering utc_period
@@ -91,40 +84,5 @@ class WXRepository(GeoTsRepository):
                     for src in geo_ts]) for key, geo_ts in ens.items()} for ens in raw_ens]
         else:
             res = wx_repo.get_timeseries_ensemble(input_source_types, utc_period, geo_location_criteria)
-        return self._clip_ensemble_of_geo_timeseries(res, utc_period)
-        # return _clip_ensemble_of_geo_timeseries(res, utc_period, WXRepositoryError)
-
-    def _clip_ensemble_of_geo_timeseries(self, ensemble, utc_period):
-        """
-        Clip ensemble og source-keyed dictionaries of geo-ts according to utc_period
-
-        Parameters
-        ----------
-        ensemble: list
-            List of dictionaries keyed by time series type, where values are
-            api vectors of geo located time series over the same time axis
-        utc_period: api.UtcPeriod
-            The utc time period that should (as a minimum) be covered.
-        """
-        if utc_period is None:
-            return ensemble
-        else:
-            ta = ensemble[0][list(ensemble[0].keys())[0]][0].ts.time_axis
-            if ta.total_period().start > utc_period.start or ta.total_period().end < utc_period.end:
-                raise WXRepositoryError("Time axis does not cover utc_period.")
-            idx_start = np.argmax(ta.time_points > utc_period.start) - 1
-            idx_end = np.argmin(ta.time_points < utc_period.end)
-            if idx_start > 0 or idx_end < len(ta.time_points) - 1:
-                if ta.timeaxis_type == api.TimeAxisType.FIXED:
-                    dt = ta.time(1) - ta.time(0)
-                    n = int(idx_end - idx_start)
-                    ta = api.TimeAxis(int(ta.time_points[idx_start]), dt, n)
-                else:
-                    time_points = api.UtcTimeVector(ta.time_points[idx_start:idx_end].tolist())
-                    t_end = ta.time_points[idx_end]
-                    ta = api.TimeAxis(time_points, int(t_end))
-                return [{key: self.source_vector_map[key]([self.source_type_map[key](s.mid_point(), s.ts.average(ta))
-                                                      for s in geo_ts]) for key, geo_ts in f.items()} for f in ensemble]
-            else:
-                return ensemble
+        return _clip_ensemble_of_geo_timeseries(res, utc_period, WXRepositoryError)
 
