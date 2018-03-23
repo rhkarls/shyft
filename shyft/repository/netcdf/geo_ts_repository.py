@@ -117,21 +117,8 @@ class GeoTsRepository(interfaces.GeoTsRepository):
         return stations_ts
 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
-        """Method for fetching the sources in NetCDF files.
-
-        Parameters
-        ----------
-        input_source_types: list
-            List of source types to retrieve (precipitation, temperature..)
-        geo_location_criteria: bbox + proj.ref ?
-        utc_period : of type UtcPeriod
-
-        Returns
-        -------
-        data: dict
-            Shyft.api container for geo-located time series. Types are found from the
-            input_source_type.vector_t attribute.
-
+        """
+        see shyft.repository.interfaces.GeoTsRepository
         """
         data = dict()
         # Fill the data with actual values

@@ -1,7 +1,5 @@
 ﻿import os
 import re
-from glob import glob
-from os import path
 import numpy as np
 from netCDF4 import Dataset
 from shyft import api
@@ -55,13 +53,13 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             Allow extraction of a subset of the given source fields
             instead of raising exception.
         """
-        directory = path.expandvars(directory)
+        directory = os.path.expandvars(directory)
         self._directory = directory
         if filename is None:
             filename = "wrfout_d03_(\d{4})-(\d{2})"
         self._filename = filename
         self.allow_subset = allow_subset
-        if not path.isdir(directory):
+        if not os.path.isdir(directory):
             raise WRFDataRepositoryError("No such directory '{}'".format(directory))
 
         self.shyft_cs = "+init=EPSG:{}".format(epsg)
@@ -88,7 +86,7 @@ class WRFDataRepository(interfaces.GeoTsRepository):
         """
 
         filename = os.path.join(self._directory, self._filename)
-        if not path.isfile(filename):
+        if not os.path.isfile(filename):
             if re.compile(self._filename).groups > 0:  # check if it is a filename-pattern
                 filename = _get_files(self._directory, self._filename, utc_period.start, WRFDataRepositoryError)
             else:
