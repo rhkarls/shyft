@@ -164,6 +164,9 @@ namespace shyft {
                 utctimespan base_offset() const {return base_tz;}
                 utctimespan utc_offset(utctime t) const {return base_tz + tz.dst_offset(t);}
                 bool is_dst(utctime t) const {return tz.dst_offset(t)!=utctimespan(0);}
+                bool is_any_dst() const {return tz.is_dst();}
+                utctime dst_start(int year) const {return tz.dst_start(year);}
+                utctime dst_end(int year) const {return tz.dst_end(year);}
                 x_serialize_decl();
             };
 
