@@ -184,7 +184,7 @@ class WRFDataRepository(interfaces.GeoTsRepository):
             raw_data["relative_humidity"] = self._calculate_rel_hum(temperature, pressure,
                                                                     mixing_ratio), "relative_humidity_2m"
         extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
+        return _numpy_to_geo_ts_vec(extracted_data, x, y, z, WRFDataRepositoryError)
 
     def _transform_raw(self, data, time, issubset=False):
         """

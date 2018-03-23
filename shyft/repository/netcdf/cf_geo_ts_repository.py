@@ -102,7 +102,7 @@ class CFDataRepository(interfaces.GeoTsRepository):
             raise CFDataRepositoryError("Could not find all data fields")
 
         extracted_data = self._transform_raw(raw_data, time[time_slice], issubset=issubset)
-        return _numpy_to_geo_ts_vec(extracted_data, x, y, z)
+        return _numpy_to_geo_ts_vec(extracted_data, x, y, z, CFDataRepositoryError)
 
     def _transform_raw(self, data, time, issubset=False):
         """

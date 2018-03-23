@@ -141,7 +141,7 @@ class GFSDataRepository(interfaces.GeoTsRepository):
             raw_data["wind_speed"] = np.sqrt(np.square(x_wind) + np.square(y_wind))
         #extracted_data = self._transform_raw(raw_data, time)
         #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
-        return _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice]), x, y, z)
+        return _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice]), x, y, z, GFSDataRepositoryError)
 
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):
         """
