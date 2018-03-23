@@ -296,9 +296,9 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 #print([(k, raw_data[k][0].shape) for k in raw_data])
                 ensemble_raw = {k: (raw_data[k][0][ens_slice], raw_data[k][1], raw_data[k][2]) for k in raw_data.keys()}
                 #print([(k,ensemble_raw[k][0].shape) for k in ensemble_raw])
-                returned_data.append(_numpy_to_geo_ts_vec(self._transform_raw(ensemble_raw, time[time_slice], issubset=issubset), x, y, z))
+                returned_data.append(_numpy_to_geo_ts_vec(self._transform_raw(ensemble_raw, time[time_slice], issubset=issubset), x, y, z, MetNetcdfDataRepositoryError))
         else:
-            returned_data = _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice], issubset=issubset), x, y, z)
+            returned_data = _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice], issubset=issubset), x, y, z, MetNetcdfDataRepositoryError)
         return returned_data
 
     def _read_elevation_file(self, filename, x_var_name, y_var_name, geo_location_criteria):

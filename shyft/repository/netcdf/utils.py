@@ -29,23 +29,65 @@ create_geo_ts_type_map = {"relative_humidity": api.create_rel_hum_source_vector_
                                "radiation": api.create_radiation_source_vector_from_np_array,
                                "wind_speed": api.create_wind_speed_source_vector_from_np_array}
 
-def _numpy_to_geo_ts_vec(data, x, y, z, batch_conversion=True):
-    if batch_conversion:
-        geo_pts = api.GeoPointVector.create_from_x_y_z(*[api.DoubleVector_FromNdArray(arr) for arr in [x, y, z]])
-        return {key: create_geo_ts_type_map[key](ta, geo_pts, arr[:, :].transpose(), series_type[key])
-                for key, (arr, ta) in data.items()}
+# def _numpy_to_geo_ts_vec(data, x, y, z, batch_conversion=True):
+#     if batch_conversion:
+#         geo_pts = api.GeoPointVector.create_from_x_y_z(*[api.DoubleVector_FromNdArray(arr) for arr in [x, y, z]])
+#         return {key: create_geo_ts_type_map[key](ta, geo_pts, arr[:, :].transpose(), series_type[key])
+#                 for key, (arr, ta) in data.items()}
+#     else:
+#         res = {}
+#         pts = np.column_stack((x, y, z))
+#         for key, (data, ta) in data.items():
+#             tpe = source_type_map[key]
+#             tpe_v = tpe.vector_t()
+#             for idx in range(len(pts)):
+#                 tpe_v.append(
+#                     tpe(api.GeoPoint(*pts[idx]),
+#                         api.TimeSeries(ta, api.DoubleVector.FromNdArray(data[:, idx]), series_type[key])))
+#             res[key] = tpe_v
+#         return res
+
+def _numpy_to_geo_ts_vec(data, x, y, z, err):
+    """
+    Convert timeseries from numpy structures to shyft.api geo-timeseries vector.
+    Parameters
+    ----------
+    data: dict of np.ndarray
+        array with shape
+        (nb_forecasts, nb_lead_times, nb_ensemble_members, nb_points) or
+        (nb_lead_times, nb_ensemble_members, nb_points) or
+        (nb_lead_times, nb_points)
+    x: np.ndarray
+        X coordinates in meters in cartesian coordinate system, with array shape = (nb_points)
+    y: np.ndarray
+        Y coordinates in meters in cartesian coordinate system, with array shape = (nb_points)
+    z: np.ndarray
+        elevation in meters, with array shape = (nb_points)
+    Returns
+    -------
+    timeseries: dict
+        Time series arrays keyed by type
+    """
+    geo_pts = api.GeoPointVector.create_from_x_y_z(*[api.DoubleVector_FromNdArray(arr) for arr in [x, y, z]])
+    shape = list(data.values())[0][0].shape
+    ndim = len(shape)
+    if ndim == 4:
+        nb_forecasts = shape[0]
+        nb_ensemble_members = shape[2]
+        geo_ts = [[{key: create_geo_ts_type_map[key](ta[i], geo_pts, arr[i, :, j, :].transpose(), series_type[key])
+                    for key, (arr, ta) in data.items()}
+                   for j in range(nb_ensemble_members)] for i in range(nb_forecasts)]
+    elif ndim == 3:
+        nb_ensemble_members = shape[1]
+        geo_ts = [{key: create_geo_ts_type_map[key](ta, geo_pts, arr[:, j, :].transpose(), series_type[key])
+                   for key, (arr, ta) in data.items()}
+                  for j in range(nb_ensemble_members)]
+    elif ndim == 2:
+        geo_ts = {key: create_geo_ts_type_map[key](ta, geo_pts, arr[:, :].transpose(), series_type[key])
+                  for key, (arr, ta) in data.items()}
     else:
-        res = {}
-        pts = np.column_stack((x, y, z))
-        for key, (data, ta) in data.items():
-            tpe = source_type_map[key]
-            tpe_v = tpe.vector_t()
-            for idx in range(len(pts)):
-                tpe_v.append(
-                    tpe(api.GeoPoint(*pts[idx]),
-                        api.TimeSeries(ta, api.DoubleVector.FromNdArray(data[:, idx]), series_type[key])))
-            res[key] = tpe_v
-        return res
+        raise err("Number of dimensions, ndim, of Numpy array to be converted to shyft GeoTsVector not 2<=ndim<=4.")
+    return geo_ts
 
 def _validate_geo_location_criteria(geo_location_criteria, err):
     """
