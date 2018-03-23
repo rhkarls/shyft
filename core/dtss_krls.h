@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include <boost/filesystem.hpp>
@@ -14,6 +15,128 @@ namespace fs = boost::filesystem;
 
 namespace shyft {
 namespace dtss {
+
+/*
+ * Data layout:
+ *
+ *  <krls.ts.db.file> ::
+ *      "KRLS.TS.DB.0001" '\0'              # format identifier and version, null terminated
+ *      <header-skip>     -> uint64_t       # number of bytes from the beginning of the file to the header block
+ *      <predictor-skip>  -> uint64_t       # number of bytes from the beginning of the file to the predictor block
+ *      <header>                            # header block
+ *      <predictor>                         # serialized predictor object
+ *  
+ *  <header> ::
+ *      <scaling>         -> int64_t        # time-axis scaling
+ *      <tolerance>       -> double         # krls tolerance parameter
+ *      <t_start>         -> int64_t        # earliest trained data point
+ *      <t_end>           -> int64_t        # latest trained data point
+ *
+ *  <predictor> ::
+ *      <kernel-type>     -> int32_t        # identifier for the kernel function
+ *      <predictor-n>     -> uint64_t       # size in bytes of the following predictor blob
+ *      <predictor-blob>
+ *
+ *  <predictor-blob> ::
+ *      if <kernel-type> == krls_kernel_type_identifiers::radial_basis_kernel
+ *          <gamma>       -> double         # rb function gamma parameter
+ *          <predictor>                     # serialized predictor object
+ */
+
+
+enum class krls_kernel_type_identifiers : std::int32_t {
+    radial_basis_kernel = 1
+};
+
+
+struct krls_ts_db_header {
+    std::int64_t  scaling;
+    double        tolerance;
+    std::int64_t  t_start;
+    std::int64_t  t_end;
+
+    krls_ts_db_header() { }
+    krls_ts_db_header(std::int64_t scaling, double tolerance, std::int64_t t_start, std::int64_t t_end)
+        : scaling{ scaling }, tolerance{ tolerance }, t_start{ t_start }, t_end{ t_end }
+    { }
+};
+static_assert(std::is_trivially_copyable_v<krls_ts_db_header>,
+              "\"krls_ts_db_header\" needs to be a trivially copyable type");
+
+
+/** \brief  Encapsulation of file io functionality.
+ */
+struct krls_pred_db_io {
+
+    static constexpr std::array<char, 16> file_id{  // "KRLS.TS.DB.0001" + '\0'
+        'K', 'R', 'L', 'S', '.', 'T', 'S', '.', 'D', 'B', '.', '0', '0', '0', '1', '\0'
+    };
+
+    /*  pre-header data
+     * ================= */
+
+    static bool can_read_file(std::FILE * fh) {
+        std::fseek(fh, 0, SEEK_SET);
+
+        std::remove_const_t<decltype(file_id)> data;  // ensure the type matches the header we are looking for
+        std::fread(static_cast<void *>(data.data()), sizeof(char), file_id.size(), fh);
+
+        return data == file_id;
+    }
+
+    // --------------------
+
+    static std::uint64_t read_header_start(std::FILE * fh) {
+        std::fseek(fh, file_id.size()*sizeof(char), SEEK_SET);
+
+        std::uint64_t skip_val;
+        std::fread(static_cast<void*>(&skip_val), sizeof(std::uint64_t), 1, fh);
+
+        return skip_val;
+    }
+
+    static std::uint64_t read_predictor_start(std::FILE * fh) {
+        std::fseek(fh, file_id.size()*sizeof(char) + sizeof(std::uint64_t), SEEK_SET);
+
+        std::uint64_t skip_val;
+        std::fread(static_cast<void*>(&skip_val), sizeof(std::uint64_t), 1, fh);
+
+        return skip_val;
+    }
+
+    /*  header data
+     * ============= */
+
+    static krls_ts_db_header read_header(std::FILE * fh) {
+        std::fseek(fh, read_header_start(fh), SEEK_SET);
+
+        krls_ts_db_header header;
+        std::fread(static_cast<void*>(&header), sizeof(krls_ts_db_header), 1, fh);
+
+        return header;
+    }
+
+    /*  predictor data
+     * ================ */
+
+    static krls_kernel_type_identifiers read_predictor_kernel_type(std::FILE * fh) {
+        std::fseek(fh, read_predictor_start(fh), SEEK_SET);
+
+        krls_kernel_type_identifiers kernel_type;
+        std::fread(static_cast<void*>(&kernel_type), sizeof(krls_kernel_type_identifiers), 1, fh);
+
+        return kernel_type;
+    }
+
+    static void read_predictor_blob(std::FILE * fh) {
+        // std::fseek(fh, read_predictor_start(fh), SEEK_SET);  // TODO skip correctly
+
+        // ...
+
+        // return ???;
+    }
+};
+
 
 class krls_pred_db {
 
