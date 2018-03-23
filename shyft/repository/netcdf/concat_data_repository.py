@@ -1,17 +1,11 @@
-import os
 from os import path
 import numpy as np
 from netCDF4 import Dataset
-import pyproj
-from shapely.ops import transform
-from shapely.geometry import MultiPoint, Polygon, MultiPolygon
-from shapely.prepared import prep
-from functools import partial
 from shyft import api
 from shyft import shyftdata_dir
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
-from .utils  import calc_RH
+from .utils  import calc_RH, _limit_1D, _numpy_to_geo_ts_vec
 import warnings
 from shyft.repository.interfaces import ForecastSelectionCriteria
 
@@ -55,18 +49,6 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
 
     _G = 9.80665  # WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    # # Constants used in RH calculation
-    # __a1_w = 611.21  # Pa
-    # __a3_w = 17.502
-    # __a4_w = 32.198  # K
-    #
-    # __a1_i = 611.21  # Pa
-    # __a3_i = 22.587
-    # __a4_i = -20.7  # K
-    #
-    # __T0 = 273.16  # K
-    # __Tice = 205.16  # K
-
     def __init__(self, epsg, filename, nb_pads=0, nb_lead_intervals_to_drop=0, nb_lead_intervals=None, fc_periodicity=1,
                  ensemble_member=0, padding=5000., use_filled_values=False):
         """
@@ -96,7 +78,6 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             Use forecast with filled valued if True
         """
 
-        # filename = filename.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
         filename = path.expandvars(filename)
         if not path.isabs(filename):
             # Relative paths will be prepended the data_dir
@@ -232,7 +213,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         with Dataset(self._filename) as dataset:
             # fc_selection_criteria ={'forecasts_with_start_within_period': utc_period}
             fc_selection_criteria = ForecastSelectionCriteria(forecasts_with_start_within_period=utc_period)
-            extracted_data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+            extracted_data, x, y, z = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                                   geo_location_criteria,
                                                                   nb_lead_intervals=self.fc_len_to_concat, concat=True)
             # check if extra_intervals are required
@@ -247,14 +228,15 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                                                     "period for which data is requested")
                 fc_selection_criteria = ForecastSelectionCriteria(latest_available_forecasts=
                                                              {'number_of_forecasts': 1, 'forecasts_older_than': ta_end})
-                extra_data, _ = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+                extra_data, _,_,_ = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                     geo_location_criteria, nb_lead_intervals_to_drop=drop, nb_lead_intervals=idx,
                                     concat=False) # note: no concat here
                 ta_extra = list(extra_data.values())[0][1][0]
                 ta = api.TimeAxis(api.UtcTimeVector.from_numpy(np.append(ta.time_points, ta_extra.time_points[1:])))
                 extracted_data = {k: (np.concatenate((extracted_data[k][0], np.squeeze(extra_data[k][0], axis=0))), ta)
                                                                                 for k in list(extracted_data.keys())}
-            return self._convert_to_geo_timeseries(extracted_data, geo_pts, concat=True)
+            # return self._convert_to_geo_timeseries(extracted_data, geo_pts, concat=True)
+            return _numpy_to_geo_ts_vec(extracted_data, x, y, z, ConcatDataRepositoryError)
 
     def get_timeseries(self, input_source_types, utc_period, geo_location_criteria=None):
         """
@@ -281,7 +263,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         with Dataset(self._filename) as dataset:
             # fc_selection_criteria ={'forecasts_with_start_within_period': utc_period}
             fc_selection_criteria = ForecastSelectionCriteria(forecasts_with_start_within_period=utc_period)
-            extracted_data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+            extracted_data, x, y, z = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                                   geo_location_criteria,
                                                                   nb_lead_intervals=self.fc_len_to_concat, concat=True,
                                                                   ensemble_member=self.ensemble_member)
@@ -297,14 +279,15 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                                                     "period for which data is requested")
                 fc_selection_criteria = ForecastSelectionCriteria(latest_available_forecasts=
                                                              {'number_of_forecasts': 1, 'forecasts_older_than': ta_end})
-                extra_data, _ = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+                extra_data, _, _,_ = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                     geo_location_criteria, nb_lead_intervals_to_drop=drop, nb_lead_intervals=idx,
                                     concat=False, ensemble_member=self.ensemble_member) # note: no concat here
                 ta_extra = list(extra_data.values())[0][1][0]
                 ta = api.TimeAxis(api.UtcTimeVector.from_numpy(np.append(ta.time_points, ta_extra.time_points[1:])))
                 extracted_data = {k: (np.concatenate((extracted_data[k][0], np.squeeze(extra_data[k][0], axis=0))), ta)
                                                                                 for k in list(extracted_data.keys())}
-            return self._convert_to_geo_timeseries(extracted_data, geo_pts, concat=True)[0]
+            #return self._convert_to_geo_timeseries(extracted_data, geo_pts, concat=True)[0]
+            return _numpy_to_geo_ts_vec(extracted_data, x, y, z, ConcatDataRepositoryError)
 
     def get_forecast_ensemble_collection(self, input_source_types, fc_selection_criteria, geo_location_criteria=None):
         """
@@ -330,9 +313,10 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                     for t_c in v]
         else:
             with Dataset(self._filename) as dataset:
-                data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+                data, x, y, z = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                                       geo_location_criteria, concat=False)
-                return self._convert_to_geo_timeseries(data, geo_pts, concat=False)
+                #return self._convert_to_geo_timeseries(data, geo_pts, concat=False)
+                return _numpy_to_geo_ts_vec(data, x, y, z, ConcatDataRepositoryError)
 
     def get_forecast_collection(self, input_source_types, fc_selection_criteria, geo_location_criteria=None):
         """
@@ -356,10 +340,11 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             return [self.get_forecast_collection(input_source_types, fsc(t_c), geo_location_criteria)[0] for t_c in v]
         else:
             with Dataset(self._filename) as dataset:
-                data, geo_pts = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
+                data, x, y, z = self._get_data_from_dataset(dataset, input_source_types, fc_selection_criteria,
                                                             geo_location_criteria, concat=False,
                                                             ensemble_member=self.ensemble_member)
-                return [fcst[0] for fcst in self._convert_to_geo_timeseries(data, geo_pts, concat=False)]
+                #return [fcst[0] for fcst in self._convert_to_geo_timeseries(data, geo_pts, concat=False)]
+                return [fcst[0] for fcst in _numpy_to_geo_ts_vec(data, x, y, z, ConcatDataRepositoryError)]
 
     def get_forecast_ensemble(self, input_source_types, utc_period,
                               t_c, geo_location_criteria=None):
@@ -450,7 +435,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             self._validate_input(dataset, input_source_types, geo_location_criteria)
 
         # find geo_slice for slicing dataset
-        geo_pts, m_xy, xy_slice, dim_grid = self._get_geo_slice(dataset, geo_location_criteria)
+        x, y, z, m_xy, xy_slice, dim_grid = self._get_geo_slice(dataset, geo_location_criteria)
 
         # find time_slice and lead_time_slice for slicing dataset
         lead_times_in_sec = self.lead_times_in_sec
@@ -535,7 +520,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
 
         data_lead_time_slice = slice(lead_time_slice.start, lead_time_slice.stop + 1)
         extracted_data = self._transform_raw(raw_data, time, lead_times_in_sec[data_lead_time_slice], concat)
-        return extracted_data, geo_pts
+        return extracted_data, x, y, z
 
     def _validate_input(self, dataset, input_source_types, geo_location_criteria):
         """
@@ -544,8 +529,6 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         * Check if ekstra variables are required to compute wind-speed
           and relative humidity and if so return flags
         """
-        # Validate geo_location criteria
-        self._validate_geo_location_criteria(geo_location_criteria)
 
         # Check units match
         unit_ok = {k: dataset.variables[k].units in self.var_units[k]
@@ -578,16 +561,6 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
 
         return input_source_types, no_temp, rh_not_ok, no_x_wind, no_y_wind, wind_not_ok
 
-    def _validate_geo_location_criteria(self, geo_location_criteria):
-        """
-        * Validate geo_location_criteria.
-        * Currently supports 'bbox' and 'polygon'
-        """
-        if geo_location_criteria is not None:
-            if not isinstance(geo_location_criteria, (Polygon, MultiPolygon)):
-                raise ConcatDataRepositoryError("Unrecognized geo_location_criteria. "
-                                                   "It should be one of these shapley objects: (Polygon, MultiPolygon).")
-
     def _get_geo_slice(self, dataset, geo_location_criteria):
         """
         * Return name of "geo" dimension in dataset (dim_grid)
@@ -605,7 +578,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         data_cs = dataset.variables.get("crs", None)
         if data_cs is None:
             raise ConcatDataRepositoryError("No coordinate system information in dataset.")
-        x, y, m_xy, xy_slice = self._limit(x[:], y[:], data_cs.proj4, self.shyft_cs, geo_location_criteria)
+        x, y, m_xy, xy_slice = _limit_1D(x[:], y[:], data_cs.proj4, self.shyft_cs, geo_location_criteria, self.padding, ConcatDataRepositoryError)
 
         # Find height
         if 'z' in dataset.variables.keys():
@@ -617,58 +590,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         else:
             raise ConcatDataRepositoryError("No elevations found in dataset")
 
-        return api.GeoPointVector.create_from_x_y_z(x, y, z), m_xy, xy_slice, dim_grid
-
-    def _limit(self, x, y, data_cs, target_cs, geo_location_criteria):
-        """
-        Project coordinates from data_cs to target_cs, identify points defined by geo_location_criteria as mask and find
-        limiting slice
-
-        Parameters
-        ----------
-        x: np.ndarray
-            X coordinates in meters in cartesian coordinate system
-            specified by data_cs
-        y: np.ndarray
-            Y coordinates in meters in cartesian coordinate system
-            specified by data_cs
-        data_cs: string
-            Proj4 string specifying the cartesian coordinate system
-            of x and y
-        target_cs: string
-            Proj4 string specifying the target coordinate system
-
-        Returns
-        -------
-        xx: np.ndarray
-            Coordinates in target coordinate system
-        yy: np.ndarray
-            Coordinates in target coordinate system
-        xy_mask: np.ndarray
-            Boolean index array
-        """
-        # Get coordinate system for netcdf data
-        data_proj = pyproj.Proj(data_cs)
-        target_proj = pyproj.Proj(target_cs)
-
-        if geo_location_criteria is None:   # get all geo_pts in dataset
-            xy_mask = np.ones(np.size(x), dtype=bool)
-
-        else:
-            poly = geo_location_criteria
-            pts_in_file = MultiPoint(np.dstack((x, y)).reshape(-1, 2))
-            project = partial(pyproj.transform, target_proj, data_proj)
-            poly_prj = transform(project, poly)
-            p_poly = prep(poly_prj.buffer(self.padding))
-            xy_mask = np.array(list(map(p_poly.contains, pts_in_file)))
-
-        # Check if there is at least one point extaracted and raise error if there isn't
-        if not xy_mask.any():
-            raise ConcatDataRepositoryError("No points in dataset which satisfy geo_selection_criteria.")
-        xy_inds = np.nonzero(xy_mask)[0]
-        # Transform from source coordinates to target coordinates
-        xx, yy = pyproj.transform(data_proj, target_proj, x[xy_mask], y[xy_mask])
-        return xx, yy, xy_mask, slice(xy_inds[0], xy_inds[-1] + 1)
+        return x, y, z, m_xy, xy_slice, dim_grid
 
     def _make_time_slice(self, nb_lead_intervals_to_drop, nb_lead_intervals, fc_selection_criteria):
         """
@@ -835,49 +757,24 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
             res[k] = pad(*convert_map[k](v, ak, time))
         return res
 
-    def _convert_to_geo_timeseries(self, data, geo_pts, concat):
-        """
-        Convert timeseries from numpy structures to shyft.api geo-timeseries.
-
-        Returns
-        -------
-        timeseries: dict
-            Time series arrays keyed by type
-        """
-        nb_ensemble_members = list(data.values())[0][0].shape[-2]
-        if concat:
-            geo_ts = [{key: self.create_geo_ts_type_map[key](ta, geo_pts, arr[:, j, :].transpose(), self.series_type[key])
-                       for key, (arr, ta) in data.items()}
-                       for j in range(nb_ensemble_members)]
-        else:
-            nb_forecasts = list(data.values())[0][0].shape[0]
-            geo_ts = [[{key:
-                        self.create_geo_ts_type_map[key](ta[i], geo_pts, arr[i,:,j,:].transpose(), self.series_type[key])
-                       for key, (arr, ta) in data.items()}
-                       for j in range(nb_ensemble_members)] for i in range(nb_forecasts)]
-        return geo_ts
-
-    # @classmethod
-    # def calc_q(cls, T, p, alpha):
-    #     e_w = cls.__a1_w * np.exp(cls.__a3_w * ((T - cls.__T0) / (T - cls.__a4_w)))
-    #     e_i = cls.__a1_i * np.exp(cls.__a3_i * ((T - cls.__T0) / (T - cls.__a4_i)))
-    #     q_w = 0.622 * e_w / (p - (1 - 0.622) * e_w)
-    #     q_i = 0.622 * e_i / (p - (1 - 0.622) * e_i)
-    #     return alpha * q_w + (1 - alpha) * q_i
+    # def _convert_to_geo_timeseries(self, data, geo_pts, concat):
+    #     """
+    #     Convert timeseries from numpy structures to shyft.api geo-timeseries.
     #
-    # @classmethod
-    # def calc_alpha(cls, T):
-    #     alpha = np.zeros(T.shape, dtype='float')
-    #     # alpha[T<=Tice]=0.
-    #     alpha[T >= cls.__T0] = 1.
-    #     indx = (T < cls.__T0) & (T > cls.__Tice)
-    #     alpha[indx] = np.square((T[indx] - cls.__Tice) / (cls.__T0 - cls.__Tice))
-    #     return alpha
-    #
-    # @classmethod
-    # def calc_RH(cls, T, Td, p):
-    #     alpha = cls.calc_alpha(T)
-    #     qsat = cls.calc_q(T, p, alpha)
-    #     q = cls.calc_q(Td, p, alpha)
-    #     return q / qsat
-
+    #     Returns
+    #     -------
+    #     timeseries: dict
+    #         Time series arrays keyed by type
+    #     """
+    #     nb_ensemble_members = list(data.values())[0][0].shape[-2]
+    #     if concat:
+    #         geo_ts = [{key: self.create_geo_ts_type_map[key](ta, geo_pts, arr[:, j, :].transpose(), self.series_type[key])
+    #                    for key, (arr, ta) in data.items()}
+    #                    for j in range(nb_ensemble_members)]
+    #     else:
+    #         nb_forecasts = list(data.values())[0][0].shape[0]
+    #         geo_ts = [[{key:
+    #                     self.create_geo_ts_type_map[key](ta[i], geo_pts, arr[i,:,j,:].transpose(), self.series_type[key])
+    #                    for key, (arr, ta) in data.items()}
+    #                    for j in range(nb_ensemble_members)] for i in range(nb_forecasts)]
+    #     return geo_ts
