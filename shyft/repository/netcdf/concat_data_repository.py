@@ -401,6 +401,10 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                 fsc = ForecastSelectionCriteria(latest_available_forecasts=
                                               {'number_of_forecasts': 1, 'forecasts_older_than':t_c})
             else:
+                if t_c > utc_period.start: # This is error is strickly not required, but in order not to confuse user
+                    raise ConcatDataRepositoryError(
+                        "Time stamp 't_c'={} is later than start of 'utc_period'={}".\
+                            format(UTC.to_string(t_c), utc_period.to_string()))
                 fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
                 time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
                                                                          self.nb_lead_intervals, fsc)
@@ -410,7 +414,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                     raise ConcatDataRepositoryError(
                         "Not able to find forecast that cover the requested period with the provided restrictions "
                         "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
-                            format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
+                        format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, UTC.to_string(t_c)))
                 fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
             return self.get_forecast_ensemble_collection(input_source_types, fsc, geo_location_criteria)[0]
 
@@ -434,6 +438,10 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                 fsc = ForecastSelectionCriteria(latest_available_forecasts=
                                                 {'number_of_forecasts': 1, 'forecasts_older_than': t_c})
             else:
+                if t_c > utc_period.start: # This is error is strickly not required, but in order not to confuse user
+                    raise ConcatDataRepositoryError(
+                        "Time stamp 't_c'={} is later than start of 'utc_period'={}".\
+                            format(UTC.to_string(t_c), utc_period.to_string()))
                 fsc = ForecastSelectionCriteria(forecasts_that_cover_period=utc_period)
                 time_slice, lead_time_slice, m_t = self._make_time_slice(self.nb_lead_intervals_to_drop,
                                                                          self.nb_lead_intervals, fsc)
@@ -443,7 +451,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                     raise ConcatDataRepositoryError(
                         "Not able to find forecast that cover the requested period with the provided restrictions "
                         "'nb_lead_intervals_to_drop'={}, 'nb_lead_intervals'={}, 'fc_periodicity'={} and 't_c'={}". \
-                            format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, t_c))
+                            format(self.nb_lead_intervals_to_drop, self.nb_lead_intervals, self.fc_periodicity, UTC.to_string(t_c)))
                 fsc = ForecastSelectionCriteria(forecasts_at_reference_times=[int(ref_time)])
             return self.get_forecast_collection(input_source_types, fsc, geo_location_criteria)[0]
 
@@ -570,7 +578,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                 raise ConcatDataRepositoryError("Not able to retrieve relative_humidity from dataset")
 
         data_lead_time_slice = slice(lead_time_slice.start, lead_time_slice.stop + 1)
-        extracted_data = self._transform_raw(raw_data, time, lead_times_in_sec[data_lead_time_slice], concat)
+        extracted_data = self._transform_raw(raw_data, time, lead_times_in_sec[data_lead_time_slice], concat, issubset=issubset)
         return extracted_data, geo_pts
 
     def _validate_input(self, dataset, input_source_types, geo_location_criteria):
@@ -779,7 +787,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
         lead_time_slice = slice(nb_lead_intervals_to_drop, nb_lead_intervals_to_drop + nb_lead_intervals)
         return time_slice, lead_time_slice, m_t
 
-    def _transform_raw(self, data, time, lead_time, concat):
+    def _transform_raw(self, data, time, lead_time, concat, issubset=False):
         # TODO: check robustness off all conversion for flexible lead_times
         """
         We need full time if deaccumulating
@@ -797,7 +805,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
 
         # time axis for forecast output
         def forecast_t(t, daccumulated_var=False):
-            nb_ext_lead_times = len(lead_time) - 1 if daccumulated_var else len(lead_time)
+            nb_ext_lead_times = len(lead_time) - 1 if (daccumulated_var or issubset) else len(lead_time)
             t_all = np.repeat(t, nb_ext_lead_times).reshape(len(t), nb_ext_lead_times) + lead_time[0:nb_ext_lead_times]
             return t_all.astype(int)
 
