@@ -20,8 +20,8 @@ class CFDataRepository(interfaces.GeoTsRepository):
     Repository for geo located timeseries stored in netCDF files.
 
     """
-    def __init__(self, epsg, stations_met, padding=5000.):
-        filename = path.expandvars(stations_met)
+    def __init__(self, epsg, filename, padding=5000.):
+        filename = path.expandvars(filename)
 
         if not path.isabs(filename):
             # Relative paths will be prepended the data_dir
@@ -84,7 +84,7 @@ class CFDataRepository(interfaces.GeoTsRepository):
                 else:
                     data_time_slice = time_slice
                 data = dataset.variables[k]
-                pure_arr = _slice_var_1D(data, dim_nb_series, xy_slice, m_xy, time_slice=data_time_slice, ensemble_member=None)
+                pure_arr = _slice_var_1D(data, dim_nb_series, xy_slice, m_xy, slices={'time': data_time_slice})
                 raw_data[self._nc_shyft_map[k]] = pure_arr, k
 
         if "z" in dataset.variables.keys():
