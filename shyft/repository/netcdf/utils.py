@@ -78,6 +78,7 @@ def _clip_ensemble_of_geo_timeseries(ensemble, utc_period, err):
     if utc_period is None:
         return ensemble
     else:
+        # TODO; fix so it treats INSTNAT TYPE separetly from AVERAGE
         ta = ensemble[0][list(ensemble[0].keys())[0]][0].ts.time_axis
         if ta.total_period().start > utc_period.start or ta.total_period().end < utc_period.end:
             raise err("Time axis does not cover utc_period.")
