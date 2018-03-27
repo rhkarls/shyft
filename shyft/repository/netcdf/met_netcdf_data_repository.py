@@ -244,14 +244,15 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         raw_data = {}
         for k in dataset.variables.keys():
             if self._arome_shyft_map.get(k, None) in input_source_types:
-                if k in self._shift_fields and issubset:  # Add one to time slice
-                    data_time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra value that is needed for accumulated variables
-                else:
-                    data_time_slice = time_slice
+                # if k in self._shift_fields and issubset:  # Add one to time slice
+                #     data_time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra value that is needed for accumulated variables
+                # else:
+                #     data_time_slice = time_slice
                 data = dataset.variables[k]
                 pure_arr = _slice_var_2D(data, x_var.name, y_var.name, x_slice, y_slice, x_inds,
                                          y_inds, MetNetcdfDataRepositoryError,
-                                         slices={'time': data_time_slice, 'ensemble_member': ensemble_member})
+                                         #slices={'time': data_time_slice, 'ensemble_member': ensemble_member})
+                                         slices = {'time': time_slice, 'ensemble_member': ensemble_member})
                 raw_data[self._arome_shyft_map[k]] = pure_arr, k, data.units
 
         if self.elevation_file is not None:
@@ -285,7 +286,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 sfc_t = raw_data["temperature"][0]
             raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, sfc_p), "relative_humidity_2m", '1'
         #print(data.dimensions)
-        time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra time that is needed for accumulated variables
+        #time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra time that is needed for accumulated variables
         if ensemble_member is None and 'ensemble_member' in data.dimensions:
             dims_flat = [d for d in data.dimensions if d in ['time', 'ensemble_member', x_var.name]]
             ens_dim_idx = dims_flat.index('ensemble_member')
@@ -296,9 +297,11 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 #print([(k, raw_data[k][0].shape) for k in raw_data])
                 ensemble_raw = {k: (raw_data[k][0][ens_slice], raw_data[k][1], raw_data[k][2]) for k in raw_data.keys()}
                 #print([(k,ensemble_raw[k][0].shape) for k in ensemble_raw])
-                returned_data.append(_numpy_to_geo_ts_vec(self._transform_raw(ensemble_raw, time[time_slice], issubset=issubset), x, y, z, MetNetcdfDataRepositoryError))
+                returned_data.append(_numpy_to_geo_ts_vec(self._transform_raw(ensemble_raw, time[time_slice]),#, issubset=issubset)
+                                                          x, y, z, MetNetcdfDataRepositoryError))
         else:
-            returned_data = _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice], issubset=issubset), x, y, z, MetNetcdfDataRepositoryError)
+            returned_data = _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice]),#, issubset=issubset),
+                                                 x, y, z, MetNetcdfDataRepositoryError)
         return returned_data
 
     def _read_elevation_file(self, filename, x_var_name, y_var_name, geo_location_criteria):
@@ -313,14 +316,14 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             z = _slice_var_2D(elev, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, MetNetcdfDataRepositoryError)
             return x, y, z
 
-    def _transform_raw(self, data, time, issubset=False):
+    def _transform_raw(self, data, time):#, issubset=False):
         """
         We need full time if deaccumulating
         """
 
         def noop_time(t):
-            if issubset:
-                t = t[:-1]
+            # if issubset:
+            #     t = t[:-1]
             dt_last = int(t[-1] - t[-2])
             if np.all(t[1:] - t[:-1] == dt_last):  # fixed_dt time axis
                 return api.TimeAxis(int(t[0]), dt_last, len(t))
