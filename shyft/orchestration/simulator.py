@@ -152,7 +152,7 @@ class DefaultSimulator(object):
         # Recommended since it is checked if cell info match
         self.region_model.state.apply_state(self.get_initial_state_from_repo() if state is None else state, [])
         self.region_model.initial_state = self.region_model.current_state
-        bbox = self.region_model.bounding_region.bounding_box(self.epsg)
+        bbox = self.region_model.bounding_region.bounding_polygon(self.epsg)
         period = time_axis.total_period()
         sources = self.geo_ts_repository.get_timeseries(self._geo_ts_names, period,
                                                         geo_location_criteria=bbox)
@@ -161,7 +161,7 @@ class DefaultSimulator(object):
         self.simulate()
 
     def run_forecast(self, time_axis, t_c, state):
-        bbox = self.region_model.bounding_region.bounding_box(self.epsg)
+        bbox = self.region_model.bounding_region.bounding_polygon(self.epsg)
         period = time_axis.total_period()
         sources = self.geo_ts_repository.get_forecast(self._geo_ts_names, period, t_c,
                                                       geo_location_criteria=bbox)
@@ -173,7 +173,7 @@ class DefaultSimulator(object):
         self.simulate()
 
     def create_ensembles(self, time_axis, t_c, state=None):
-        bbox = self.region_model.bounding_region.bounding_box(self.epsg)
+        bbox = self.region_model.bounding_region.bounding_polygon(self.epsg)
         period = time_axis.total_period()
         sources = self.geo_ts_repository.get_forecast_ensemble(self._geo_ts_names, period, t_c,
                                                                geo_location_criteria=bbox)
@@ -190,7 +190,7 @@ class DefaultSimulator(object):
 
     def _optimize(self, p, optim_method, optim_method_params, run_interp=True):
         if run_interp:
-            bbox = self.region_model.bounding_region.bounding_box(self.epsg)
+            bbox = self.region_model.bounding_region.bounding_polygon(self.epsg)
             period = self.time_axis.total_period()
             sources = self.geo_ts_repository.get_timeseries(self._geo_ts_names, period,
                                                             geo_location_criteria=bbox)
