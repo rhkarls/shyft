@@ -80,6 +80,7 @@ add_compile_options(-fPIC -fexceptions -pthread -Wno-deprecated-declarations)
 add_definitions("-DARMA_USE_CXX11 -DARMA_NO_DEBUG -DBOOST_VARIANT_MINIMIZE_SIZE")
 include_directories(${CMAKE_SOURCE_DIR} ${SHYFT_DEPENDENCIES}/include) # we could add more explicit list boost,dlib,armadillo,doctest here
 
+
 # C++ core and tests
 if(BUILD_TESTING)
   enable_testing()

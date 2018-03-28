@@ -89,9 +89,11 @@
     get_filename_component(b_system ${boost_system_lib} REALPATH CACHE)
     get_filename_component(b_serialization ${boost_serialization_lib} REALPATH CACHE)
     get_filename_component(b_python3 ${boost_python3_lib} REALPATH CACHE)
+    string(REPLACE ".400.0" ""   a_lib_major ${a_lib})  # fixup for armadillo that references major version
 
     # step 3: install to the shyft/lib (that is referenced by the RPATH relative to the extensions libraries on linux)
     install(FILES 
+        ${a_lib_major}
         ${a_lib}
         ${d_lib}
         ${b_system}
@@ -100,4 +102,3 @@
         ${b_serialization}
         DESTINATION ${CMAKE_SOURCE_DIR}/shyft/lib
     )
-    #install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${$CMAKE_SOURCE_DIR}/shyft/lib/libdlib.so.8)")

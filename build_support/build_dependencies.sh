@@ -41,8 +41,8 @@ if [ ! -d ${dlib_name} ]; then
     tar -xf ${dlib_name}.tar.bz2
     pushd ${dlib_name}
     mkdir -p build
-    dlib_cfg="-DDLIB_PNG_SUPPORT=0 -DDLIB_GIF_SUPPORT=0 -DDLIB_LINK_WITH_SQLITE3=0 -DDLIB_NO_GUI_SUPPORT=1 -DDLIB_JPEG_SUPPORT=0 -DDLIB_USE_BLAS=0 -DDLIB_USE_LAPACK=0 -DBUILD_SHARED_LIBS=ON"
-    cd build && cmake .. -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DCMAKE_INSTALL_LIBDIR=lib ${cmake_common} ${dlib_cfg} && cmake --build . --config Release --target dlib && make install
+    dlib_cfg="-DDLIB_PNG_SUPPORT=0 -DDLIB_GIF_SUPPORT=0 -DDLIB_LINK_WITH_SQLITE3=0 -DDLIB_NO_GUI_SUPPORT=1 -DDLIB_DISABLE_ASSERTS=1 -DDLIB_JPEG_SUPPORT=0 -DDLIB_USE_BLAS=0 -DDLIB_USE_LAPACK=0 -DBUILD_SHARED_LIBS=ON"
+    cd build && cmake .. -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DCMAKE_INSTALL_LIBDIR=lib ${cmake_common} ${dlib_cfg} && cmake --build . --config Release --target install
     popd
 fi;
 echo Done ${dlib_name}
@@ -141,7 +141,7 @@ else
     git clone https://github.com/statkraft/shyft-data
 fi;
 echo Done shyft-data
-echo Update shyft/shyft/lib with all 3rd party .so so that rpath will work for python extensions
-mkdir -p ${WORKSPACE}/shyft/shyft/lib
-install  --preserve-timestamps --target=${WORKSPACE}/shyft/shyft/lib ${SHYFT_DEPENDENCIES_DIR}/lib/*.so.*
+#echo Update shyft/shyft/lib with all 3rd party .so so that rpath will work for python extensions
+#mkdir -p ${WORKSPACE}/shyft/shyft/lib
+#install  --preserve-timestamps --target=${WORKSPACE}/shyft/shyft/lib ${SHYFT_DEPENDENCIES_DIR}/lib/*.so.*
 

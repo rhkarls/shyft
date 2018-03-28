@@ -263,7 +263,15 @@ namespace expose {
         .def("timespan",&utcperiod::timespan,"returns end-start, the timespan of the period")
         .def_readwrite("start",&utcperiod::start,"Defines the start of the period, inclusive")
         .def_readwrite("end",&utcperiod::end,"Defines the end of the period, not inclusive");
-        def("intersection",&intersection,args("a,b"),"Returns the intersection of two utcperiods");
+        def("intersection",&intersection,(py::arg("a"),py::arg("b")),
+            doc_intro("Returns the intersection of two periods")
+            doc_intro("if there is an intersection, the resulting period will be .valid() and .timespan()>0")
+            doc_intro("If there is no intersection, an empty not .valid() period is returned")
+            doc_parameters()
+            doc_parameter("a","UtcPeriod","1st UtcPeriod argument")
+            doc_parameter("b","UtcPeriod","2nd UtcPeriod argument")
+            doc_returns("intersection","UtcPeriod","The computed intersection, or an empty not .valid() UtcPeriod")
+        );
     }
     static bool is_npos(size_t n) {
         return n==string::npos;

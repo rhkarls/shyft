@@ -16,7 +16,16 @@ set(target "test_shyft")
     set_target_properties(${target} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE)
     set_target_properties(${target} PROPERTIES INSTALL_RPATH "$ORIGIN/../../shyft/lib")
     #install(TARGETS ${target} DESTINATION ${CMAKE_SOURCE_DIR}/bin/Release)
-
+    if( CMAKE_BUILD_TYPE STREQUAL "Debug")
+        include(${PROJECT_SOURCE_DIR}/build_support/CodeCoverage.cmake)
+        APPEND_COVERAGE_COMPILER_FLAGS()
+        set(COVERAGE_EXCLUDES '/usr/include/*' '*/boost/*' '*/armadillo*' '*/dlib/*' '*/doctest/*' '${SHYFT_DEPENDENCY_DIR}/include/*' )
+        SETUP_TARGET_FOR_COVERAGE(
+            NAME ${target}_coverage
+            EXECUTABLE ${target} -tse=utctime_utilities
+            DEPENDENCIES ${target}
+        )
+    endif()
 # This can be made more specific, but we would need the list of tests.
 #add_test(${target} ${target})
 #The current list:

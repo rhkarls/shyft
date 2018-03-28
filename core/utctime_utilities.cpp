@@ -1,6 +1,8 @@
 #include "utctime_utilities.h"
 #include <ostream>
 #include <cstring>
+#include <thread>
+#include <mutex>
 #include <boost/date_time/local_time/local_time.hpp>
 
 namespace shyft {
@@ -533,7 +535,7 @@ namespace shyft {
                 {"America/Rosario","ART-03"},
                 {"America/Santiago","CLT-04CLST+01,M10.2.0/00:00,M3.2.0/00:00"},
                 {"America/Santo_Domingo","AST-04"},
-                {"America/Sao_Paulo","BRT-03BRST+01,M10.2.0/00:00,M2.3.0/00:00"},
+                {"America/Sao_Paulo","BRT-03BRST+01,M10.3.0/00:00,M2.3.0/00:00"},
                 {"America/Scoresbysund","EGT-01EGST+01,M3.5.0/00:00,M10.5.0/01:00"},
                 {"America/Shiprock","MST-07MDT+01,M3.2.0/02:00,M11.1.0/02:00"},
                 {"America/St_Johns","NST-03:-30NDT+01,M4.1.0/00:01,M10.5.0/00:01"},
@@ -762,7 +764,32 @@ namespace shyft {
                 {"Pacific/Truk","TRUT+10"},
                 {"Pacific/Wake","WAKT+12"},
                 {"Pacific/Wallis","WFT+12"},
-                {"Pacific/Yap","YAPT+10"}
+                {"Pacific/Yap","YAPT+10"},
+                { "UTC", "GMT+00" },
+				{ "UTC+1", "GMT+01" },
+				{ "UTC+2", "GMT+02" },
+				{ "UTC+3", "GMT+03" },
+				{ "UTC+4", "GMT+04" },
+				{ "UTC+5", "GMT+05" },
+				{ "UTC+6", "GMT+06" },
+				{ "UTC+7", "GMT+07" },
+				{ "UTC+8", "GMT+08" },
+				{ "UTC+9", "GMT+09" },
+				{ "UTC+10", "GMT+10" },
+				{ "UTC+11", "GMT+11" },
+				{ "UTC+12", "GMT+12" },
+				{ "UTC-1", "GMT-01" },
+				{ "UTC-2", "GMT-02" },
+				{ "UTC-3", "GMT-03" },
+				{ "UTC-4", "GMT-04" },
+				{ "UTC-5", "GMT-05" },
+				{ "UTC-6", "GMT-06" },
+				{ "UTC-7", "GMT-07" },
+				{ "UTC-8", "GMT-08" },
+				{ "UTC-9", "GMT-09" },
+				{ "UTC-10", "GMT-10" },
+				{ "UTC-11", "GMT-11" },
+				{ "UTC-12", "GMT-12" },
             };
             const size_t n_tzdef= sizeof(tzdef)/sizeof(tz_region_def);
             void tz_info_database::load_from_iso_db() {
@@ -772,14 +799,25 @@ namespace shyft {
                     add_tz_info(tzdef[i].region,tzdef[i].posix_definition);
                 }
             }
+            static recursive_mutex tz_mx;
+			static volatile bool predefined_done = false;
+			static tz_info_database predefined_tz_info;
+			static tz_info_t_ get_predefined_tz_info(const string& region_id) {
+				/* one time thread-safe init */{
+					lock_guard<recursive_mutex> lock(tz_mx);
+					if (!predefined_done) {
+						for (size_t i = 0;i < time_zone::n_tzdef;++i) {
+							predefined_tz_info.add_tz_info(time_zone::tzdef[i].region, time_zone::tzdef[i].posix_definition);
+						}
+						predefined_done = true;
+					}
+				}
+				return predefined_tz_info.tz_info_from_region(region_id);
+			}
         }
 
         calendar::calendar(std::string region_id) {
-            for(size_t i=0;i<time_zone::n_tzdef;++i) {
-                if(region_id==time_zone::tzdef[i].region) {
-                    tz_info=time_zone::create_from_posix_definition(region_id,time_zone::tzdef[i].posix_definition);
-                }
-            }
+            tz_info = time_zone::get_predefined_tz_info(region_id);
             if(!tz_info)
                 throw runtime_error(string("time zone region id '")+region_id+ string("' not found, use .region_id_list() to get configured time zones"));
         }
