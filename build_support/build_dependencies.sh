@@ -27,7 +27,7 @@ if [ ! -d ${armadillo_name} ]; then
     fi;
     tar -xf ${armadillo_name}.tar.xz
     pushd ${armadillo_name}
-    cmake -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DCMAKE_INSTALL_LIBDIR=lib ${cmake_common}
+    cmake -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DDETECT_HDF5=false -DCMAKE_INSTALL_LIBDIR=lib ${cmake_common}
     make install
     popd
 fi;
