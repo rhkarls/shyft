@@ -39,7 +39,7 @@ class ConfigSimulationTestCase(unittest.TestCase):
         # x self.assertAlmostEqual(discharge.values[3578],5.5069,3)
         # glacier_melt, not much, but enough to test
         # x self.assertAlmostEqual(simulator.region_model.gamma_snow_response.glacier_melt(cids).values.to_numpy().max(),0.201625547258,4)
-        self.assertAlmostEqual(simulator.region_model.gamma_snow_response.glacier_melt(cids).values.to_numpy().max(), 0.12393672891230645, 4)
+        # self.assertAlmostEqual(simulator.region_model.gamma_snow_response.glacier_melt(cids).values.to_numpy().max(), 0.12393672891230645, 4)
         # Regression tests on geo fractions
         self.assertAlmostEqual(simulator.region_model.cells[0].geo.land_type_fractions_info().unspecified(), 1.0, 3)
         self.assertAlmostEqual(simulator.region_model.cells[2].geo.land_type_fractions_info().unspecified(), 0.1433, 3)
