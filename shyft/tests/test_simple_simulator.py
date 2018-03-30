@@ -15,14 +15,17 @@ from shyft import api
 from shyft.api import pt_gs_k
 from shyft.api import pt_ss_k
 from shyft.api import pt_hs_k
-from shyft.repository.netcdf import RegionModelRepository
+#from shyft.repository.netcdf import RegionModelRepository
+from shyft.repository.netcdf.cf_region_model_repository import CFRegionModelRepository
 from shyft.repository.geo_ts_repository_collection import GeoTsRepositoryCollection
-from shyft.repository.netcdf import AromeDataRepository
+#from shyft.repository.netcdf import AromeDataRepository
+from shyft.repository.netcdf.met_netcdf_data_repository import MetNetcdfDataRepository
 from shyft.repository.netcdf import GeoTsRepository
 from shyft.repository.interpolation_parameter_repository import InterpolationParameterRepository
-from shyft.repository.netcdf.yaml_config import YamlContent
-from shyft.repository.netcdf.yaml_config import RegionConfig
-from shyft.repository.netcdf.yaml_config import ModelConfig
+# from shyft.repository.netcdf.yaml_config import YamlContent
+# from shyft.repository.netcdf.yaml_config import RegionConfig
+# from shyft.repository.netcdf.yaml_config import ModelConfig
+from shyft.orchestration.configuration.yaml_configs import YamlContent, RegionConfig, ModelConfig
 from shyft.repository.default_state_repository import DefaultStateRepository
 from shyft.orchestration.simulator import DefaultSimulator
 from shyft import orchestration
@@ -38,9 +41,12 @@ class SimulationTestCase(unittest.TestCase):
 
     def setUp(self):
 
+        # self.region_config_file = path.join(path.dirname(__file__), "netcdf",
+        #                                     "atnsjoen_region.yaml")
+        # self.model_config_file = path.join(path.dirname(__file__), "netcdf", "model.yaml")
         self.region_config_file = path.join(path.dirname(__file__), "netcdf",
-                                            "atnsjoen_region.yaml")
-        self.model_config_file = path.join(path.dirname(__file__), "netcdf", "model.yaml")
+                                            "neanidelva_region.yaml")
+        self.model_config_file = path.join(path.dirname(__file__), "netcdf", "neanidelva_model.yaml")
 
     def run_simulator(self, model_t):
         # Simulation time axis
@@ -61,15 +67,18 @@ class SimulationTestCase(unittest.TestCase):
         # Configs and repositories
         region_config = RegionConfig(self.region_config_file)
         model_config = ModelConfig(self.model_config_file)
-        region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        # region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        region_model_repository = CFRegionModelRepository(region_config, model_config)
         interp_repos = InterpolationParameterRepository(model_config)
         date_str = "{}{:02}{:02}_{:02}".format(dt0.year, dt0.month, dt0.day, dt0.hour)
         base_dir = path.join(shyftdata_dir, "repository", "arome_data_repository")
         f1 = "arome_metcoop_red_default2_5km_{}.nc".format(date_str)
         f2 = "arome_metcoop_red_test2_5km_{}.nc".format(date_str)
 
-        ar1 = AromeDataRepository(epsg, base_dir, filename=f1, allow_subset=True)
-        ar2 = AromeDataRepository(epsg, base_dir, filename=f2, elevation_file=f1, allow_subset=True)
+        # ar1 = AromeDataRepository(epsg, base_dir, filename=f1, allow_subset=True)
+        # ar2 = AromeDataRepository(epsg, base_dir, filename=f2, elevation_file=f1, allow_subset=True)
+        ar1 = MetNetcdfDataRepository(epsg, base_dir, filename=f1, allow_subset=True)
+        ar2 = MetNetcdfDataRepository(epsg, base_dir, filename=f2, elevation_file=f1, allow_subset=True)
 
         geo_ts_repository = GeoTsRepositoryCollection([ar1, ar2])
 
@@ -90,8 +99,10 @@ class SimulationTestCase(unittest.TestCase):
     def test_set_observed_state(self):
         # set up configuration
         config_dir = path.join(path.dirname(__file__), "netcdf")
+        # cfg = orchestration.YAMLConfig(
+        #     "atnsjoen_simulation.yaml", "atnsjoen",
         cfg = orchestration.YAMLConfig(
-            "atnsjoen_simulation.yaml", "atnsjoen",
+            "neanidelva_simulation.yaml", "neanidelva",
             config_dir=config_dir, data_dir=shyftdata_dir)
 
         # get a simulator
@@ -121,14 +132,17 @@ class SimulationTestCase(unittest.TestCase):
     def test_run_geo_ts_data_simulator(self):
         # set up configuration
         config_dir = path.join(path.dirname(__file__), "netcdf")
+        # cfg = orchestration.YAMLConfig(
+        #     "atnsjoen_simulation.yaml", "atnsjoen",
+        #     config_dir=config_dir, data_dir=shyftdata_dir)
         cfg = orchestration.YAMLConfig(
-            "atnsjoen_simulation.yaml", "atnsjoen",
+            "neanidelva_simulation.yaml", "neanidelva",
             config_dir=config_dir, data_dir=shyftdata_dir)
 
         # get a simulator
         simulator = cfg.get_simulator()
 
-        n_cells = simulator.region_model.size()
+        # n_cells = simulator.region_model.size()
         state_repos = DefaultStateRepository(simulator.region_model)
         simulator.run(cfg.time_axis, state_repos.get_state(0))
         sim_copy = simulator.copy()
@@ -137,8 +151,12 @@ class SimulationTestCase(unittest.TestCase):
     def run_calibration(self, model_t):
         # set up configuration
         config_dir = path.join(path.dirname(__file__), "netcdf")
+        # cfg = orchestration.YAMLConfig(
+        #     "atnsjoen_calibration.yaml", "atnsjoen",
+        #     config_dir=config_dir, data_dir=shyftdata_dir,
+        #     model_t=model_t)
         cfg = orchestration.YAMLConfig(
-            "atnsjoen_calibration.yaml", "atnsjoen",
+            "neanidelva_calibration.yaml", "neanidelva",
             config_dir=config_dir, data_dir=shyftdata_dir,
             model_t=model_t)
         time_axis = cfg.time_axis
@@ -234,18 +252,23 @@ class SimulationTestCase(unittest.TestCase):
         model_t = pt_gs_k.PTGSKModel
 
         # Configs and repositories
+        # dataset_config_file = path.join(path.dirname(__file__), "netcdf",
+        #                                 "atnsjoen_datasets.yaml")
+        # region_config_file = path.join(path.dirname(__file__), "netcdf",
+        #                                "atnsjoen_calibration_region.yaml")
         dataset_config_file = path.join(path.dirname(__file__), "netcdf",
-                                        "atnsjoen_datasets.yaml")
+                                        "neanidelva_datasets.yaml")
         region_config_file = path.join(path.dirname(__file__), "netcdf",
-                                       "atnsjoen_calibration_region.yaml")
+                                       "neanidelva_region.yaml")
         region_config = RegionConfig(region_config_file)
         model_config = ModelConfig(self.model_config_file)
         dataset_config = YamlContent(dataset_config_file)
-        region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        # region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        region_model_repository = CFRegionModelRepository(region_config, model_config)
         interp_repos = InterpolationParameterRepository(model_config)
         netcdf_geo_ts_repos = []
         for source in dataset_config.sources:
-            station_file = source["params"]["stations_met"]
+            station_file = source["params"]["filename"]
             netcdf_geo_ts_repos.append(GeoTsRepository(source["params"], station_file, ""))
         geo_ts_repository = GeoTsRepositoryCollection(netcdf_geo_ts_repos)
 
@@ -301,18 +324,23 @@ class SimulationTestCase(unittest.TestCase):
         model_t = pt_gs_k.PTGSKOptModel
 
         # Configs and repositories
+        # dataset_config_file = path.join(path.dirname(__file__), "netcdf",
+        #                                 "atnsjoen_datasets.yaml")
+        # region_config_file = path.join(path.dirname(__file__), "netcdf",
+        #                                "atnsjoen_calibration_region.yaml")
         dataset_config_file = path.join(path.dirname(__file__), "netcdf",
-                                        "atnsjoen_datasets.yaml")
+                                        "neanidelva_datasets.yaml")
         region_config_file = path.join(path.dirname(__file__), "netcdf",
-                                       "atnsjoen_calibration_region.yaml")
+                                       "neanidelva_region.yaml")
         region_config = RegionConfig(region_config_file)
         model_config = ModelConfig(self.model_config_file)
         dataset_config = YamlContent(dataset_config_file)
-        region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        # region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        region_model_repository = CFRegionModelRepository(region_config, model_config, model_t, epsg)
         interp_repos = InterpolationParameterRepository(model_config)
         netcdf_geo_ts_repos = []
         for source in dataset_config.sources:
-            station_file = source["params"]["stations_met"]
+            station_file = source["params"]["filename"]
             netcdf_geo_ts_repos.append(GeoTsRepository(source["params"], station_file, ""))
         geo_ts_repository = GeoTsRepositoryCollection(netcdf_geo_ts_repos)
 
@@ -420,12 +448,15 @@ class SimulationTestCase(unittest.TestCase):
         # Configs and repositories
         region_config = RegionConfig(self.region_config_file)
         model_config = ModelConfig(self.model_config_file)
-        region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        # region_model_repository = RegionModelRepository(region_config, model_config, model_t, epsg)
+        region_model_repository = CFRegionModelRepository(region_config, model_config, model_t, epsg)
         interp_repos = InterpolationParameterRepository(model_config)
         base_dir = path.join(shyftdata_dir, "netcdf", "arome")
         pattern = "fc*.nc"
         try:
-            geo_ts_repository = AromeDataRepository(epsg, base_dir, filename=pattern,
+            # geo_ts_repository = AromeDataRepository(epsg, base_dir, filename=pattern,
+            #                                         allow_subset=True)
+            geo_ts_repository = MetNetcdfDataRepository(epsg, base_dir, filename=pattern,
                                                     allow_subset=True)
         except Exception as e:
             print("**** test_run_arome_ensemble: Arome data missing or"
