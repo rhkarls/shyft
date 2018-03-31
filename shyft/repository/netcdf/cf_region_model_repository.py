@@ -170,26 +170,18 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
             rf = Vars["reservoir-fraction"][mask]
             gf = Vars["glacier-fraction"][mask]
 
-
         # Construct region parameter:
-        name_map = {"priestley_taylor": "pt", "kirchner": "kirchner",
-                    "precipitation_correction": "p_corr", "actual_evapotranspiration": "ae",
-                    "gamma_snow": "gs", "skaugen_snow": "ss", "hbv_snow": "hs","glacier_melt":"gm",
-                    "hbv_actual_evapotranspiration":"ae", "hbv_soil": "soil", "hbv_tank": "tank","routing":"routing"}
         region_parameter = self._region_model.parameter_t()
         for p_type_name, value_ in iteritems(self._mconf.model_parameters()):
-            if p_type_name in name_map:
-                if hasattr(region_parameter, name_map[p_type_name]):
-                    sub_param = getattr(region_parameter, name_map[p_type_name])
-                    for p, v in iteritems(value_):
-                        if hasattr(sub_param, p):
-                            setattr(sub_param, p, v)
-                        else:
-                            raise RegionConfigError("Invalid parameter '{}' for parameter set '{}'".format(p, p_type_name))
-                else:
-                    raise RegionConfigError("Invalid parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
+            if hasattr(region_parameter, p_type_name):
+                sub_param = getattr(region_parameter, p_type_name)
+                for p, v in iteritems(value_):
+                    if hasattr(sub_param, p):
+                        setattr(sub_param, p, v)
+                    else:
+                        raise RegionConfigError("Invalid parameter '{}' for parameter set '{}'".format(p, p_type_name))
             else:
-                raise RegionConfigError("Unknown parameter set '{}'".format(p_type_name))
+                raise RegionConfigError("Invalid parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
 
         radiation_slope_factor = 0.9 # TODO: Move into yaml file similar to p_corr_scale_factor
         unknown_fraction = 1.0 - gf - lf - rf - ff
@@ -205,23 +197,29 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
             if cid in c_ids_unique:
                 param = self._region_model.parameter_t(region_parameter)
                 for p_type_name, value_ in iteritems(catch_param):
-                    if p_type_name in name_map:
-                        if hasattr(param, name_map[p_type_name]):
-                            sub_param = getattr(param, name_map[p_type_name])
-                            for p, v in iteritems(value_):
-                                if hasattr(sub_param, p):
-                                    setattr(sub_param, p, v)
-                                else:
-                                    raise RegionConfigError("Invalid parameter '{}' for catchment parameter set '{}'".format(p, p_type_name))
-                        else:
-                            raise RegionConfigError("Invalid catchment parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
+                    if hasattr(param, p_type_name):
+                        sub_param = getattr(param, p_type_name)
+                        for p, v in iteritems(value_):
+                            if hasattr(sub_param, p):
+                                setattr(sub_param, p, v)
+                            else:
+                                raise RegionConfigError("Invalid parameter '{}' for catchment parameter set '{}'".format(p, p_type_name))
                     else:
-                        raise RegionConfigError("Unknown catchment parameter set '{}'".format(p_type_name))
+                        raise RegionConfigError("Invalid catchment parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
 
                 catchment_parameters[cid] = param
         region_model = self._region_model(cell_vector, region_parameter, catchment_parameters)
         region_model.bounding_region = bounding_region
         region_model.catchment_id_map = c_ids_unique
+
+        def do_clone(x):
+            clone = x.__class__(x)
+            clone.bounding_region = x.bounding_region
+            clone.catchment_id_map = x.catchment_id_map
+            # clone.gis_info = polygons  # cell shapes not included yet
+            return clone
+
+        region_model.clone = do_clone
         return region_model
 
 
