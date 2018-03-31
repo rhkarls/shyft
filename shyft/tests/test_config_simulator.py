@@ -5,7 +5,7 @@ from shyft.repository.default_state_repository import DefaultStateRepository
 from shyft.orchestration.configuration.yaml_configs import YAMLSimConfig
 from shyft.orchestration.simulators.config_simulator import ConfigSimulator
 from shyft.api import IntVector, Calendar
-from shyft.orchestration.config import utctime_from_datetime
+from shyft.orchestration.configuration.yaml_configs import utctime_from_datetime
 import datetime as dt
 
 
