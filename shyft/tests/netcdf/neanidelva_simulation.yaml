@@ -6,7 +6,7 @@ neanidelva:
   interpolation_config_file: neanidelva_interpolation.yaml
   start_datetime: 2013-09-01T00:00:00
   run_time_step: 3600  # 1 hour time step
-  number_of_steps: 8760   # 1 year
+  number_of_steps: 8759   # 1 year
   region_model_id: 'neanidelva-ptgsk'
   #interpolation_id: 2   # this is optional (default 0)
   initial_state:
