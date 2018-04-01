@@ -311,7 +311,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 raise interfaces.InterfaceError(
                     "File '{}' does not contain altitudes".format(filename))
             x, y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(dataset.variables[x_var_name][:], dataset.variables[y_var_name][:],
-                                                                   elev.grid_mapping.proj4, self.shyft_cs, geo_location_criteria,
+                                                                   dataset.variables[elev.grid_mapping].proj4, self.shyft_cs, geo_location_criteria,
                                                                    self._padding, MetNetcdfDataRepositoryError)
             z = _slice_var_2D(elev, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_inds, MetNetcdfDataRepositoryError)
             return x, y, z
