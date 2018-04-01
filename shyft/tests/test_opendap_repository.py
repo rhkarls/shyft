@@ -5,6 +5,7 @@ from os import environ
 from shyft import shyftdata_dir
 from shyft import api
 from shyft.repository.netcdf.opendap_data_repository import GFSDataRepository
+from shapely.geometry import box
 
 
 class GFSDataRepositoryTestCase(unittest.TestCase):
@@ -19,15 +20,15 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         """
         Simple regression test of OpenDAP data repository.
         """
-        epsg, bbox = self.epsg_bbox
+        epsg, bbox, bpoly = self.epsg_bbox
         dem_file = path.join(shyftdata_dir, "netcdf", "etopo180.nc")
         n_hours = 30
         t0 = self.start_date + api.deltahours(7)
         period = api.UtcPeriod(t0, t0 + api.deltahours(n_hours))
             
-        repos = GFSDataRepository(epsg, dem_file, t0, bounding_box=bbox)
+        repos = GFSDataRepository(epsg, dem_file, t0)
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity", "radiation")
-        sources = repos.get_timeseries(data_names, period, None)
+        sources = repos.get_timeseries(data_names, period, geo_location_criteria=bpoly)
         self.assertEqual(set(data_names), set(sources.keys()))
         self.assertEqual(len(sources["temperature"]), 6)
         data1 = sources["temperature"][0]
@@ -43,7 +44,7 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         """
         Simple forecast regression test of OpenDAP data repository.
         """
-        epsg, bbox = self.epsg_bbox
+        epsg, bbox, bpoly = self.epsg_bbox
 
         dem_file = path.join(shyftdata_dir, "netcdf", "etopo180.nc")
         n_hours = 30
@@ -51,9 +52,9 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         period = api.UtcPeriod(t0, t0 + api.deltahours(n_hours))
         t_c = self.start_date + api.deltahours(7)  # the beginning of the forecast criteria
 
-        repos = GFSDataRepository(epsg, dem_file, bounding_box=bbox)
+        repos = GFSDataRepository(epsg, dem_file)
         data_names = ("temperature",)  # the full set: "wind_speed", "precipitation", "relative_humidity", "radiation")
-        sources = repos.get_forecast(data_names, period, t_c, None)
+        sources = repos.get_forecast(data_names, period, t_c, geo_location_criteria=bpoly)
         self.assertEqual(set(data_names), set(sources.keys()))
         self.assertEqual(len(sources["temperature"]), 6)
         data1 = sources["temperature"][0]
@@ -69,16 +70,16 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         """
         Simple ensemble regression test of OpenDAP data repository.
         """
-        epsg, bbox = self.epsg_bbox
+        epsg, bbox, bpoly = self.epsg_bbox
         dem_file = path.join(shyftdata_dir, "netcdf", "etopo180.nc")
         n_hours = 30
         t0 = self.start_date + api.deltahours(9)  # api.YMDhms(year, month, day, hour)
         period = api.UtcPeriod(t0, t0 + api.deltahours(n_hours))
         t_c = t0
 
-        repos = GFSDataRepository(epsg, dem_file, bounding_box=bbox)
+        repos = GFSDataRepository(epsg, dem_file)
         data_names = ("temperature",)  # this is the full set: "wind_speed", "precipitation", "relative_humidity", "radiation")
-        ensembles = repos.get_forecast_ensemble(data_names, period, t_c, None)
+        ensembles = repos.get_forecast_ensemble(data_names, period, t_c, geo_location_criteria=bpoly)
         for sources in ensembles:
             self.assertEqual(set(data_names), set(sources.keys()))
             self.assertEqual(len(sources["temperature"]), 6)
@@ -100,7 +101,7 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         ny = 124
         dx = 1000.0
         dy = 1000.0
-        return EPSG, ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy])
+        return EPSG, ([x0, x0 + nx * dx, x0 + nx * dx, x0], [y0, y0, y0 + ny * dy, y0 + ny * dy]), box(x0, y0, x0 + dx * nx, y0 + dy * ny)
 
 
 if __name__ == '__main__':
