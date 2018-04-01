@@ -1,5 +1,5 @@
 #include "boostpython_pch.h"
-
+#include <mutex>
 #include "core/time_series_dd.h"
 #include "core/dtss.h"
 #include "core/dtss_client.h"
@@ -39,7 +39,8 @@ namespace shyft {
 	using time_series::dd::gta_t;
 	using time_series::dd::apoint_ts;
 	using time_series::dd::ats_vector;
-
+    using std::mutex;
+    using std::unique_lock;
         struct py_server : server {
             boost::python::object cb;///< callback for the read function
             boost::python::object fcb;///< callback for the find function
@@ -146,6 +147,7 @@ namespace shyft {
         int py_server::msg_count = 0;
         // need to wrap core client to unlock gil during processing
         struct py_client {
+            mutex mx; ///< to enforce just one thread active on this client object at a time
             client impl;
             py_client(const std::string& host_port,bool ac,int timeout_ms):impl(host_port,ac,timeout_ms) {}
             py_client(const vector<string>&host_ports, bool ac,int timeout_ms):impl(host_ports,ac,timeout_ms) {}
@@ -158,41 +160,50 @@ namespace shyft {
 
             void close(int timeout_ms=1000) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 impl.close(timeout_ms);
             }
             void reopen(int timeout_ms=1000) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 impl.reopen(timeout_ms);
             }
             ts_vector_t percentiles(const ts_vector_t & tsv, core::utcperiod p,const gta_t &ta,const std::vector<int>& percentile_spec,bool use_ts_cached_read,bool update_ts_cache) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 std::vector<int64_t> p_spec;for(auto p:percentile_spec) p_spec.push_back(p);
                 return impl.percentiles(tsv,p,ta,p_spec,use_ts_cached_read,update_ts_cache);
             }
             ts_vector_t evaluate(const ts_vector_t& tsv, core::utcperiod p,bool use_ts_cached_read,bool update_ts_cache) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 return ts_vector_t(impl.evaluate(tsv,p,use_ts_cached_read,update_ts_cache));
             }
             ts_info_vector_t find(const std::string& search_expression) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 return impl.find(search_expression);
             }
             void store_ts(const ts_vector_t&tsv, bool overwrite_on_write, bool cache_on_write) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 impl.store_ts(tsv, overwrite_on_write, cache_on_write);
             }
             void merge_store_ts(const ts_vector_t&tsv, bool cache_on_write) {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 impl.merge_store_ts(tsv, cache_on_write);
             }
 
             void cache_flush() {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 return impl.cache_flush();
             }
 
             cache_stats get_cache_stats() {
                 scoped_gil_release gil;
+                unique_lock<mutex> lck(mx);
                 return impl.get_cache_stats();
             }
             bool get_compress_expressions() const {return impl.compress_expressions;}

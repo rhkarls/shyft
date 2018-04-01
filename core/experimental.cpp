@@ -20,7 +20,14 @@ namespace shyft {
 			static fs::path test_root_dir() {
 				auto cwd = fs::current_path();
 				fs::path test_path = cwd / ".." / ".." / ".." / "shyft-data"; // cwd has to be <shyftroot>/bin/Debug|Release
-				if (auto data_dir = getenv("SHYFTDATA"))
+                if(!fs::exists(test_path)) {
+                    test_path = cwd /".."/"shyft-data";
+                    if(!fs::exists(test_path)) {
+                        test_path= cwd/".."/".."/"shyft-data";
+                    }
+                        
+                }
+				if (auto data_dir = getenv("SHYFT_DATA"))
 					test_path = data_dir;
 				test_path.normalize();
 				return test_path;

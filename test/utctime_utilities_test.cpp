@@ -40,10 +40,15 @@ TEST_CASE("test_utcperiod") {
     TS_ASSERT(utcperiod(t1,t3).overlaps(utcperiod(t0,t1))==false);
     TS_ASSERT(utcperiod(t0,t1).overlaps(utcperiod(t2,t3))==true);
     TS_ASSERT(utcperiod(t2,t3).overlaps(utcperiod(t0,t1))==true);
-
-
-
 }
+
+TEST_CASE("utcperiod_intersection") {
+    FAST_CHECK_EQ(intersection(utcperiod(1,3),utcperiod(2,3)),utcperiod(2,3));
+    FAST_CHECK_EQ(intersection(utcperiod(1,3),utcperiod(3,4)).valid(),false);
+    FAST_CHECK_EQ(intersection(utcperiod(1,3),utcperiod(5,6)).valid(),false);
+    FAST_CHECK_EQ(intersection(utcperiod(1,5),utcperiod(2,4)),utcperiod(2,4));
+}
+
 TEST_CASE("test_calendar_trim") {
     // simple trim test
     calendar cet(deltahours(1));

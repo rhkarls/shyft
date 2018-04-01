@@ -110,10 +110,14 @@ namespace shyft {
         /** A variant of time_axis that adheres to calendar periods, possibly including DST handling
         *  e.g.: a calendar day might be 23,24 or 25 hour long in a DST calendar.
         *  If delta-t is less or equal to one hour, it's close to as efficient as time_axis
+        *  \note that time-zone calendar semantics only applies to day or larger deltas. controlled by 
+        *        by compile time constant calendar_dt::dt_tz_semantics
+        *        the rationale behind this is pure empirical practice at statkraft
+        *        - we could easily provide this as a parameter - 
         */
         struct calendar_dt : continuous<true> {
 
-            static constexpr utctimespan dt_h = 3600;
+            static constexpr utctimespan dt_tz_semantics = 3600*24; // tz-semantics only applies to >= day
 
             shared_ptr<calendar> cal;
             utctime t;
@@ -181,12 +185,12 @@ namespace shyft {
             utcperiod total_period() const {
                 return n == 0
                     ? utcperiod(min_utctime, min_utctime)  // maybe just a non-valid period?
-                    : utcperiod(t, dt <= dt_h ? t + n*dt : cal->add(t, dt, long(n)));
+                    : utcperiod(t, dt < dt_tz_semantics ? t + n*dt : cal->add(t, dt, long(n)));
             }
 
             utctime time(size_t i) const {
                 if ( i < n ) {
-                    return dt <= dt_h
+                    return dt < dt_tz_semantics
                         ? t + i * dt
                         : cal->add(t, dt, long(i));
                 }
@@ -195,7 +199,7 @@ namespace shyft {
 
             utcperiod period(size_t i) const {
                 if ( i < n ) {
-                    return dt <= dt_h
+                    return dt < dt_tz_semantics
                         ? utcperiod(t + i * dt, t + (i + 1) * dt)
                         : utcperiod(cal->add(t, dt, static_cast<long>(i)), cal->add(t, dt, static_cast<long>(i + 1)));
                 }
@@ -206,7 +210,7 @@ namespace shyft {
                 auto p = total_period();
                 if ( !p.contains(tx) )
                     return std::string::npos;  // why string...? Introduce a static constant + check similar classes
-                return dt <= dt_h
+                return dt < dt_tz_semantics
                     ? static_cast<size_t>((tx - t) / dt)
                     : static_cast<size_t>(cal->diff_units(t, tx, dt));
             }

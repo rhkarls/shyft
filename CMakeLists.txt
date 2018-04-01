@@ -1,7 +1,7 @@
 # CMake build system for Shyft
 # ============================
 #
-# This requires shyft_dependencies installed as well as a C++11/C++14 compliant compiler.
+# This requires shyft_dependencies installed as well as a C++14/C++17 compliant compiler.
 #
 # Available options:
 #
@@ -14,10 +14,7 @@
 #
 #   SHYFT_DEPENDENCIES_DIR: default ${PROJECT_SOURCE_DIR}/shyft-dependencies
 #
-
-
-cmake_minimum_required(VERSION 3.4.0)
-
+cmake_minimum_required(VERSION 3.9.0)
 project(shyft)
 
 # Get the full version for Shyft
@@ -25,7 +22,6 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/VERSION SHYFT_VERSION_STRING)
 
 message("Configuring for Shyft version: " ${SHYFT_VERSION_STRING})
 
-#if ccache, use it, but require cmake 3.4.0..
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
@@ -58,14 +54,32 @@ get_filename_component(SHYFT_DEPENDENCIES ${SHYFT_DEPENDENCIES_DIR} ABSOLUTE)
 message("SHYFT_DEPENDENCIES directory: " ${SHYFT_DEPENDENCIES})
 message("You can override the above via the $SHYFT_DEPENDENCIES_DIR environment variable.")
 
-# The flags for compile the beast
-set(CMAKE_CXX_FLAGS "-Wno-deprecated-declarations -std=c++1z -fPIC -fexceptions -pthread -Winvalid-pch -L${SHYFT_DEPENDENCIES}/lib" CACHE STRING "CXX flags." FORCE)
+# shyft uses boost, dlib, armadillo and doctest, and python +  numpy
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${SHYFT_DEPENDENCIES}")
 
-# add defines that need to be consistent across sub-projects, notice that we need MINIMIZE_SIZE to ensure g++ vs. ms c++ compat
-add_definitions("-DARMA_DONT_USE_WRAPPER -DARMA_USE_CXX11 -DARMA_NO_DEBUG -DBOOST_VARIANT_MINIMIZE_SIZE ")
+find_package(doctest REQUIRED)
+find_package(dlib REQUIRED)
+find_package(Armadillo REQUIRED)
+#
+get_filename_component(arma_libs  ${ARMADILLO_LIBRARIES} REALPATH CACHE)
+# unfortunately, .travis does not have updated cmake, so find_package won't work as we need.
+# until then we replace
+#find_package(Boost 1.66 COMPONENTS python3 serialization filesystem system REQUIRED)
+# with:
+set(boost_system_lib ${SHYFT_DEPENDENCIES}/lib/libboost_system.so)
+set(boost_filesystem_lib ${SHYFT_DEPENDENCIES}/lib/libboost_filesystem.so)
+set(boost_python3_lib ${SHYFT_DEPENDENCIES}/lib/libboost_python3.so)
+set(boost_serialization_lib ${SHYFT_DEPENDENCIES}/lib/libboost_serialization.so)
+set(boost_link_libraries ${boost_system_lib} ${boost_filesystem_lib} ${boost_serialization_lib})
+set(boost_py_link_libraries ${boost_link_libraries} ${boost_python3_lib})
 
-# The directories to be included
-include_directories(${CMAKE_SOURCE_DIR} ${SHYFT_DEPENDENCIES}/include)
+# The compiler requirement,flags definitions and include that applies for all
+# Notice that we need MINIMIZE_SIZE to ensure g++ vs. ms c++ compat
+set(CMAKE_CXX_STANDARD 17)
+add_compile_options(-fPIC -fexceptions -pthread -Wno-deprecated-declarations)
+add_definitions("-DARMA_USE_CXX11 -DARMA_NO_DEBUG -DBOOST_VARIANT_MINIMIZE_SIZE")
+include_directories(${CMAKE_SOURCE_DIR} ${SHYFT_DEPENDENCIES}/include) # we could add more explicit list boost,dlib,armadillo,doctest here
+
 
 # C++ core and tests
 if(BUILD_TESTING)
@@ -77,5 +91,5 @@ endif(BUILD_TESTING)
 
 # Python extensions
 if(BUILD_PYTHON_EXTENSIONS)
-  add_subdirectory(shyft/api)
+  add_subdirectory(api/boostpython)
 endif(BUILD_PYTHON_EXTENSIONS)

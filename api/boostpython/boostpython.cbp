@@ -183,8 +183,8 @@
 			<Add option="-Wl,-rpath=\\$$$ORIGIN/../../lib" />
 			<Add library="blas" />
 			<Add library="lapack" />
-			<Add library="shyftapi" />
-			<Add library="shyftcore" />
+			<Add library="shyft_api" />
+			<Add library="shyft_core" />
 			<Add library="boost_python3" />
 			<Add library="python3" />
 			<Add library="boost_serialization" />

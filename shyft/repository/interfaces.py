@@ -224,7 +224,8 @@ class StateRepository(object):
 
 
         """
-        pass
+        raise NotImplementedError(
+            "Method 'delete_state' not implemented for repository {}.".format(self.__class__.__name__))
 
 class ForecastSelectionCriteriaError(Exception):
    pass

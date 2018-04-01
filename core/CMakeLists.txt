@@ -1,13 +1,10 @@
 # CMake file for compiling the C++ core library
-# library sources
-set(SOURCES   dtss_client.cpp dtss.cpp experimental.cpp dream_optimizer.cpp sceua_optimizer.cpp 
+set(core_sources   dtss_client.cpp dtss.cpp experimental.cpp dream_optimizer.cpp sceua_optimizer.cpp 
     time_series_dd.cpp core_serialization.cpp time_series_serialization.cpp
     utctime_utilities.cpp expression_serialization.cpp
 )
-message(STATUS "Generating Makefile for the SHyFT static library...")
-add_library(shyftcore STATIC ${SOURCES} )
-set_target_properties(shyftcore PROPERTIES OUTPUT_NAME shyftcore)
-if (MSVC)
-  set_target_properties(shyftcore PROPERTIES PREFIX lib)
-endif()
-target_link_libraries(shyftcore ${LIBS})
+add_library(shyft_core STATIC ${core_sources} )
+
+install(TARGETS shyft_core ARCHIVE DESTINATION lib COMPONENT shyft_core EXCLUDE_FROM_ALL)
+install(FILES ${CMAKE_SOURCE_DIR}/build_support/shyft_core-config.cmake DESTINATION lib/cmake/shyft_core COMPONENT shyft_core EXCLUDE_FROM_ALL)
+install(DIRECTORY  ${CMAKE_SOURCE_DIR}/core  DESTINATION include/shyft  COMPONENT shyft_core EXCLUDE_FROM_ALL FILES_MATCHING PATTERN "*.h" PATTERN "obj" EXCLUDE)

@@ -5,6 +5,12 @@ import functools
 
 from shyft.api._api import *
 
+from shyft.api import pt_gs_k
+from shyft.api import pt_hps_k
+from shyft.api import pt_hs_k
+from shyft.api import pt_ss_k
+
+
 import numpy as np
 from math import sqrt
 
@@ -393,6 +399,10 @@ ARegionEnvironment.variables = property(
         ]
     ,doc='returns the list of available forcing variables as tuples(string,reference_to_variable)'
 )
+
+
+
+
 # need to create the `__all__` attribute for documentation.
 # if you want sphinx-apidoc to autodoc a module/class it should be
 # included below.
@@ -626,4 +636,8 @@ __all__ = [] + \
          'ts_stringify',
          'utctime_now',
          'version',
-         'win_short_path']
+         'win_short_path'] + \
+        ['pt_gs_k',
+         'pt_hps_k',
+         'pt_hs_k',
+         'pt_ss_k']

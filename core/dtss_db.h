@@ -143,7 +143,7 @@ struct ts_db {
 		close_write_handle(const close_write_handle &) noexcept = default;
 
 		void operator()(std::FILE * fh) const {
-#ifdef _WIN32
+#ifdef _WIN32WORKAROUND
 			if (win_thread_close && parent) {
 				parent->fclose_me(fh);
 			} else {
@@ -158,7 +158,7 @@ struct ts_db {
 	std::map<std::string, std::shared_ptr<core::calendar>> calendars;
 
 	//--section dealing with windows and (postponing slow) closing files
-#ifdef _WIN32
+#ifdef _WIN32WORKAROUND
 	mutable mutex fclose_mx;
 	mutable std::vector<std::future<void>> fclose_windows;
 
