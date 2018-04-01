@@ -4,7 +4,7 @@ from os import environ
 
 from shyft import shyftdata_dir
 from shyft import api
-from shyft.repository.netcdf.opendap_data_repository import GFSDataRepository
+from shyft.repository.netcdf.gfs_data_repository import GFSDataRepository
 from shapely.geometry import box
 
 
