@@ -63,7 +63,7 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                                                                                 ens,
                                                                                 ymd.hour//6*6)
         else:
-            self.grf_url = None
+            self.gfs_url = None
         self._padding = padding
         self._gfs_shyft_map = {"ugrd10m": "x_wind",
                                "vgrd10m": "y_wind",
