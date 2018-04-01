@@ -169,14 +169,14 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
             y_in_box = y[y_indx]
             xy_in_box = np.dstack(np.meshgrid(x_in_box, y_in_box)).reshape(-1, 2)
             if len(xy_in_box) == 0:
-                err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
+                raise err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
             pts_in_box = MultiPoint(xy_in_box)
             pt_in_poly = np.array(list(map(p_poly.contains, pts_in_box)))
             # Create the index for the points in the buffer polygon
             yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (y_indx.shape[0], x_indx.shape[0]))
             xy_in_poly = xy_in_box[pt_in_poly]
             if len(xy_in_poly) == 0:
-                err("No points in dataset which are within the geo_location_criteria polygon.")
+                raise err("No points in dataset which are within the geo_location_criteria polygon.")
 
         if clip_in_data_cs:
             # Transform from source coordinates to target coordinates
@@ -222,7 +222,7 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
             (ystart, xstart), (ystop, xstop) = a.min(0), a.max(0) + 1
             xy_in_box = np.dstack((x,y))[ystart:ystop, xstart:xstop, :].reshape(-1, 2)
             if len(xy_in_box) == 0:
-                err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
+                raise err("No points in dataset which are within the bounding box of the geo_location_criteria polygon.")
             pts_in_box = MultiPoint(xy_in_box)
             pt_in_poly = np.array(list(map(p_poly.contains, pts_in_box)))
             # Create the index for the points in the buffer polygon
@@ -230,7 +230,7 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
             yi, xi = np.unravel_index(np.nonzero(pt_in_poly)[0], (ystop-ystart, xstop-xstart))
             xy_in_poly = xy_in_box[pt_in_poly]
             if len(xy_in_poly) == 0:
-                err("No points in dataset which are within the geo_location_criteria polygon.")
+                raise err("No points in dataset which are within the geo_location_criteria polygon.")
 
         if clip_in_data_cs:
             # Transform from source coordinates to target coordinates
@@ -380,7 +380,7 @@ def _slice_var_2D(nc_var, x_var_name, y_var_name, x_slice, y_slice, x_inds, y_in
 def _get_files(_directory, _filename, t_c, err):
     file_names = [g for g in os.listdir(_directory) if re.findall(_filename, g)]
     if len(file_names) == 0:
-        raise err('No matches found for file_pattern = {}'.format(_filename))
+        raise err('No matches found for file_pattern = {} and t_c = {} '.format(_filename, UTC.to_string(t_c)))
     match_files = []
     match_times = []
     for fn in file_names:
@@ -391,8 +391,7 @@ def _get_files(_directory, _filename, t_c, err):
             match_times.append(t)
     if match_files:
         return os.path.join(_directory, match_files[np.argsort(match_times)[-1]])
-    raise err("No matches found for file_pattern = {} and t_c = {} "
-                               "".format(_filename, UTC.to_string(t_c)))
+    raise err("No matches found for file_pattern = {} and t_c = {} ".format(_filename, UTC.to_string(t_c)))
 
 
 def calc_RH(T, Td, p):
