@@ -124,12 +124,15 @@ echo  Done boost_${boost_ver}
 cd ${SHYFT_DEPENDENCIES_DIR}
 if [ ! -d pybind11 ]; then
     git clone https://github.com/pybind/pybind11.git
+    pushd pybind11
+    git checkout master
+    git pull
+    git checkout ${pybind11_ver} > /dev/null
+    mkdir -p build
+    cd build && cmake .. -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DPYBIND11_TEST=0 ${cmake_common} .. && cmake -P cmake_install.cmake
+    popd
 fi;
-pushd pybind11
-git checkout master
-git pull
-git checkout ${pybind11_ver} > /dev/null
-popd
+
 echo Done pybind11
 
 cd ${WORKSPACE}

@@ -28,17 +28,13 @@ needs_build_ext = not all([path.exists(ext_name) for ext_name in ext_names])
 if needs_build_ext:
     print('One or more extension modules needs build, attempting auto build')
     if "Windows" in platform.platform():
-        msbuild_2015 = r'C:\Program Files (x86)\MSBuild\14.0\Bin\amd64\MSBuild.exe' if 'MSBUILD_2015_PATH' not in os.environ else os.environ['MSBUILD_2015_PATH']
         msbuild_2017 = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\amd64\MSBuild.exe' if 'MSBUILD_2017_PATH' not in os.environ else os.environ['MSBUILD_2017_PATH']
         if path.exists(msbuild_2017):
             msbuild = msbuild_2017
-            cmd = [msbuild, '/p:Configuration=Release', '/p:Platform=x64','/p:PlatformToolset=v141', '/p:WindowsTargetPlatformVersion=10.0.14393.0', '/m']
-        elif path.exists(msbuild_2015):
-            msbuild = msbuild_2015
-            cmd = [msbuild, '/p:Configuration=Release', '/p:Platform=x64', '/m']
+            cmd = [msbuild, '/p:Configuration=Release', '/p:Platform=x64','/p:PlatformToolset=v141', '/p:WindowsTargetPlatformVersion=10.0.16299.0', '/m']
         else:
             print("Sorry, but this setup only supports ms c++ installed to standard locations")
-            print(" you can set MSBUILD_2015_PATH or MSBUILD_2017_PATH specific to your installation and restart.")
+            print(" you can set MSBUILD_2017_PATH specific to your installation and restart.")
             exit()
         
         if '--rebuild' in sys.argv:
@@ -74,11 +70,9 @@ else:
 
 # Copy libraries needed to run Shyft
 if "Windows" in platform.platform():
-    lib_dir = os.getenv('SHYFT_DEPENDENCIES', '.')
-    boost_dll = path.join(lib_dir, 'boost', 'stage', 'lib', '*.dll')
-    blas_dir = path.join(lib_dir, 'blaslapack')
+    lib_dir = os.getenv('SHYFT_DEPENDENCIES', '../shyft_dependencies')
+    boost_dll = path.join(lib_dir, 'lib', '*.dll')
     files = glob.glob(boost_dll)
-    files += [path.join(blas_dir, 'lapack_win64_MT.dll'), path.join(blas_dir, 'blas_win64_MT.dll')]
     files = [f for f in files if '-gd-' not in path.basename(f)]
     dest_dir = path.join(path.dirname(path.realpath(__file__)), 'shyft', 'lib')
     if not path.isdir(dest_dir):
