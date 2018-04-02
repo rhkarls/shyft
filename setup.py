@@ -20,7 +20,7 @@ ext_s = '.pyd' if  'Windows' in platform.platform() else '.so'
 ext_names=['shyft/api/_api'+ext_s,
            'shyft/api/pt_gs_k/_pt_gs_k'+ext_s,
            'shyft/api/pt_hs_k/_pt_hs_k'+ext_s,
-           'shyft/api/pt_hps_k/_pt_hs_k'+ext_s,
+           'shyft/api/pt_hps_k/_pt_hps_k'+ext_s,
            'shyft/api/pt_ss_k/_pt_ss_k'+ext_s,
            'shyft/api/hbv_stack/_hbv_stack'+ext_s ]
            
