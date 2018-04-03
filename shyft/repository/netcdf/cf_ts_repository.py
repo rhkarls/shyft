@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from builtins import range
 from os import path
 
@@ -8,52 +7,14 @@ from netCDF4 import Dataset
 from shyft import api
 from shyft import shyftdata_dir
 from .time_conversion import convert_netcdf_time
+from .. import interfaces
 
 
 class CFTsRepositoryError(Exception):
     pass
 
 
-class TsRepository:
-    """
-    Defines the contract of a time-series repository for this specific use
-    The responsibility is to read and store time-series,forecasts, ensembles
-    Notice that this TsRepository do not have geo-location associated with
-    the time-series (forecast or ensembles) that it stores.
-    The correlation between location/area and time-series are stored elsewhere,
-    so this interface  mereyly provide methods to retrieve/store
-    timeseries/forecast/ensembles.
-    A candidate for interfaces
-    """
-
-    @abstractmethod
-    def read(self, list_of_ts_id, period):
-        """
-        """
-        raise NotImplementedError("read")
-
-    @abstractmethod
-    def read_forecast(self, list_of_fc_id, period):
-        """
-        read and return the newest forecast that have the biggest overlap with specified period
-        note that we should check that the semantic of this is reasonable
-        """
-        raise NotImplementedError("read_forecast")
-
-    @abstractmethod
-    def store(self, timeseries_dict):
-        """ Store the supplied time-series to the underlying db-system.
-            Parameters
-            ----------
-            timeseries_dict: dict string:timeseries
-                the keys are the wanted ts(-path) names
-                and the values are shyft api.time-series.
-                If the named time-series does not exist, create it.
-        """
-        raise NotImplementedError("read_forecast")
-
-
-class CFTsRepository(TsRepository):
+class CFTsRepository(interfaces.TsRepository):
     """
     Repository for geo located timeseries stored in netCDF files.
 

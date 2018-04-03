@@ -1,8 +1,8 @@
 model_t: !!python/name:shyft.api.pt_gs_k.PTGSKModel  # model to construct
 model_parameters:
-  actual_evapotranspiration:
+  ae:  # actual_evapotranspiration
     ae_scale_factor: 1.5
-  gamma_snow:
+  gs:  # gamma_snow
     calculate_iso_pot_energy: false
     fast_albedo_decay_rate: 6.752787747748934
     glacier_albedo: 0.4
@@ -24,8 +24,13 @@ model_parameters:
     c1: -3.336197322290274
     c2: 0.33433661533385695
     c3: -0.12503959620315988
-  precipitation_correction:
+  p_corr:  # precipitation_correction
     scale_factor: 1.0
-  priestley_taylor:
+  pt:  # priestley_taylor
     albedo: 0.2
     alpha: 1.26
+  routing:
+    alpha: 0.9
+    beta: 3.0
+    velocity: 0.0
+

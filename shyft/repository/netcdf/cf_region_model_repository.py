@@ -11,10 +11,14 @@ from six import iteritems # This replaces dictionary.iteritems() on Python 2 and
 from os import path
 import numpy as np
 from netCDF4 import Dataset
-from pyproj import Proj
-from pyproj import transform
 from .. import interfaces
 from shyft import api
+from typing import Union
+import pyproj
+from functools import partial
+from shapely.geometry import Polygon, MultiPolygon, box
+from shapely.ops import transform
+
 from shyft import shyftdata_dir
 from shyft.orchestration.configuration.config_interfaces import RegionConfig, ModelConfig, RegionConfigError
 from shyft.orchestration.configuration.dict_configs import DictModelConfig, DictRegionConfig
@@ -76,12 +80,12 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
         ----------
         """
         # Get coordinate system for arome data
-        data_proj = Proj(data_cs)
-        target_proj = Proj(target_cs)
+        data_proj = pyproj.Proj(data_cs)
+        target_proj = pyproj.Proj(target_cs)
 
         # Find bounding box in arome projection
         bbox = self.bounding_box
-        bb_proj = transform(target_proj, data_proj, bbox[0], bbox[1])
+        bb_proj = pyproj.transform(target_proj, data_proj, bbox[0], bbox[1])
         x_min, x_max = min(bb_proj[0]), max(bb_proj[0])
         y_min, y_max = min(bb_proj[1]), max(bb_proj[1])
 
@@ -91,7 +95,7 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
         xy_inds = np.nonzero(xy_mask)[0]
 
         # Transform from source coordinates to target coordinates
-        xx, yy = transform(data_proj, target_proj, x, y)
+        xx, yy = pyproj.transform(data_proj, target_proj, x, y)
 
         return xx, yy, xy_mask, xy_inds
 
@@ -130,11 +134,9 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
                 dataset_epsg = Vars['crs'].epsg_code.split(':')[1]
             if not dataset_epsg:
                 raise interfaces.InterfaceError("netcdf: epsg attr not found in group elevation")
-            #if dataset_epsg != self._epsg:
-            target_cs = "+proj=utm +zone={} +ellps={} +datum={} +units=m +no_defs".format(
-            int(self._epsg) - 32600, "WGS84", "WGS84")
-            source_cs = "+proj=utm +zone={} +ellps={} +datum={} +units=m +no_defs".format(
-            int(dataset_epsg) - 32600, "WGS84", "WGS84")
+
+            target_cs = "+init=EPSG:{}".format(self._epsg)
+            source_cs = "+init=EPSG:{}".format(dataset_epsg)
 
             # Construct bounding region
             box_fields = set(("lower_left_x", "lower_left_y", "step_x", "step_y", "nx", "ny", "EPSG"))
@@ -150,7 +152,7 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
             else:
                 bounding_region = BoundingBoxRegion(xcoord_m, ycoord_m, dataset_epsg, self._epsg)
             self.bounding_box = bounding_region.bounding_box(self._epsg)
-            x, y, m_xy, _ = self._limit(xcoord, ycoord,source_cs, target_cs)
+            x, y, m_xy, _ = self._limit(xcoord, ycoord, source_cs, target_cs)
             
             mask = ((m_xy)&(m_catch))
 
@@ -168,26 +170,18 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
             rf = Vars["reservoir-fraction"][mask]
             gf = Vars["glacier-fraction"][mask]
 
-
         # Construct region parameter:
-        name_map = {"priestley_taylor": "pt", "kirchner": "kirchner",
-                    "precipitation_correction": "p_corr", "actual_evapotranspiration": "ae",
-                    "gamma_snow": "gs", "skaugen_snow": "ss", "hbv_snow": "hs","glacier_melt":"gm",
-                    "hbv_actual_evapotranspiration":"ae", "hbv_soil": "soil", "hbv_tank": "tank","routing":"routing"}
         region_parameter = self._region_model.parameter_t()
         for p_type_name, value_ in iteritems(self._mconf.model_parameters()):
-            if p_type_name in name_map:
-                if hasattr(region_parameter, name_map[p_type_name]):
-                    sub_param = getattr(region_parameter, name_map[p_type_name])
-                    for p, v in iteritems(value_):
-                        if hasattr(sub_param, p):
-                            setattr(sub_param, p, v)
-                        else:
-                            raise RegionConfigError("Invalid parameter '{}' for parameter set '{}'".format(p, p_type_name))
-                else:
-                    raise RegionConfigError("Invalid parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
+            if hasattr(region_parameter, p_type_name):
+                sub_param = getattr(region_parameter, p_type_name)
+                for p, v in iteritems(value_):
+                    if hasattr(sub_param, p):
+                        setattr(sub_param, p, v)
+                    else:
+                        raise RegionConfigError("Invalid parameter '{}' for parameter set '{}'".format(p, p_type_name))
             else:
-                raise RegionConfigError("Unknown parameter set '{}'".format(p_type_name))
+                raise RegionConfigError("Invalid parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
 
         radiation_slope_factor = 0.9 # TODO: Move into yaml file similar to p_corr_scale_factor
         unknown_fraction = 1.0 - gf - lf - rf - ff
@@ -203,23 +197,29 @@ class CFRegionModelRepository(interfaces.RegionModelRepository):
             if cid in c_ids_unique:
                 param = self._region_model.parameter_t(region_parameter)
                 for p_type_name, value_ in iteritems(catch_param):
-                    if p_type_name in name_map:
-                        if hasattr(param, name_map[p_type_name]):
-                            sub_param = getattr(param, name_map[p_type_name])
-                            for p, v in iteritems(value_):
-                                if hasattr(sub_param, p):
-                                    setattr(sub_param, p, v)
-                                else:
-                                    raise RegionConfigError("Invalid parameter '{}' for catchment parameter set '{}'".format(p, p_type_name))
-                        else:
-                            raise RegionConfigError("Invalid catchment parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
+                    if hasattr(param, p_type_name):
+                        sub_param = getattr(param, p_type_name)
+                        for p, v in iteritems(value_):
+                            if hasattr(sub_param, p):
+                                setattr(sub_param, p, v)
+                            else:
+                                raise RegionConfigError("Invalid parameter '{}' for catchment parameter set '{}'".format(p, p_type_name))
                     else:
-                        raise RegionConfigError("Unknown catchment parameter set '{}'".format(p_type_name))
+                        raise RegionConfigError("Invalid catchment parameter set '{}' for selected model '{}'".format(p_type_name, self._region_model.__name__))
 
                 catchment_parameters[cid] = param
         region_model = self._region_model(cell_vector, region_parameter, catchment_parameters)
         region_model.bounding_region = bounding_region
         region_model.catchment_id_map = c_ids_unique
+
+        def do_clone(x):
+            clone = x.__class__(x)
+            clone.bounding_region = x.bounding_region
+            clone.catchment_id_map = x.catchment_id_map
+            # clone.gis_info = polygons  # cell shapes not included yet
+            return clone
+
+        region_model.clone = do_clone
         return region_model
 
 
@@ -232,26 +232,29 @@ class BoundingBoxRegion(interfaces.BoundingRegion):
         y_min = y.ravel().min()
         y_max = y.ravel().max()
         self.x = np.array([x_min, x_max, x_max, x_min], dtype="d")
-        #self.y = np.array([y_max, y_max, y_min, y_min], dtype="d")
         self.y = np.array([y_min, y_min, y_max, y_max], dtype="d")
         self.x, self.y = self.bounding_box(target_epsg)
         self._epsg = str(target_epsg)
+        self._polygon = box(x_min, y_min, x_max, y_max)
 
     def bounding_box(self, epsg):
         epsg = str(epsg)
         if epsg == self.epsg():
             return np.array(self.x), np.array(self.y)
         else:
-            source_cs = "+proj=utm +zone={} +ellps={} +datum={} +units=m +no_defs".format(
-                int(self.epsg()) - 32600, "WGS84", "WGS84")
-            target_cs = "+proj=utm +zone={} +ellps={} +datum={} +units=m +no_defs".format(
-                int(epsg) - 32600, "WGS84", "WGS84")
-            source_proj = Proj(source_cs)
-            target_proj = Proj(target_cs)
-            return [np.array(a) for a in transform(source_proj, target_proj, self.x, self.y)]
+            source_proj = pyproj.Proj("+init=EPSG:{}".format(self.epsg()))
+            target_proj = pyproj.Proj("+init=EPSG:{}".format(epsg))
+            return [np.array(a) for a in pyproj.transform(source_proj, target_proj, self.x, self.y)]
 
-    def bounding_polygon(self, epsg):
-        return self.bounding_box(epsg)
+    def bounding_polygon(self, epsg: int) -> Union[Polygon, MultiPolygon]:
+        """Implementation of interface.BoundingRegion"""
+        if epsg == self.epsg():
+            return self._polygon
+        else:
+            source_proj = pyproj.Proj("+init=EPSG:{}".format(self.epsg()))
+            target_proj = pyproj.Proj("+init=EPSG:{}".format(epsg))
+            project = partial(pyproj.transform, source_proj, target_proj)
+            return transform(project, self._polygon)
 
     def epsg(self):
         return self._epsg

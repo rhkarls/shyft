@@ -287,6 +287,10 @@ class ForecastSelectionCriteria(object):
            if not isinstance(v, api.UtcPeriod):
                raise ForecastSelectionCriteriaError(
                    "'forecasts_that_cover_period' selection criteria should be of type api.UtcPeriod.")
+        elif k == 'forecasts_that_intersect_period':
+           if not isinstance(v, api.UtcPeriod):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_that_intersect_period' selection criteria should be of type api.UtcPeriod.")
         elif k == 'latest_available_forecasts':
            if not all([isinstance(v, dict), isinstance(v['number_of_forecasts'], int),
                        isinstance(v['forecasts_older_than'], int)]):
@@ -345,7 +349,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned time-series should at least cover the
             requested period. It could return *more* data than in
@@ -396,7 +400,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned forecast time-series should at least cover the
             requested period. It could return *more* data than in
@@ -448,7 +452,7 @@ class GeoTsRepository(object):
         Returns
         -------
         List of geo_loc_ts:
-            List of dictionaries keyed by time series name, where values are
+            List of dictionaries keyed by source type, where values are
             api vectors of geo located timeseries.
         """
         raise NotImplementedError(
@@ -471,7 +475,7 @@ class GeoTsRepository(object):
         -------
         List (collection) of lists (ensemble members) of geo_loc_ts:
             List (collection indexed) of lists (ensemble indexed) dictionaries
-            keyed by time series name, where values are api vectors of geo located
+            keyed by source type, where values are api vectors of geo located
             timeseries.
         """
         raise NotImplementedError(
@@ -532,10 +536,8 @@ class BoundingRegion(object):
 
         Returns
         -------
-        x: np.ndarray
-           x coordinates of the smallest bounding polygon of the region
-        y: np.ndarray
-           y coordinates of the smallest bounding polygon of the region
+        polygon: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            The boundary of the region.
         """
         raise NotImplementedError(
             "Interface method 'bounding_polygon' not implemented for repository {}.".format(self.__class__.__name__))
@@ -621,3 +623,70 @@ class TimeseriesStore(object):
         """
         tsid_ts_map = {tsi.destination_id: tsi.extract_method(region_model) for tsi in self.ts_item_list}
         return self.tss.store(tsid_ts_map, is_forecast)
+
+
+class GeoLocationRepository(object):
+    """
+    Responsible for providing geo-locations for specified gis-identifiers
+    It plays a similar role as TsRepository, but this one just
+    provides geo-location information, given a specific id.
+
+    A candidate for interfaces
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def get_locations(self, location_id_list, epsg_id=32632):
+        """
+        Given that we know the location-id (typically an integer, could be string)
+        provide the locations (x,y,z) in a specified coordinate system
+        Parameters
+        ----------
+        location_id_list:list of type integer
+            identifies the gis-locationns, uniquely
+        epsg_id: integer
+            identifies the coordinate system
+
+        Returns
+        -------
+        dictionary of identifier:tuple(x,y,z)
+        """
+        pass
+
+
+class TsRepository:
+    """
+    Defines the contract of a time-series repository for this specific use
+    The responsibility is to read and store time-series,forecasts, ensembles
+    Notice that this TsRepository do not have geo-location associated with
+    the time-series (forecast or ensembles) that it stores.
+    The correlation between location/area and time-series are stored elsewhere,
+    so this interface  mereyly provide methods to retrieve/store
+    timeseries/forecast/ensembles.
+    """
+
+    @abstractmethod
+    def read(self, list_of_ts_id, period):
+        """
+        """
+        raise NotImplementedError("read")
+
+    @abstractmethod
+    def read_forecast(self, list_of_fc_id, period):
+        """
+        read and return the newest forecast that have the biggest overlap with specified period
+        note that we should check that the semantic of this is reasonable
+        """
+        raise NotImplementedError("read_forecast")
+
+    @abstractmethod
+    def store(self, timeseries_dict):
+        """ Store the supplied time-series to the underlying db-system.
+            Parameters
+            ----------
+            timeseries_dict: dict string:timeseries
+                the keys are the wanted ts(-path) names
+                and the values are shyft api.time-series.
+                If the named time-series does not exist, create it.
+        """
+        raise NotImplementedError("read_forecast")
