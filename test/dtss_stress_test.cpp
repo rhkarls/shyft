@@ -199,7 +199,7 @@ TEST_CASE("dtss_stress") {
     size_t n_readers=1;
     int n_seconds =20;
     if(getenv("SHYFT_DTSS_STRESS")) {
-        if(sscanf(getenv("SHYFT_DTSS_STRESS"),"%d,%d",&n_readers,&n_seconds)!=2) {
+        if(sscanf(getenv("SHYFT_DTSS_STRESS"),"%zu,%d",&n_readers,&n_seconds)!=2) {
             FAST_REQUIRE_EQ(true,false);
         }
     }
