@@ -55,10 +55,7 @@
 			<Add option="-DARMA_DONT_PRINT_ERRORS" />
 			<Add option="-DARMA_NO_DEBUG" />
 			<Add directory=".." />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#dlib.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#doctest.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
@@ -72,8 +69,7 @@
 			<Add library="blas" />
 			<Add library="lapack" />
 			<Add library="dlib" />
-			<Add directory="$(#dlib.lib)" />
-			<Add directory="$(#boost.lib)" />
+			<Add directory="$(#shyft_dependencies.lib)" />
 			<Add directory="/usr/local/lib64" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
@@ -222,7 +218,7 @@
 		<Extensions>
 			<DoxyBlocks>
 				<comment_style block="0" line="0" />
-				<doxyfile_project project_number="1" output_directory="home/sih/projects/shyft-doc/core" />
+				<doxyfile_project project_number="1" output_directory="../../shyft-doc/core" />
 				<doxyfile_build />
 				<doxyfile_warnings />
 				<doxyfile_output />
