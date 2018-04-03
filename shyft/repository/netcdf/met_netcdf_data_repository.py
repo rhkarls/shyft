@@ -101,7 +101,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                 raise MetNetcdfDataRepositoryError("No such directory '{}'".format(self._directory))
 
         if elevation_file is not None:
-            # self.elevation_file = os.path.join(self._directory, elevation_file)
+            self.elevation_file = os.path.join(self._directory, elevation_file)
             if not os.path.isfile(self.elevation_file):
                 raise MetNetcdfDataRepositoryError(
                     "Elevation file '{}' not found".format(self.elevation_file))
