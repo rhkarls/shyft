@@ -287,6 +287,10 @@ class ForecastSelectionCriteria(object):
            if not isinstance(v, api.UtcPeriod):
                raise ForecastSelectionCriteriaError(
                    "'forecasts_that_cover_period' selection criteria should be of type api.UtcPeriod.")
+        elif k == 'forecasts_that_intersect_period':
+           if not isinstance(v, api.UtcPeriod):
+               raise ForecastSelectionCriteriaError(
+                   "'forecasts_that_intersect_period' selection criteria should be of type api.UtcPeriod.")
         elif k == 'latest_available_forecasts':
            if not all([isinstance(v, dict), isinstance(v['number_of_forecasts'], int),
                        isinstance(v['forecasts_older_than'], int)]):
@@ -345,7 +349,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned time-series should at least cover the
             requested period. It could return *more* data than in
@@ -396,7 +400,7 @@ class GeoTsRepository(object):
         Returns
         -------
         geo_loc_ts: dictionary
-            dictionary keyed by ts type, where values are api vectors of geo
+            dictionary keyed by source type, where values are api vectors of geo
             located timeseries.
             Important notice: The returned forecast time-series should at least cover the
             requested period. It could return *more* data than in
@@ -448,7 +452,7 @@ class GeoTsRepository(object):
         Returns
         -------
         List of geo_loc_ts:
-            List of dictionaries keyed by time series name, where values are
+            List of dictionaries keyed by source type, where values are
             api vectors of geo located timeseries.
         """
         raise NotImplementedError(
@@ -471,7 +475,7 @@ class GeoTsRepository(object):
         -------
         List (collection) of lists (ensemble members) of geo_loc_ts:
             List (collection indexed) of lists (ensemble indexed) dictionaries
-            keyed by time series name, where values are api vectors of geo located
+            keyed by source type, where values are api vectors of geo located
             timeseries.
         """
         raise NotImplementedError(

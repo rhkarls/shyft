@@ -7,7 +7,7 @@ from netCDF4 import Dataset
 from shyft import api
 from .. import interfaces
 from .time_conversion import convert_netcdf_time
-from .utils import calc_RH, _slice_var_2D, _limit_2D, _make_time_slice, _numpy_to_geo_ts_vec, _get_files
+from .utils import  calc_P, calc_RH, _slice_var_2D, _limit_2D, _make_time_slice, _numpy_to_geo_ts_vec, _get_files
 
 UTC = api.Calendar()
 
@@ -58,7 +58,8 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
 
     _G = 9.80665 #  WMO-defined gravity constant to calculate the height in metres from geopotential
 
-    def __init__(self, epsg, directory, filename=None, padding=5000., elevation_file=None, allow_subset=False):
+    def __init__(self, epsg, directory, filename=None, ensemble_member=0,
+                 padding=5000., elevation_file=None, allow_subset=False):
         """
         Construct the netCDF4 dataset reader for data from Arome or EC NWP model,
         and initialize data retrieval.
@@ -84,16 +85,23 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             Allow extraction of a subset of the given source fields
             instead of raising exception.
         """
-        self._directory = os.path.expandvars(directory)
+        #directory = directory.replace('${SHYFTDATA}', os.getenv('SHYFTDATA', '.'))
+        self.ensemble_member = ensemble_member
+        self._directory = directory
+        if directory is not None:
+            self._directory = os.path.expandvars(directory)
+        else:
+            filename = os.path.expandvars(filename)
         self._filename = filename
         if filename is None:
             self._filename = "(\d{4})(\d{2})(\d{2})[T_](\d{2})Z?.nc$"
         self.allow_subset = allow_subset
-        if not os.path.isdir(self._directory):
-            raise MetNetcdfDataRepositoryError("No such directory '{}'".format(self._directory))
+        if not os.path.isfile(filename):
+            if not os.path.isdir(self._directory):
+                raise MetNetcdfDataRepositoryError("No such directory '{}'".format(self._directory))
 
         if elevation_file is not None:
-            self.elevation_file = os.path.join(self._directory, elevation_file)
+            # self.elevation_file = os.path.join(self._directory, elevation_file)
             if not os.path.isfile(self.elevation_file):
                 raise MetNetcdfDataRepositoryError(
                     "Elevation file '{}' not found".format(self.elevation_file))
@@ -107,6 +115,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         self._arome_shyft_map = {
             'dew_point_temperature_2m': 'dew_point_temperature_2m',
             'surface_air_pressure': 'surface_air_pressure',
+            'sea_level_pressure': 'sea_level_pressure',
             "relative_humidity_2m": "relative_humidity",
             "air_temperature_2m": "temperature",
             #"altitude": "z",
@@ -125,6 +134,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
                           "integral_of_surface_downwelling_shortwave_flux_in_air_wrt_time": ['W s/m^2'],
                           'dew_point_temperature_2m': ['K'],
                           'surface_air_pressure': ['Pa'],
+                          'sea_level_pressure': ['Pa'],
                           }
 
         self._shift_fields = ("precipitation_amount", "precipitation_amount_acc",
@@ -134,7 +144,30 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         """
         see shyft.repository.interfaces.GeoTsRepository
         """
-        filename = os.path.join(self._directory, self._filename)
+        if self._directory is not None:
+            filename = os.path.join(self._directory, self._filename)
+        else:
+            filename = self._filename
+        if not os.path.isfile(filename):
+            raise MetNetcdfDataRepositoryError("File '{}' not found".format(filename))
+        with Dataset(filename) as dataset:
+            return self._get_data_from_dataset(dataset, input_source_types,
+                                               utc_period, geo_location_criteria, ensemble_member=self.ensemble_member)
+
+    def get_timeseries_ensemble(self, input_source_types, utc_period, geo_location_criteria=None):
+        """
+        Parameters
+        ----------
+        see interfaces.GeoTsRepository
+
+        Returns
+        -------
+        see interfaces.GeoTsRepository
+        """
+        if self._directory is not None:
+            filename = os.path.join(self._directory, self._filename)
+        else:
+            filename = self._filename
         if not os.path.isfile(filename):
             raise MetNetcdfDataRepositoryError("File '{}' not found".format(filename))
         with Dataset(filename) as dataset:
@@ -148,7 +181,7 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         filename = _get_files(self._directory, self._filename, t_c, MetNetcdfDataRepositoryError)
         with Dataset(filename) as dataset:
             return self._get_data_from_dataset(dataset, input_source_types, utc_period,
-                                               geo_location_criteria)
+                                               geo_location_criteria, ensemble_member=self.ensemble_member)
 
     def get_forecast_ensemble(self, input_source_types, utc_period,
                               t_c, geo_location_criteria=None):
@@ -221,12 +254,22 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
         # else:
         #     ecmwf_fetching_error = False
         # if "relative_humidity" in input_source_types and ("relative_humidity_2m" not in dataset.variables or ecmwf_fetching_error):
+
+        # estimate from surface_air_preasure...
         if "relative_humidity" in input_source_types and all([var in dataset.variables for var in ["surface_air_pressure", "dew_point_temperature_2m"]]):
             if not isinstance(input_source_types, list):
                 input_source_types = list(input_source_types)  # We change input list, so take a copy
             input_source_types.remove("relative_humidity")
             input_source_types.extend(["surface_air_pressure", "dew_point_temperature_2m"])
             if no_temp: input_source_types.extend(["temperature"])
+        # ...or from sea_level_preasure
+        if "relative_humidity" in input_source_types and all([var in dataset.variables for var in ["sea_level_pressure", "dew_point_temperature_2m"]]):
+            if not isinstance(input_source_types, list):
+                input_source_types = list(input_source_types)  # We change input list, so take a copy
+            input_source_types.remove("relative_humidity")
+            input_source_types.extend(["sea_level_pressure", "dew_point_temperature_2m"])
+            if no_temp: input_source_types.extend(["temperature"])
+
         # Check for presence and consistency of coordinate variables
         time, x_var, y_var, data_cs, coord_conv = self._check_and_get_coord_vars(dataset, input_source_types)
         # Check units of meteorological variables
@@ -285,6 +328,14 @@ class MetNetcdfDataRepository(interfaces.GeoTsRepository):
             else:
                 sfc_t = raw_data["temperature"][0]
             raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, sfc_p), "relative_humidity_2m", '1'
+        if set(("sea_level_pressure", "dew_point_temperature_2m")).issubset(raw_data):
+            sea_p = raw_data.pop("sea_level_pressure")[0]
+            dpt_t = raw_data.pop("dew_point_temperature_2m")[0]
+            if no_temp:
+                sfc_t = raw_data.pop("temperature")[0]
+            else:
+                sfc_t = raw_data["temperature"][0]
+            raw_data["relative_humidity"] = calc_RH(sfc_t, dpt_t, calc_P(z, sea_p)), "relative_humidity_2m", '1'
         #print(data.dimensions)
         #time_slice = slice(time_slice.start, time_slice.stop + 1)  # to supply the extra time that is needed for accumulated variables
         if ensemble_member is None and 'ensemble_member' in data.dimensions:
