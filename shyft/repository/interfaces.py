@@ -536,10 +536,8 @@ class BoundingRegion(object):
 
         Returns
         -------
-        x: np.ndarray
-           x coordinates of the smallest bounding polygon of the region
-        y: np.ndarray
-           y coordinates of the smallest bounding polygon of the region
+        polygon: {shapely.geometry.Polygon, shapely.geometry.MultiPolygon}
+            The boundary of the region.
         """
         raise NotImplementedError(
             "Interface method 'bounding_polygon' not implemented for repository {}.".format(self.__class__.__name__))
