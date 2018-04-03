@@ -174,9 +174,7 @@
 			<Add directory="../.." />
 			<Add directory="$(#python.include)" />
 			<Add directory="$(#numpy.include)" />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#dlib.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
@@ -191,8 +189,7 @@
 			<Add library="dlib" />
 			<Add library="boost_filesystem" />
 			<Add library="boost_system" />
-			<Add directory="$(#dlib.lib)" />
-			<Add directory="$(#boost.lib)" />
+			<Add directory="$(#shyft_dependencies.lib)" />
 			<Add directory="$(#python.lib)" />
 		</Linker>
 		<Unit filename="api.cpp">

@@ -50,9 +50,7 @@
 			<Add option="-DARMA_DONT_USE_WRAPPER" />
 			<Add option="-DARMA_DONT_PRINT_ERRORS" />
 			<Add option="-DARMA_NO_DEBUG" />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#dlib.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 			<Add directory=".." />
 		</Compiler>
 		<Linker>
