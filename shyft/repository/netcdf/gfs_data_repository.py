@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 import numpy as np
 from netCDF4 import Dataset
 from shyft import api
@@ -101,46 +98,38 @@ class GFSDataRepository(interfaces.GeoTsRepository):
                                          " lat/lon coords or time not found.")
         time = self.ad_to_utc(time)  # Fetch all times
         time_slice, _ = _make_time_slice(time, utc_period, GFSDataRepositoryError)
+        clip_in_data_cs = True  # was false, caused problem in _limit_2D
 
-        #x, y, _, (m_lon, m_lat), _ = self._limit(lon[:], lat[:], self.shyft_cs)
         x, y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(
             lon[:], lat[:], data_cs, self.shyft_cs, geo_location_criteria, self._padding, GFSDataRepositoryError,
-            clip_in_data_cs=False)
+            clip_in_data_cs=clip_in_data_cs)
 
         for k in dataset.variables.keys():
             if self._gfs_shyft_map.get(k, None) in input_source_types:
                 data = dataset.variables[k]
-                # data_slice = len(data.dimensions)*[slice(None)]
-                # data_slice[data.dimensions.index("ens")] = self.ensemble_idx
-                # data_slice[data.dimensions.index("lon")] = m_lon
-                # data_slice[data.dimensions.index("lat")] = m_lat
-                # data_slice[data.dimensions.index("time")] = time_slice
-                # raw_data[self._gfs_shyft_map[k]] = data[data_slice]
                 raw_data[self._gfs_shyft_map[k]] = _slice_var_2D(data, lon.name, lat.name, x_slice, y_slice, x_inds,
-                                         y_inds, GFSDataRepositoryError,
-                                         slices={'time': time_slice, 'ens': self.ensemble_idx})
+                                                                 y_inds, GFSDataRepositoryError,
+                                                                 slices={'time': time_slice, 'ens': self.ensemble_idx})
         with Dataset(self.dem_file) as dataset:
-            alts = dataset.variables["altitude"]
-            # lats = dataset.variables["latitude"][:]
-            # longs = dataset.variables["longitude"][:]
-            # alts = alts[np.round(lats) == lats, np.round(longs) == longs]
-            # lats = lats[np.round(lats) == lats]
-            # longs = longs[np.round(longs) == longs]
-            #_x, _y, z, (_m_lon, _m_lat), _ = self._limit(longs, lats, self.shyft_cs, alts)
-            lats = dataset.variables["latitude"]
-            longs = dataset.variables["longitude"]
+            alts_v = dataset.variables["altitude"]
+            lats_v = dataset.variables["latitude"]
+            longs_v = dataset.variables["longitude"]
+            lats = dataset.variables["latitude"][:]
+            longs = dataset.variables["longitude"][:]
+            # alts = alts_v[np.round(lats) == lats, np.round(longs) == longs]
+            lats = lats[np.round(lats) == lats]
+            longs = longs[np.round(longs) == longs]
             _x, _y, (x_inds, y_inds), (x_slice, y_slice) = _limit_2D(
                 longs[:], lats[:], data_cs, self.shyft_cs, geo_location_criteria, self._padding, GFSDataRepositoryError,
-                clip_in_data_cs=False)
-            z = _slice_var_2D(alts, longs.name, lats.name, x_slice, y_slice, x_inds, y_inds, GFSDataRepositoryError)
-            assert np.linalg.norm(x - _x + y - _y) < 1.0e-10  # x/y coordinates must match
+                clip_in_data_cs=clip_in_data_cs)
+            z = _slice_var_2D(alts_v, longs_v.name, lats_v.name, x_slice, y_slice, x_inds, y_inds, GFSDataRepositoryError)
+            assert np.linalg.norm(x - _x) < 1.0e-10  # x/y coordinates must match
+            assert np.linalg.norm(y - _y) < 1.0e-10
             # pts = np.dstack((x, y, z)).reshape(*(x.shape + (3,)))
         if set(("x_wind", "y_wind")).issubset(raw_data):
             x_wind = raw_data.pop("x_wind")
             y_wind = raw_data.pop("y_wind")
             raw_data["wind_speed"] = np.sqrt(np.square(x_wind) + np.square(y_wind))
-        #extracted_data = self._transform_raw(raw_data, time)
-        #return self._geo_ts_to_vec(self._convert_to_timeseries(extracted_data), pts)
         return _numpy_to_geo_ts_vec(self._transform_raw(raw_data, time[time_slice]), x, y, z, GFSDataRepositoryError)
 
     def get_forecast(self, input_source_types, utc_period, t_c, geo_location_criteria=None):

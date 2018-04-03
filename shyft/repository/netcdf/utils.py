@@ -139,8 +139,8 @@ def _limit_2D(x, y, data_cs, target_cs, geo_location_criteria, padding, err, cli
     target_proj = pyproj.Proj(target_cs)
 
     if x.shape != y.shape:
-        err("x and y coords do not have the same dimensions.")
-    if not(1 <= len(x.shape) <=2):
+       err("x and y coords do not have the same dimensions.")
+    if not(1 <= len(x.shape) <=2 ):
         err("x and y coords should have one or two dimensions.")
 
     if len(x.shape) == 1:

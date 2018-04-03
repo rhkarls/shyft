@@ -26,11 +26,11 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         t0 = self.start_date + api.deltahours(7)
         period = api.UtcPeriod(t0, t0 + api.deltahours(n_hours))
             
-        repos = GFSDataRepository(epsg, dem_file, t0)
+        repos = GFSDataRepository(epsg=epsg, dem_file=dem_file, padding=5000.0, utc=t0) #//epsg, dem_file, padding=5000., utc=None
         data_names = ("temperature", "wind_speed", "precipitation", "relative_humidity", "radiation")
         sources = repos.get_timeseries(data_names, period, geo_location_criteria=bpoly)
         self.assertEqual(set(data_names), set(sources.keys()))
-        self.assertEqual(len(sources["temperature"]), 6)
+        self.assertEqual(len(sources["temperature"]), 2)  # TODO: this was 6 before common changes.
         data1 = sources["temperature"][0]
         data2 = sources["temperature"][1]
         self.assertNotEqual(data1.mid_point().x, data2.mid_point().x)
@@ -56,7 +56,7 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         data_names = ("temperature",)  # the full set: "wind_speed", "precipitation", "relative_humidity", "radiation")
         sources = repos.get_forecast(data_names, period, t_c, geo_location_criteria=bpoly)
         self.assertEqual(set(data_names), set(sources.keys()))
-        self.assertEqual(len(sources["temperature"]), 6)
+        self.assertEqual(len(sources["temperature"]), 2)
         data1 = sources["temperature"][0]
         data2 = sources["temperature"][1]
         self.assertNotEqual(data1.mid_point().x, data2.mid_point().x)
@@ -82,7 +82,7 @@ class GFSDataRepositoryTestCase(unittest.TestCase):
         ensembles = repos.get_forecast_ensemble(data_names, period, t_c, geo_location_criteria=bpoly)
         for sources in ensembles:
             self.assertEqual(set(data_names), set(sources.keys()))
-            self.assertEqual(len(sources["temperature"]), 6)
+            self.assertEqual(len(sources["temperature"]), 2)
             data1 = sources["temperature"][0]
             data2 = sources["temperature"][1]
             self.assertNotEqual(data1.mid_point().x, data2.mid_point().x)
