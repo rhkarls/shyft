@@ -119,7 +119,7 @@ if [ ! -d boost_${boost_ver} ]; then
     popd
 fi;
 echo  Done boost_${boost_ver}
-
+export WIN_SHYFT_DEPENDENCIES_DIR=`echo ${SHYFT_DEPENDENCIES_DIR} |  sed  -e 's/^\///' -e 's_/_\\\\_g' -e 's/^./\0:/'`
 cd ${SHYFT_DEPENDENCIES_DIR}
 if [ ! -d pybind11 ]; then
     git clone https://github.com/pybind/pybind11.git
@@ -127,7 +127,7 @@ if [ ! -d pybind11 ]; then
 	mkdir -p build
 	cd build
 	echo set PYTHONHOME=%BOOST_PYTHONHOME% >bdlib.cmd
-	echo cmake -G\"Visual Studio 15 2017 Win64\" -DCMAKE_INSTALL_PREFIX=${SHYFT_DEPENDENCIES_DIR} -DPYBIND11_TEST=0 ${cmake_common} .. >>bdlib.cmd
+	echo cmake -G\"Visual Studio 15 2017 Win64\" -DCMAKE_INSTALL_PREFIX=${WIN_SHYFT_DEPENDENCIES_DIR} -DPYBIND11_TEST=0 ${cmake_common} .. >>bdlib.cmd
 	echo cmake -P cmake_install.cmake >>bdlib.cmd
 	./bdlib.cmd
 	popd
