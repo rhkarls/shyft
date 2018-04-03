@@ -625,6 +625,35 @@ class TimeseriesStore(object):
         return self.tss.store(tsid_ts_map, is_forecast)
 
 
+class GeoLocationRepository(object):
+    """
+    Responsible for providing geo-locations for specified gis-identifiers
+    It plays a similar role as TsRepository, but this one just
+    provides geo-location information, given a specific id.
+
+    A candidate for interfaces
+    """
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def get_locations(self, location_id_list, epsg_id=32632):
+        """
+        Given that we know the location-id (typically an integer, could be string)
+        provide the locations (x,y,z) in a specified coordinate system
+        Parameters
+        ----------
+        location_id_list:list of type integer
+            identifies the gis-locationns, uniquely
+        epsg_id: integer
+            identifies the coordinate system
+
+        Returns
+        -------
+        dictionary of identifier:tuple(x,y,z)
+        """
+        pass
+
+
 class TsRepository:
     """
     Defines the contract of a time-series repository for this specific use
