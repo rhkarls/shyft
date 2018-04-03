@@ -303,7 +303,7 @@ class ConcatDataRepository(interfaces.GeoTsRepository):
                 extracted_data = {k: (np.concatenate((extracted_data[k][0], np.squeeze(extra_data[k][0], axis=0))), ta)
                                                                                 for k in list(extracted_data.keys())}
             #return self._convert_to_geo_timeseries(extracted_data, geo_pts, concat=True)[0]
-            return _numpy_to_geo_ts_vec(extracted_data, x, y, z, ConcatDataRepositoryError)
+            return _numpy_to_geo_ts_vec(extracted_data, x, y, z, ConcatDataRepositoryError)[0]
 
     def get_forecast_ensemble_collection(self, input_source_types, fc_selection_criteria, geo_location_criteria=None):
         """
