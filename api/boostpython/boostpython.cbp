@@ -165,7 +165,7 @@
 		</VirtualTargets>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-fexceptions -fPIC" />
 			<Add option="-DBOOST_VARIANT_MINIMIZE_SIZE" />
 			<Add option="-DARMA_DONT_USE_WRAPPER" />
@@ -174,25 +174,22 @@
 			<Add directory="../.." />
 			<Add directory="$(#python.include)" />
 			<Add directory="$(#numpy.include)" />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#dlib.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
 			<Add option="-Wl,-rpath=\\$$$ORIGIN/../../lib" />
 			<Add library="blas" />
 			<Add library="lapack" />
-			<Add library="shyftapi" />
-			<Add library="shyftcore" />
+			<Add library="shyft_api" />
+			<Add library="shyft_core" />
 			<Add library="boost_python3" />
 			<Add library="python3" />
 			<Add library="boost_serialization" />
 			<Add library="dlib" />
 			<Add library="boost_filesystem" />
 			<Add library="boost_system" />
-			<Add directory="$(#dlib.lib)" />
-			<Add directory="$(#boost.lib)" />
+			<Add directory="$(#shyft_dependencies.lib)" />
 			<Add directory="$(#python.lib)" />
 		</Linker>
 		<Unit filename="api.cpp">

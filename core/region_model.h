@@ -313,9 +313,11 @@ namespace shyft {
             region_env_t region_env;///< the region environment (shallow-copy?) as passed to the interpolation/run_interpolation
             std::vector<state_t> initial_state; ///< the initial state, set explicit, or by the first call to .set_states(..) or run_cells()
             routing::river_network river_network;///< the routing river_network, can be empty
+            
             /** \brief compute and return number of catchments inspecting call cells.geo.catchment_id() */
             size_t number_of_catchments() const { return cix_to_cid.size(); }
-
+            /** \brief provide a copy of computed cids to python */
+            vector<int> catchment_ids() const {return vector<int>{cix_to_cid};}
             /** connect all cells in a catchment to a river
              * \param cid catchment id for the cells to be connected to the specified river
              * \param rid river id for the target river. Note it can be 0 to set no routing for the cells

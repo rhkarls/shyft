@@ -211,18 +211,23 @@ namespace shyft {
             }
             string id() const;///< if the ts is aref_ts return it's id (or maybe better url?)
             void do_bind() {
-                sts()->do_bind();
+                if(ts) ts->do_bind();
             }
             std::shared_ptr<ipoint_ts> const& sts() const {
                 if(!ts)
                     throw runtime_error("TimeSeries is empty");
+                if(ts->needs_bind())
+                    throw runtime_error("TimeSeries, or expression unbound, please bind sym-ts before use.");
                 return ts;
             }
             std::shared_ptr<ipoint_ts> & sts() {
                 if(!ts)
                     throw runtime_error("TimeSeries is empty");
+                if(ts->needs_bind())
+                    throw runtime_error("TimeSeries, or expression unbound, please bind sym-ts before use.");
                 return ts;
             }
+
             /** support operator! bool  to let an empty ts evaluate to */
             bool operator !() const { // can't expose it as op, due to math promotion
                 if(ts && needs_bind())
@@ -234,19 +239,19 @@ namespace shyft {
 
             // interface we want to expose
             // the standard ipoint-ts stuff:
-            ts_point_fx point_interpretation() const {return ts->point_interpretation();}
+            ts_point_fx point_interpretation() const {return sts()->point_interpretation();}
             void set_point_interpretation(ts_point_fx point_interpretation) { sts()->set_point_interpretation(point_interpretation); };
             const gta_t& time_axis() const { return sts()->time_axis();};
-            utcperiod total_period() const {return ts?ts->total_period():utcperiod();};   ///< Returns period that covers points, given
-            size_t index_of(utctime t) const {return ts?ts->index_of(t):std::string::npos;};
-			size_t index_of(utctime t,size_t ix_hint) const { return ts ? ts->time_axis().index_of(t,ix_hint) : std::string::npos; };
+            utcperiod total_period() const {return ts&& !ts->needs_bind()?ts->total_period():utcperiod();};   ///< Returns period that covers points, given
+            size_t index_of(utctime t) const {return ts&&!ts->needs_bind()?ts->index_of(t):std::string::npos;};
+			size_t index_of(utctime t,size_t ix_hint) const { return ts&&!ts->needs_bind() ? ts->time_axis().index_of(t,ix_hint) : std::string::npos; };
             size_t open_range_index_of(utctime t, size_t ix_hint = std::string::npos) const {
-                return ts ? ts->time_axis().open_range_index_of(t, ix_hint):std::string::npos; }
-            size_t size() const {return ts?ts->size():0;};        ///< number of points that descr. y=f(t) on t ::= period
+                return ts && !ts->needs_bind() ? ts->time_axis().open_range_index_of(t, ix_hint):std::string::npos; }
+            size_t size() const {return ts?sts()->size():0;};        ///< number of points that descr. y=f(t) on t ::= period
             utctime time(size_t i) const {return sts()->time(i);};///< get the i'th time point
             double value(size_t i) const {return sts()->value(i);};///< get the i'th value
-            double operator()(utctime t) const  {return sts()->value_at(t);};
-            std::vector<double> values() const {return ts?ts->values():std::vector<double>();}
+            double operator()(utctime t) const  {return sts()->value_at(t);}; // maybe nan for empty ts?
+            std::vector<double> values() const {return ts?sts()->values():vector<double>{};}
 
             //-- then some useful functions/properties
             apoint_ts extend( const apoint_ts & ts,

@@ -12,7 +12,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters="-nv -tc=ice_packing" />
+				<Option parameters="-nv -tc=dtss_mutex" />
 				<Compiler>
 					<Add option="-g" />
 				</Compiler>
@@ -46,7 +46,7 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-fexceptions -Winvalid-pch -pthread" />
 			<Add option="-D__UNIT_TEST__" />
 			<Add option="-DVERBOSE=0" />
@@ -55,16 +55,13 @@
 			<Add option="-DARMA_DONT_PRINT_ERRORS" />
 			<Add option="-DARMA_NO_DEBUG" />
 			<Add directory=".." />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#dlib.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#doctest.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
 			<Add option="-Wl,-rpath=\\$$$ORIGIN/../../shyft/lib" />
-			<Add library="shyftcore" />
-			<Add library="shyftapi" />
+			<Add library="shyft_core" />
+			<Add library="shyft_api" />
 			<Add library="pthread" />
 			<Add library="boost_filesystem" />
 			<Add library="boost_system" />
@@ -72,8 +69,7 @@
 			<Add library="blas" />
 			<Add library="lapack" />
 			<Add library="dlib" />
-			<Add directory="$(#dlib.lib)" />
-			<Add directory="$(#boost.lib)" />
+			<Add directory="$(#shyft_dependencies.lib)" />
 			<Add directory="/usr/local/lib64" />
 			<Add directory="/usr/local/lib" />
 		</Linker>
@@ -91,6 +87,12 @@
 		</Unit>
 		<Unit filename="cell_builder_test.cpp">
 			<Option virtualFolder="full_model/" />
+		</Unit>
+		<Unit filename="dtss_mutex_test.cpp">
+			<Option virtualFolder="dtss/" />
+		</Unit>
+		<Unit filename="dtss_stress_test.cpp">
+			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_test.cpp">
 			<Option virtualFolder="dtss/" />
@@ -216,7 +218,7 @@
 		<Extensions>
 			<DoxyBlocks>
 				<comment_style block="0" line="0" />
-				<doxyfile_project project_number="1" output_directory="home/sih/projects/shyft-doc/core" />
+				<doxyfile_project project_number="1" output_directory="../../shyft-doc/core" />
 				<doxyfile_build />
 				<doxyfile_warnings />
 				<doxyfile_output />

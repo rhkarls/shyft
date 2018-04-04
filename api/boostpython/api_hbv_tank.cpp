@@ -7,10 +7,11 @@ namespace expose {
 	void hbv_tank() {
 		using namespace shyft::core::hbv_tank;
 		using namespace boost::python;
+        namespace py=boost::python;
 		using namespace std;
 
 		class_<parameter>("HbvTankParameter")
-			.def(init<optional<double, double, double, double, double>>(args("uz1", "kuz2", "kuz1", "perc","klz"), "create parameter object with specifed values"))
+			.def(init<py::optional<double, double, double, double, double>>(args("uz1", "kuz2", "kuz1", "perc","klz"), "create parameter object with specifed values"))
 			.def_readwrite("uz1", &parameter::uz1, "mm, .. , default=25")
 			.def_readwrite("kuz2", &parameter::kuz2, ",default=0.5")
 			.def_readwrite("kuz1", &parameter::kuz1, ",default=0.3")
@@ -19,7 +20,7 @@ namespace expose {
 			;
 
 		class_<state>("HbvTankState")
-			.def(init<optional<double,double>>(args("uz", "lz"), "create a state with specified values"))
+			.def(init<py::optional<double,double>>(args("uz", "lz"), "create a state with specified values"))
 			.def_readwrite("uz", &state::uz, "Water Level Upper Zone [mm]")
 			.def_readwrite("lz", &state::lz, "Water Level Lower Zone [mm]")
 			;

@@ -127,7 +127,7 @@
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
-			<Add library="shyftcore" />
+			<Add library="shyft_core" />
 			<Add library="blas" />
 			<Add library="lapack" />
 			<Add directory="/usr/local/lib64" />

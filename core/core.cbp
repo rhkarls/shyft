@@ -12,7 +12,7 @@
 		</Option>
 		<Build>
 			<Target title="Debug">
-				<Option output="../bin/Debug/shyftcore" prefix_auto="1" extension_auto="1" />
+				<Option output="../bin/Debug/shyft_core" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Debug/" />
 				<Option type="2" />
@@ -26,7 +26,7 @@
 				</Linker>
 			</Target>
 			<Target title="Release">
-				<Option output="../bin/Release/shyftcore" prefix_auto="1" extension_auto="1" />
+				<Option output="../bin/Release/shyft_core" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="obj/Release/" />
 				<Option type="2" />
@@ -44,15 +44,13 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add option="-std=c++14" />
+			<Add option="-std=c++1z" />
 			<Add option="-fexceptions -fPIC -pthread -Winvalid-pch" />
 			<Add option="-DBOOST_VARIANT_MINIMIZE_SIZE" />
 			<Add option="-DARMA_DONT_USE_WRAPPER" />
 			<Add option="-DARMA_DONT_PRINT_ERRORS" />
 			<Add option="-DARMA_NO_DEBUG" />
-			<Add directory="$(#boost.include)" />
-			<Add directory="$(#armadillo.include)" />
-			<Add directory="$(#dlib.include)" />
+			<Add directory="$(#shyft_dependencies.include)" />
 			<Add directory=".." />
 		</Compiler>
 		<Linker>
@@ -101,6 +99,9 @@
 			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_msg.h">
+			<Option virtualFolder="dtss/" />
+		</Unit>
+		<Unit filename="dtss_mutex.h">
 			<Option virtualFolder="dtss/" />
 		</Unit>
 		<Unit filename="dtss_url.h">

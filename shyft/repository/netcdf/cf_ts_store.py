@@ -1,31 +1,13 @@
-# import unittest
-# from os import path
-# import os
 import numpy as np
 from netCDF4 import Dataset
-# from netCDF4 import buffer
 from pyproj import Proj
-# from pyproj import transform
 
-# from shyft import shyftdata_dir
-# from shyft.repository.netcdf.geo_ts_repository import GeoTsRepository
-# from shyft.repository.netcdf.yaml_config import YamlContent
-#from shyft.api import Calendar
-# from shyft.api import UtcPeriod
-# from shyft.api import TemperatureSource
-from shyft.api import TimeSeries
-from shyft.api import TimeAxis
-from shyft.api import point_interpretation_policy as point_fx
-#from shyft.api import deltahours, deltaminutes
 from shyft.api import DoubleVector as dv
-#from shyft.api import GeoPoint
-from shyft.api import UtcTimeVector
+from shyft.api import TimeAxis
+from shyft.api import TimeSeries
 from shyft.api import UtcPeriod
-
-#from datetime import datetime
-
-# from shyft import api
-# from shyft import shyftdata_dir
+from shyft.api import UtcTimeVector
+from shyft.api import point_interpretation_policy as point_fx
 from shyft.repository.netcdf.time_conversion import convert_netcdf_time
 
 
@@ -65,7 +47,7 @@ class TimeSeriesMetaInfo:
                 list(self.shyft_name_to_cf_info.keys())))
             raise TimeSeriesMetaInfoError(msg)
 
-        self.variable_name = name  if name != 'radiation' else 'global_radiation'
+        self.variable_name = name if name != 'radiation' else 'global_radiation'
         self.shyft_name = name
         # shyft  (precipitiation|temperature|radiation|wind_speed|relative_humidity)
         self.timeseries_id = ts_id  # like /observed/temperature/<location>/ or any
@@ -250,7 +232,7 @@ class TimeSeriesStore:
                     crop_data = True
                     time_cropped = time[0:idx_del_start]
                     var_cropped = var[0:idx_del_start, 0]
-                    last_time_point = 2 * time_cropped[-1] - time_cropped[-2]
+                    last_time_point = 2*time_cropped[-1] - time_cropped[-2]
                     # print(type(time_cropped[0]))
                     # print(UtcTimeVector.from_numpy(time_cropped.astype(np.int64)).to_numpy())
                     ta = TimeAxis(UtcTimeVector.from_numpy(time_cropped.astype(np.int64)), int(last_time_point))
@@ -272,9 +254,9 @@ class TimeSeriesStore:
 
     def remove_tp_data(self, period: UtcPeriod):
         """
-        delete data given within the time_period
+        delete data given within the time period
 
-        :param time_period:
+        :param period:
         :return:
         """
         time_series_cropped = None
@@ -303,9 +285,13 @@ class TimeSeriesStore:
                 if idx_max - idx_min != len(time):
                     # print('indices ', idx_min, idx_max, len(time))
                     # 3. crop the data array
-                    time_cropped = np.append(time[0:idx_min], time[idx_max:])
-                    var_cropped = np.append(var[0:idx_min], var[idx_max:])
-                    last_time_point = 2 * time_cropped[-1] - time_cropped[-2]
+                    if idx_max < len(time):
+                        time_cropped = np.append(time[0:idx_min], time[idx_max:])
+                        var_cropped = np.append(var[0:idx_min], var[idx_max:])
+                    else:
+                        time_cropped = np.append(time[0:idx_min], [])
+                        var_cropped = np.append(var[0:idx_min], [])
+                    last_time_point = 2*time_cropped[-1] - time_cropped[-2]
                     # print(type(time_cropped[0]))
                     # print(UtcTimeVector.from_numpy(time_cropped.astype(np.int64)).to_numpy())
                     ta = TimeAxis(UtcTimeVector.from_numpy(time_cropped.astype(np.int64)), int(last_time_point))

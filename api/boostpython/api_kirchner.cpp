@@ -7,10 +7,11 @@ namespace expose {
     void kirchner() {
         using namespace shyft::core::kirchner;
         using namespace boost::python;
+        namespace py=boost::python;
         using namespace std;
 
         class_<parameter>("KirchnerParameter")
-            .def(init<double,optional<double,double>>(args("c1","c2","c3"),"creates parameter object according to parameters"))
+            .def(init<double,py::optional<double,double>>(args("c1","c2","c3"),"creates parameter object according to parameters"))
             .def_readwrite("c1",&parameter::c1,"default =2.439")
             .def_readwrite("c2",&parameter::c2,"default= 0.966")
             .def_readwrite("c3",&parameter::c3,"default = -0.10")

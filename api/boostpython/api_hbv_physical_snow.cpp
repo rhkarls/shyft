@@ -10,8 +10,14 @@ namespace expose {
         using namespace std;
         namespace py=boost::python;
         class_<parameter>("HbvPhysicalSnowParameter")
-        .def(init<optional<double,double,double,double,double,double,double,double,double,double,double,bool>>(args("tx","lw","cfr","wind_scale","wind_const","surface_magnitude","max_albedo","min_albedo","fast_albedo_decay_rate","slow_albedo_decay_rate","snowfall_reset_depth","calculate_iso_pot_energy"),"create parameter object with specifed values"))
-        .def(init<const vector<double>&,const vector<double>&,optional<double,double,double,double,double,double,double,double,double,double,double,bool>>(
+        .def(py::init<py::optional<double,double,double,double,double,double,double,double,double,double,double,bool>>(
+        (py::arg("tx"),py::arg("lw"),py::arg("cfr"),
+         py::arg("wind_scale"),py::arg("wind_const"),py::arg("surface_magnitude"),
+         py::arg("max_albedo"),py::arg("min_albedo"),py::arg("fast_albedo_decay_rate"),
+         py::arg("slow_albedo_decay_rate"),py::arg("snowfall_reset_depth"),
+         py::arg("calculate_iso_pot_energy")),
+         "create parameter object with specifed values"))
+        .def(init<const vector<double>&,const vector<double>&,py::optional<double,double,double,double,double,double,double,double,double,double,double,bool>>(
             args("snow_redist_factors","quantiles","tx","lw","cfr","wind_scale","wind_const","surface_magnitude","max_albedo","min_albedo","fast_albedo_decay_rate","slow_albedo_decay_rate","snowfall_reset_depth","calculate_iso_pot_energy"),"create a parameter with snow re-distribution factors, quartiles and optionally the other parameters"))
         .def("set_snow_redistribution_factors",&parameter::set_snow_redistribution_factors,args("snow_redist_factors"))
         .def("set_snow_quantiles",&parameter::set_snow_quantiles,args("quantiles"))
@@ -32,7 +38,7 @@ namespace expose {
          ;
 
         class_<state>("HbvPhysicalSnowState")
-         .def(init<const vector<double>&, const vector<double>&,optional<double, double, double>>(args("albedo", "iso_pot_energy", "surface_heat", "swe","sca"),"create a state with specified values"))
+         .def(init<const vector<double>&, const vector<double>&,py::optional<double, double, double>>(args("albedo", "iso_pot_energy", "surface_heat", "swe","sca"),"create a state with specified values"))
          .def_readwrite("albedo",&state::albedo,"albedo (Broadband snow reflectivity fraction)")
          .def_readwrite("iso_pot_energy",&state::iso_pot_energy,"iso_pot_energy (Accumulated energy assuming isothermal snow surface) [J/m2]")
          .def_readwrite("surface_heat",&state::surface_heat,"surface_heat (Snow surface cold content) [J/m2]")

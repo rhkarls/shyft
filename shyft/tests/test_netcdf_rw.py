@@ -16,6 +16,7 @@ from shyft.api import DoubleVector as dv
 from shyft.api import GeoPoint
 from shyft.api import UtcTimeVector
 from shyft.api import UtcPeriod
+from shapely.geometry import box
 
 from shyft.repository.netcdf.cf_geo_ts_repository import CFDataRepository, CFDataRepositoryError
 from shyft.repository.netcdf.cf_ts_store import CFInfo, TimeSeriesMetaInfo, TimeSeriesStore, TimeSeriesStoreError
@@ -57,7 +58,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         utc = Calendar()
         ta = TimeAxis(utc.time(2016, 1, 1), deltahours(1), 24)
         data = np.arange(0, ta.size(), dtype=np.float64)
-        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # save the first batch
         t_ds = TimeSeriesStore(test_file, temperature)
@@ -68,10 +69,10 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = ts
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        selection_criteria = box(x0, y0, x1, y1)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -82,7 +83,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -92,7 +93,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2016, 1, 2), deltahours(1), 48)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(0, ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the data
         t_ds.append_ts_data(ts)
 
@@ -101,13 +102,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data = np.empty(72)
         data[:24] = np.arange(0, 24, dtype=np.float64)
         data[24:72] = np.arange(0, 48, dtype=np.float64)  # <-- new data
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -118,7 +118,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -128,7 +128,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2016, 1, 3), deltahours(1), 48)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(0, ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the data
         t_ds.append_ts_data(ts)
 
@@ -138,13 +138,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[:24] = np.arange(0, 24, dtype=np.float64)
         data[24:48] = np.arange(0, 24, dtype=np.float64)  # <-- new data
         data[48:96] = np.arange(0, 48, dtype=np.float64)  # <-- new data
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -155,7 +154,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -165,7 +164,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2016, 1, 6), deltahours(1), 24)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(0, ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the data
         t_ds.append_ts_data(ts)
 
@@ -178,14 +177,13 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[24:48] = np.arange(0, 24, dtype=np.float64)
         data[48:96] = np.arange(0, 48, dtype=np.float64)
         data[96:120] = np.arange(0, 24, dtype=np.float64)  # <-- new data
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
         # print(ts_exp.total_period())
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -199,7 +197,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # print(ts_exp.time_axis.time_points - time_vals)
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -209,7 +207,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2016, 1, 2), deltahours(1), 24)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(100, 100 + ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the data
         t_ds.append_ts_data(ts)
 
@@ -222,13 +220,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[24:48] = np.arange(100, 124, dtype=np.float64)  # <-- new data
         data[48:96] = np.arange(0, 48, dtype=np.float64)
         data[96:120] = np.arange(0, 24, dtype=np.float64)
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
         # print(ts_exp.total_period())
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -239,7 +236,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -249,7 +246,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2016, 1, 5), deltahours(1), 36)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(200, 200 + ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the data
         t_ds.append_ts_data(ts)
 
@@ -261,13 +258,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[48:96] = np.arange(0, 48, dtype=np.float64)
         data[96:132] = np.arange(200, 236, dtype=np.float64)  # <-- new data
         data[132:144] = np.arange(12, 24, dtype=np.float64)
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -278,7 +274,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -288,7 +284,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2015, 12, 31), deltahours(1), 24)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(300, 300 + ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the first batch
         t_ds.append_ts_data(ts)
 
@@ -301,13 +297,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[72:120] = np.arange(0, 48, dtype=np.float64)
         data[120:156] = np.arange(200, 236, dtype=np.float64)
         data[156:168] = np.arange(12, 24, dtype=np.float64)
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -318,7 +313,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -328,7 +323,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # create time axis
         ta = TimeAxis(utc.time(2015, 12, 30), deltahours(1), 36)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(400, 400 + ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the first batch
         # t_ds = TimeSeriesStore(test_file, temperature)
         t_ds.append_ts_data(ts)
@@ -343,13 +338,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[96:144] = np.arange(0, 48, dtype=np.float64)
         data[144:180] = np.arange(200, 236, dtype=np.float64)
         data[180:192] = np.arange(12, 24, dtype=np.float64)
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -360,7 +354,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -370,7 +364,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         print('\n\n Overwrite everything with less data points')
         ta = TimeAxis(utc.time(2015, 12, 30), deltahours(24), 9)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(1000, 1000 + ta.size(), dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # write the time series
         t_ds.append_ts_data(ts)
 
@@ -378,10 +372,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = ts
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -392,7 +385,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -402,7 +395,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         print('\n\n Insert data with different dt')
         ta = TimeAxis(utc.time(2016, 1, 1), deltahours(1), 24)
         ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)),
-                        point_fx=point_fx.POINT_AVERAGE_VALUE)
+                        point_fx=point_fx.POINT_INSTANT_VALUE)
         # write the time series
         t_ds.append_ts_data(ts)
 
@@ -416,13 +409,12 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[0:2] = np.array([1000, 1001])
         data[2:26] = np.arange(0, 24)  # <-- new data
         data[26:] = np.arange(1003, 1009)
-        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -433,7 +425,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -442,7 +434,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         print('\n\n delete data with range UtcPeriod')
         tp = UtcPeriod(utc.time(2015, 12, 31), utc.time(2016, 1, 1, 12))
         # ta = TimeAxis(utc.time(2016, 1, 1), deltahours(1), 24)
-        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_INSTANT_VALUE)
         # write the time series
         t_ds.remove_tp_data(tp)
 
@@ -456,10 +448,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = TimeSeries(ta, dv.from_numpy(data),point_fx.POINT_INSTANT_VALUE)  # TODO: is this correct policy to use
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -470,7 +461,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -479,7 +470,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         print('\n\n delete data with range UtcPeriod at the start')
         tp = UtcPeriod(1451433600, 1451667600)
         # ta = TimeAxis(utc.time(2016, 1, 1), deltahours(1), 24)
-        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_INSTANT_VALUE)
         # write the time series
         t_ds.remove_tp_data(tp)
 
@@ -492,10 +483,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx.POINT_INSTANT_VALUE)  # TODO: is this correct policy to use for this test
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -506,7 +496,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -515,7 +505,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         print('\n\n delete data with range UtcPeriod at the end')
         tp = UtcPeriod(1451952000, utc.time(2016, 1, 10))
         # ta = TimeAxis(utc.time(2016, 1, 1), deltahours(1), 24)
-        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        # ts = TimeSeries(ta, dv.from_numpy(np.arange(0, 24, dtype=np.float64)), point_fx=point_fx.POINT_INSTANT_VALUE)
         # write the time series
         t_ds.remove_tp_data(tp)
 
@@ -527,11 +517,10 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx.POINT_INSTANT_VALUE)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
         try:
-            rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+            rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
         except CFDataRepositoryError:
             pass
 
@@ -544,7 +533,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -556,10 +545,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         t_ds.remove_tp_data(tp)
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        self.assertRaises(CFDataRepositoryError, ts_dr.get_timeseries, ['temperature'], tp)
+        self.assertRaises(CFDataRepositoryError, ts_dr.get_timeseries, ['temperature'], tp, selection_criteria)
 
         # --------------------------------------
         # insert data in between time saved data points
@@ -568,7 +556,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         utc = Calendar()
         ta = TimeAxis(utc.time(2016, 1, 1), deltahours(24), 2)
         data = np.arange(0, ta.size(), dtype=np.float64)
-        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the first batch
         t_ds.append_ts_data(ts)
 
@@ -576,7 +564,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         utc = Calendar()
         ta = TimeAxis(utc.time(2016, 1, 1) + deltahours(1), deltahours(1), 23)
         data = np.arange(10, 10 + ta.size(), dtype=np.float64)
-        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the first batch
         t_ds.append_ts_data(ts)
 
@@ -592,10 +580,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx.POINT_INSTANT_VALUE)  # TODO: is this correct policy value for this case
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -606,7 +593,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy()))
 
@@ -619,7 +606,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         data[4] = np.nan
         data[6] = np.nan  # np.inf, but trouble getting inf trough all version of numpy/netcdf
         data[8] = np.nan  # -np.inf, --"--
-        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_AVERAGE_VALUE)
+        ts = TimeSeries(ta, dv.from_numpy(data), point_fx=point_fx.POINT_INSTANT_VALUE)
         # save the first batch
         t_ds.append_ts_data(ts)
 
@@ -642,10 +629,9 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         ts_exp = TimeSeries(ta, dv.from_numpy(data), point_fx.POINT_INSTANT_VALUE)  # TODO: policy right ?
 
         # now read back the result using a *standard* shyft cf geo repository
-        selection_criteria = {'bbox': [[x0, x1, x1, x0], [y0, y0, y1, y1]]}
-        ts_dr = CFDataRepository(epsg_id, test_file, selection_criteria)
+        ts_dr = CFDataRepository(epsg_id, test_file)
         # now read back 'temperature' that we know should be there
-        rts_map = ts_dr.get_timeseries(['temperature'], ts_exp.total_period())
+        rts_map = ts_dr.get_timeseries(['temperature'], UtcPeriod(ts_exp.time(0), ts_exp.time(ts_exp.size()-1)), geo_location_criteria=selection_criteria)
 
         # and verify that we get exactly back what we wanted.
         self.assertIsNotNone(rts_map)
@@ -656,7 +642,7 @@ class NetCDFGeoTsRWTestCase(unittest.TestCase):
         # check if time axis is as expected
         self.assertEqual(geo_temperature[0].ts.time_axis, ts_exp.time_axis)
         self.assertTrue(np.allclose(geo_temperature[0].ts.time_axis.time_points, ts_exp.time_axis.time_points))
-        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_AVERAGE_VALUE)
+        self.assertEqual(geo_temperature[0].ts.point_interpretation(), point_fx.POINT_INSTANT_VALUE)
         # check if variable data is as expected
         self.assertTrue(np.allclose(geo_temperature[0].ts.values.to_numpy(), ts_exp.values.to_numpy(), equal_nan=True))
         if path.exists(test_file):

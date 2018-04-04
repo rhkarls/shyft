@@ -6,6 +6,7 @@
 #include "core/predictions.h"
 #include "api/api.h"
 #include "core/time_series_dd.h"
+#include "py_convertible.h"
 
 namespace expose {
     using namespace shyft;
@@ -1106,6 +1107,26 @@ namespace expose {
 		}
     }
 
+    /** python api need some helper classes to make this more elegant */
+    struct rating_curve_t_f {
+        utctime t{ no_utctime };
+        rating_curve_function f{};
+        rating_curve_t_f() = default;
+        rating_curve_t_f(utctime t,const rating_curve_function&f) :t{ t },f{ f } {}
+        bool operator==(const rating_curve_t_f& o) const { return t==o.t; } // satisfy boost py indexing find
+    };
+
+    /** helper to fix custom constructors taking the above f_t as list */
+    struct rcp_ext {
+        static rating_curve_parameters* create_default() {return new rating_curve_parameters();}
+        static rating_curve_parameters* create_from_t_f_list(const vector<rating_curve_t_f>& f_t_list) {
+            auto rcp = new rating_curve_parameters();
+            for (const auto&e:f_t_list)
+                rcp->add_curve(e.t, e.f);
+            return rcp;
+        }
+    };
+
 	static void expose_rating_curve_classes() {
 
 		// overloads for rating_curve_segment::flow
@@ -1155,8 +1176,19 @@ namespace expose {
 					doc_returns("flow", "double", "the flow for the given water level")
 				)
 			.def("__str__", &shyft::core::rating_curve_segment::operator std::string, "Stringify the segment.")
+            .def(self==self)
+            .def(self!=self)
 			;
 
+        typedef std::vector<shyft::core::rating_curve_segment> RatingCurveSegmentVector;
+        class_<RatingCurveSegmentVector>("RatingCurveSegments",
+              doc_intro("A typed list of RatingCurveSegment, used to construct RatingCurveParameters."),
+              init<>(py::arg("self"))
+            )
+            .def(vector_indexing_suite<RatingCurveSegmentVector>())
+            .def(init<const RatingCurveSegmentVector&>(args("clone_me")))
+        ;
+        py_api::iterable_converter().from_python<RatingCurveSegmentVector>();
 		// overloads for rating_curve_function::flow
 		double (shyft::core::rating_curve_function::*rcf_flow_val)(double) const = &shyft::core::rating_curve_function::flow;
 		std::vector<double> (shyft::core::rating_curve_function::*rcf_flow_vec)(const std::vector<double> & ) const = &shyft::core::rating_curve_function::flow;
@@ -1172,6 +1204,11 @@ namespace expose {
 				doc_see_also("RatingCurveSegment, RatingCurveParameters"),
 				init<>(py::arg("self"),doc_intro("Defines a new empty rating curve function."))
 			)
+            .def(init<const RatingCurveSegmentVector&,bool>(
+                (py::arg("self"),py::arg("segments"),py::arg("is_sorted")=true),
+                doc_intro("constructs a function from a segment-list")
+                )
+            )
 			.def("size", &shyft::core::rating_curve_function::size,(py::arg("self")), "Get the number of RatingCurveSegments composing the function.")
 			.def("add_segment", rcf_add_args, (py::arg("self"),py::arg("lower"), py::arg("a"), py::arg("b"), py::arg("c")),
 					doc_intro("Add a new curve segment with the given parameters.")
@@ -1198,11 +1235,36 @@ namespace expose {
 			.def("__str__", &shyft::core::rating_curve_function::operator std::string, "Stringify the function.")
 			;
 
+        class_<rating_curve_t_f>("RatingCurveTimeFunction",
+                doc_intro("Composed of time t and RatingCurveFunction"),
+                init<>(py::arg("self"), doc_intro("Defines empty pair t,f"))
+            )
+            .def(init<utctime,const rating_curve_function&>((py::arg("self"), py::arg("t"), py::arg("f")),
+                doc_intro("Construct an object with function f valid from time t")
+                doc_parameters()
+                doc_parameter("t", "int", "epoch time in 1970 utc [s]")
+                doc_parameter("f", "RatingCurveFunction", "the function")
+                )
+            )
+            .def_readwrite("t",&rating_curve_t_f::t,doc_intro(".f is valid from t, the epoch 1970[s] time "))
+            .def_readwrite("f", &rating_curve_t_f::f, doc_intro("the rating curve function"))
+            ;
+
+        typedef vector<rating_curve_t_f> RatingCurveTimeFunctionVector;
+        class_<RatingCurveTimeFunctionVector>("RatingCurveTimeFunctions",
+            doc_intro("A typed list of RatingCurveTimeFunction elements"),
+            init<>(py::arg("self"), doc_intro("Defines empty list pair t,f"))
+            )
+            .def(vector_indexing_suite<RatingCurveTimeFunctionVector>())
+            .def(init<const RatingCurveTimeFunctionVector&>(args("clone_me")))
+            ;
+        py_api::iterable_converter().from_python<RatingCurveTimeFunctionVector>();
+
 		// overloads for rating_curve_function::flow
 		double (shyft::core::rating_curve_parameters::*rcp_flow_val)(utctime, double) const = &shyft::core::rating_curve_parameters::flow;
 		std::vector<double> (shyft::core::rating_curve_parameters::*rcp_flow_ts)(const apoint_ts & ) const = &shyft::core::rating_curve_parameters::flow<apoint_ts>;
 		// overloads for rating_curve_function::add_segment
-		void (shyft::core::rating_curve_parameters::*rcp_add_obj)(utctime, const rating_curve_function & ) = &shyft::core::rating_curve_parameters::add_curve;
+        rating_curve_parameters& (shyft::core::rating_curve_parameters::*rcp_add_obj)(utctime, const rating_curve_function & ) = &shyft::core::rating_curve_parameters::add_curve;
 
 		class_<shyft::core::rating_curve_parameters>("RatingCurveParameters",
 				doc_intro("Parameter pack controlling rating level computations.")
@@ -1212,13 +1274,26 @@ namespace expose {
 				doc_intro("each level value onto the correct RatingCurveFunction, which again maps onto the")
 				doc_intro("correct RatingCurveSegment for the level value.")
 				doc_see_also("RatingCurveSegment, RatingCurveFunction, TimeSeries.rating_curve"),
-				init<>((py::arg("self")),"Defines a empty RatingCurveParameter instance")
+				no_init //init<>((py::arg("self")),"Defines a empty RatingCurveParameter instance")
 			)
+            .def("__init__",make_constructor(&rcp_ext::create_default),"Defines a empty RatingCurveParameter instance")
+            .def("__init__",make_constructor(
+                    &rcp_ext::create_from_t_f_list,
+                    default_call_policies(),
+                    (py::arg("t_f_list"))
+                ),
+                doc_intro("create parameters in one go from list of RatingCurveTimeFunction elements")
+                doc_parameters()
+                doc_parameter("t_f_list","RatingCurveTimeFunctions","a list of RatingCurveTimeFunction elements")
+            )
 			.def("add_curve", rcp_add_obj, (py::arg("self"),py::arg("t"), py::arg("curve")),
 					doc_intro("Add a curve to the parameter pack.")
 					doc_parameters()
 					doc_parameter("t", "RatingCurveFunction", "First time-point the curve is valid for.")
 					doc_parameter("curve", "RatingCurveFunction", "RatingCurveFunction to add at t.")
+                    doc_returns("self","RatingCurveParameters"," to allow chaining building functions"),
+                 return_value_policy<reference_existing_object>()
+
 				)
 			.def("flow", rcp_flow_val, (py::arg("self"), py::arg("t"), py::arg("level")),
 					doc_intro("Compute the flow at a specific time point.")

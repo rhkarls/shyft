@@ -5,6 +5,7 @@
 namespace expose {
     using namespace shyft::core;
     using namespace boost::python;
+    namespace py=boost::python;
     using namespace std;
 
     typedef std::vector<utcperiod> UtcPeriodVector;
@@ -188,7 +189,7 @@ namespace expose {
         ;
 
         class_<YMDhms>("YMDhms","Defines calendar coordinates as Year Month Day hour minute second")
-        .def(init<int,optional<int,int,int,int,int>>( args("Y","M","D","h","m","s" ),"Creates calendar coordinates specifying Y,M,D,h,m,s"))
+        .def(init<int,py::optional<int,int,int,int,int>>( args("Y","M","D","h","m","s" ),"Creates calendar coordinates specifying Y,M,D,h,m,s"))
         .def("is_valid",&YMDhms::is_valid,"returns true if YMDhms values are reasonable")
         .def("is_null",&YMDhms::is_null,"returns true if all values are 0, - the null definition")
         .def_readwrite("year",&YMDhms::year)
@@ -204,7 +205,7 @@ namespace expose {
            ;
 
         class_<YWdhms>("YWdhms", "Defines calendar coordinates as iso Year Week week-day hour minute second")
-            .def(init<int, optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"), 
+            .def(init<int, py::optional<int, int, int, int, int>>(args("Y", "W", "wd", "h", "m", "s"), 
                 doc_intro("Creates calendar coordinates specifying iso Y,W,wd,h,m,s")
                 doc_parameters()
                 doc_parameter("Y","int","iso-year")
@@ -262,7 +263,15 @@ namespace expose {
         .def("timespan",&utcperiod::timespan,"returns end-start, the timespan of the period")
         .def_readwrite("start",&utcperiod::start,"Defines the start of the period, inclusive")
         .def_readwrite("end",&utcperiod::end,"Defines the end of the period, not inclusive");
-        def("intersection",&intersection,args("a,b"),"Returns the intersection of two utcperiods");
+        def("intersection",&intersection,(py::arg("a"),py::arg("b")),
+            doc_intro("Returns the intersection of two periods")
+            doc_intro("if there is an intersection, the resulting period will be .valid() and .timespan()>0")
+            doc_intro("If there is no intersection, an empty not .valid() period is returned")
+            doc_parameters()
+            doc_parameter("a","UtcPeriod","1st UtcPeriod argument")
+            doc_parameter("b","UtcPeriod","2nd UtcPeriod argument")
+            doc_returns("intersection","UtcPeriod","The computed intersection, or an empty not .valid() UtcPeriod")
+        );
     }
     static bool is_npos(size_t n) {
         return n==string::npos;

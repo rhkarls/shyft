@@ -138,7 +138,7 @@ client::percentiles(ts_vector_t const& tsv, utcperiod p, gta_t const&ta, const v
         throw std::runtime_error("percentiles require a valid period-specification");
     if (ta.size() == 0)
         throw std::runtime_error("percentile function require a time-axis with more than 0 steps");
-    
+
 
     if(srv_con.size()==1 || tsv.size()< srv_con.size()) {
         scoped_connect ac(*this);

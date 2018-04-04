@@ -66,7 +66,8 @@ using id_vector_t = std::vector<std::string>;
 using read_call_back_t = std::function<ts_vector_t(const id_vector_t& ts_ids, utcperiod p)>;
 using store_call_back_t = std::function<void(const ts_vector_t&)>;
 using find_call_back_t = std::function<ts_info_vector_t(std::string search_expression)>;
-
+using std::unique_ptr;
+using std::make_unique;
 
 // ========================================
 
@@ -108,7 +109,7 @@ public:
         const gts_t & ts,
         bool overwrite = true,
         const queries_t & queries = queries_t{}
-    ) const {
+    ) {
         boost::apply_visitor([&](auto && var) {
             var.save(tsid, ts, overwrite, queries);
         }, _container);
@@ -118,7 +119,7 @@ public:
         const std::string & tsid,
         core::utcperiod period,
         const queries_t & queries = queries_t{}
-    ) const {
+    ) {
         return boost::apply_visitor([&](auto && var) -> gts_t {
             return var.read(tsid, period, queries);
         }, _container);
@@ -127,7 +128,7 @@ public:
     void remove(
         const std::string & tsid,
         const queries_t & queries = queries_t{}
-    ) const {
+    ) {
         boost::apply_visitor([&](auto && var) {
             return var.remove(tsid, queries);
         }, _container);
@@ -136,7 +137,7 @@ public:
     ts_info get_ts_info(
         const std::string & tsid,
         const queries_t & queries = queries_t{}
-    ) const {
+    ) {
         return boost::apply_visitor([&](auto && var) -> ts_info {
             return var.get_ts_info(tsid, queries);
         }, _container);
@@ -145,7 +146,7 @@ public:
     std::vector<ts_info> find(
         const std::string & pattern,
         const queries_t & queries = queries_t{}
-    ) const {
+    ) {
         return boost::apply_visitor([&](auto && var) -> std::vector<ts_info> {
             return var.find(pattern, queries);
         }, _container);
@@ -185,7 +186,8 @@ struct server : dlib::server_iostream {
     store_call_back_t store_ts_cb;  ///< called for all non shyft:// store operations
 
     // shyft-internal implementation
-    std::unordered_map<std::string, cwrp_t> container;  ///< mapping of internal shyft <container>
+    mutex c_mx;///< container mutex
+    std::unordered_map<std::string, unique_ptr<cwrp_t>> container;  ///< mapping of internal shyft <container>
     ts_cache_t ts_cache{1000000};  // default 1 mill ts in cache
     bool cache_all_reads{false};
 
@@ -220,10 +222,11 @@ struct server : dlib::server_iostream {
         const std::string & container_name, const std::string & root_dir,
         std::string container_type = std::string{}
     ) {
+        unique_lock<mutex> sl(c_mx);
         ContainerDispatcher::create_container(container_name, container_type, root_dir, *this);
     }
 
-    const cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
+    cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
         return ContainerDispatcher::get_container(container_name, container_query, *this);
     }
 
@@ -307,23 +310,22 @@ struct standard_dtss_dispatcher {
         dtss::server<standard_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "ts_db" ) {
-            dtss_server.container[container_name] = container_wrapper_t{ ts_db{ root_path } };
+            dtss_server.container[container_name] = std::make_unique<container_wrapper_t>(ts_db{ root_path });
         } else if ( container_type == "krls" ) {
-            dtss_server.container[std::string{"KRLS_"} + container_name] = container_wrapper_t{ krls_pred_db{
+            dtss_server.container[std::string{"KRLS_"} + container_name] = std::make_unique<container_wrapper_t>( krls_pred_db{
                 root_path,
                 [&dtss_server](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
                 id_vector_t id_vec{ tsid };
                 return dtss_server.do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
             }
             }
-            };
+            );
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
     }
 
-
-    static const container_wrapper_t & get_container(
+    static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
         const dtss::server<standard_dtss_dispatcher> & dtss_server
     ) {
@@ -337,7 +339,7 @@ struct standard_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string("Failed to find shyft container: ")+container_name);
 
-        return f->second;
+        return *(f->second);
     }
 };
 

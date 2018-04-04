@@ -721,7 +721,7 @@ TEST_CASE("dtss_store_basics") {
             auto r_mb_s= n_ts*n/double(elapsed_ms(t1,t2))/1000.0;
             // on windows(before workaround): ~ 6 mpts/sec write, 162 mpts/sec read (slow close->workaround with thread?)
             // on linux: ~ 120 mpts/sec write, 180 mpts/sec read
-            std::cout<<"write pts/s = "<<w_mb_s<<", read pts/s = "<<r_mb_s<<" pts = "<<n_ts*n<<", roundtrip ms="<< double(elapsed_ms(t0,t2)) <<"\n";
+            std::cout<<"write Mpts/s = "<<w_mb_s<<", read Mpts/s = "<<r_mb_s<<" pts = "<<n_ts*n<<", roundtrip ms="<< double(elapsed_ms(t0,t2)) <<"\n";
             //std::cout << "open_ms:" << db.t_open << ", write_ms:" << db.t_write << ", t_close_ms:" << db.t_close << std::endl;
             FAST_CHECK_EQ(rv.size(),tsv.size());
             //fs::remove_all("*.db");
@@ -2522,13 +2522,13 @@ struct query_test_dtss_dispatcher {
         shyft::dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "test" ) {
-            dtss_server.container[std::string{"TEST_"} + container_name] = container_wrapper_t{ query_test_dtss_container{ root_path } };
+            dtss_server.container[std::string{"TEST_"} + container_name] = std::make_unique<container_wrapper_t>(query_test_dtss_container{ root_path });
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
     }
 
-    static const container_wrapper_t & get_container(
+    static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
         const dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
@@ -2542,7 +2542,7 @@ struct query_test_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
 
-        return f->second;
+        return *(f->second);
     }
 };
 
@@ -2703,15 +2703,15 @@ struct multicontainer_test_dtss_dispatcher {
         shyft::dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "first" ) {
-            dtss_server.container[std::string{"FIRST_"} + container_name] = container_wrapper_t{ multicontainer_test_dtss_container<0>{ root_path } };
+            dtss_server.container[std::string{"FIRST_"} + container_name] = std::make_unique<container_wrapper_t>(multicontainer_test_dtss_container<0>{ root_path });
         } else if ( container_type == "second" ) {
-            dtss_server.container[std::string{"SECOND_"} + container_name] = container_wrapper_t{ multicontainer_test_dtss_container<1>{ root_path } };
+            dtss_server.container[std::string{"SECOND_"} + container_name] = std::make_unique<container_wrapper_t>(multicontainer_test_dtss_container<1>{ root_path });
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
     }
      
-    static const container_wrapper_t & get_container(
+    static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
         const dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
     ) {
@@ -2727,7 +2727,7 @@ struct multicontainer_test_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
 
-        return f->second;
+        return *(f->second);
     }
 };
 

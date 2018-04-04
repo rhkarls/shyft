@@ -26,7 +26,7 @@ from shyft.api import utctime_now
 from shyft.api import ts_stringify
 
 def shyft_store_url(name: str) -> str:
-    return "shyft://test/{}".format(name)  # shyft:// maps to internal, test= container-name
+    return "shyft://test/{}_øæå".format(name)  # shyft:// maps to internal, test= container-name
 
 
 fake_store_container = "netcdf://dummy.nc"

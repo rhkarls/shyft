@@ -102,7 +102,6 @@
     <ClCompile Include="routing_test.cpp">
       <Filter>routing</Filter>
     </ClCompile>
-    <ClCompile Include="dtss_test.cpp" />
     <ClCompile Include="time_series_test.cpp">
       <Filter>time_series</Filter>
     </ClCompile>
@@ -132,6 +131,15 @@
     </ClCompile>
     <ClCompile Include="test_ice_packing.cpp">
       <Filter>time_series</Filter>
+    </ClCompile>
+    <ClCompile Include="dtss_mutex_test.cpp">
+      <Filter>dtss</Filter>
+    </ClCompile>
+    <ClCompile Include="dtss_stress_test.cpp">
+      <Filter>dtss</Filter>
+    </ClCompile>
+    <ClCompile Include="dtss_test.cpp">
+      <Filter>dtss</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -164,6 +172,9 @@
     </Filter>
     <Filter Include="time_series">
       <UniqueIdentifier>{1c0b9abc-7129-48cb-be5a-18e11386ec0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dtss">
+      <UniqueIdentifier>{f6a84701-8716-499e-98a4-3acccdee3fd5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

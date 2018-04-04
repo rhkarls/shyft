@@ -155,6 +155,9 @@
     <ClInclude Include="dtss_db.h">
       <Filter>dtss</Filter>
     </ClInclude>
+    <ClInclude Include="dtss_krls.h">
+      <Filter>dtss</Filter>
+    </ClInclude>
     <ClInclude Include="dtss_msg.h">
       <Filter>dtss</Filter>
     </ClInclude>
@@ -185,7 +188,7 @@
     <ClInclude Include="hbv_physical_snow.h" />
     <ClInclude Include="pt_hps_k.h" />
     <ClInclude Include="pt_hps_k_cell_model.h" />
-    <ClInclude Include="dtss_krls.h">
+    <ClInclude Include="dtss_mutex.h">
       <Filter>dtss</Filter>
     </ClInclude>
   </ItemGroup>

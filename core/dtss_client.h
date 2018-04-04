@@ -34,7 +34,6 @@ using shyft::core::deltahours;
 using gta_t = shyft::time_axis::generic_dt;
 using gts_t = shyft::time_series::point_ts<gta_t>;
 
-// TODO: move api::ts dependency into core
 using shyft::time_series::dd::apoint_ts;
 using shyft::time_series::dd::gpoint_ts;
 using shyft::time_series::dd::gts_t;

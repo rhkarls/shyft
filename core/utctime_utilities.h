@@ -87,10 +87,16 @@ namespace shyft {
             x_serialize_decl();
 		};
 		inline bool is_valid(const utcperiod &p) {return p.valid();}
+		/** returns intersection of a and b
+         *  ensures that if there is an a.overlaps(b), the intersection is returned, where .timespan() >0
+         *  otherwise an empty not .valid() period is returned.
+         *  \note: that intersection of 0 is not defined as intersection
+         */
         inline utcperiod intersection(const utcperiod&a, const utcperiod& b) {
-            utctime t0=std::max(a.start,b.start);
-            utctime t1=std::min(a.end,b.end);
-            return t0<=t1? utcperiod(t0,t1):utcperiod();
+			if (a.overlaps(b)) {
+				return utcperiod(std::max(a.start, b.start), std::min(a.end, b.end));
+			}
+			return utcperiod();
         }
         namespace time_zone {
             using namespace std;
@@ -103,8 +109,10 @@ namespace shyft {
                 typedef tz tz_type_t;
                 string name() const {return "UTC";}
                 utctimespan base_offset() const {return utctimespan(0);}
-                utctimespan utc_offset(utctime t) const {return utctimespan(0);}
+                utctimespan utc_offset(utctime /*t*/) const {return utctimespan(0);}
                 bool is_dst(utctime t) const {return false;}
+                utctime dst_start(int /* y*/) const {return no_utctime;}
+                utctime dst_end(int /*y*/) const {return no_utctime;}
             };
 
 
@@ -140,10 +148,14 @@ namespace shyft {
                 * \param dt of type utctimespan, positive for tz east of GMT
                 */
                 explicit tz_table(utctimespan dt):start_year(0) {
-                    char s[100];sprintf(s,"UTC%+02d",int(dt/deltahours(1)));
-                    tz_name=s;
+                    if(dt != 0) {
+                        char s[100];sprintf(s,"UTC%+02d",int(dt/deltahours(1)));
+                        tz_name=s;
+                    } else {
+                        tz_name="UTC";
+                    }
                 }
-                tz_table():start_year(0),tz_name("UTC+00"){}
+                tz_table():start_year(0),tz_name("UTC"){}
                 inline bool is_dst() const {return dst.size()>0;}
                 string name() const {return tz_name;}
                 utctime dst_start(int year) const {return is_dst()?dst[year-start_year].start:no_utctime;}
@@ -164,6 +176,9 @@ namespace shyft {
                 utctimespan base_offset() const {return base_tz;}
                 utctimespan utc_offset(utctime t) const {return base_tz + tz.dst_offset(t);}
                 bool is_dst(utctime t) const {return tz.dst_offset(t)!=utctimespan(0);}
+                bool is_any_dst() const {return tz.is_dst();}
+                utctime dst_start(int year) const {return tz.dst_start(year);}
+                utctime dst_end(int year) const {return tz.dst_end(year);}
                 x_serialize_decl();
             };
 

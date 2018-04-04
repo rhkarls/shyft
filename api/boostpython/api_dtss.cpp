@@ -1,5 +1,5 @@
 #include "boostpython_pch.h"
-
+#include <mutex>
 #include "core/time_series_dd.h"
 #include "core/dtss.h"
 #include "core/dtss_client.h"
@@ -35,170 +35,183 @@ private:
 };
 
 namespace shyft {
-    namespace dtss {
-    using time_series::dd::gta_t;
-    using time_series::dd::apoint_ts;
-    using time_series::dd::ats_vector;
+namespace dtss {
+using time_series::dd::gta_t;
+using time_series::dd::apoint_ts;
+using time_series::dd::ats_vector;
 
-        struct py_server : server<standard_dtss_dispatcher> {
-            boost::python::object cb;///< callback for the read function
-            boost::python::object fcb;///< callback for the find function
-            boost::python::object scb;///< callback for the store function
+using std::mutex;
+using std::unique_lock;
 
-            py_server():server(
-                [=](id_vector_t const &ts_ids,core::utcperiod p){return this->fire_cb(ts_ids,p); },
-                [=](std::string search_expression) {return this->find_cb(search_expression); },
-                [=](const ts_vector_t& tsv) {  this->store_cb(tsv);}
-            ) {
-                if (!PyEval_ThreadsInitialized()) {
-                    PyEval_InitThreads();// ensure threads-is enabled
-                }
-            }
-            ~py_server() {
-                cb = boost::python::object();
-                fcb = boost::python::object();
-                scb = boost::python::object();
-            }
+struct py_server : server<standard_dtss_dispatcher> {
+        boost::python::object cb;///< callback for the read function
+        boost::python::object fcb;///< callback for the find function
+        boost::python::object scb;///< callback for the store function
 
-            void handle_pyerror() {
-                // from SO: https://stackoverflow.com/questions/1418015/how-to-get-python-exception-text
-                using namespace boost::python;
-                using namespace boost;
-                std::string msg{"unspecified error"};
-                if(PyErr_Occurred()) {
-                    PyObject *exc,*val,*tb;
-                    object formatted_list, formatted;
-                    PyErr_Fetch(&exc,&val,&tb);
-                    handle<> hexc(exc),hval(allow_null(val)),htb(allow_null(tb));
-                    object traceback(import("traceback"));
-                    if (!tb) {
-                        object format_exception_only{ traceback.attr("format_exception_only") };
-                        formatted_list = format_exception_only(hexc,hval);
-                    } else {
-                        object format_exception{traceback.attr("format_exception")};
-                        if (format_exception) {
-                            try {
-                                formatted_list = format_exception(hexc, hval, htb);
-                            } catch (...) { // any error here, and we bail out, no crash please
-                                msg = "not able to extract exception info";
-                            }
-                        } else
-                            msg="not able to extract exception info";
-                    }
-                    if (formatted_list) {
-                        formatted = str("\n").join(formatted_list);
-                        msg = extract<std::string>(formatted);
-                    }
-                }
-                handle_exception();
-                PyErr_Clear();
-                throw std::runtime_error(msg);
+        py_server():server(
+            [=](id_vector_t const &ts_ids,core::utcperiod p){return this->fire_cb(ts_ids,p); },
+            [=](std::string search_expression) {return this->find_cb(search_expression); },
+            [=](const ts_vector_t& tsv) {  this->store_cb(tsv);}
+        ) {
+            if (!PyEval_ThreadsInitialized()) {
+                PyEval_InitThreads();// ensure threads-is enabled
             }
+        }
+        ~py_server() {
+            cb = boost::python::object();
+            fcb = boost::python::object();
+            scb = boost::python::object();
+        }
 
-            static int msg_count ;
-            ts_info_vector_t find_cb(std::string search_expression) {
-                ts_info_vector_t r;
-                if (fcb.ptr() != Py_None) {
-                    scoped_gil_aquire gil;
-                    try {
-                        r = boost::python::call<ts_info_vector_t>(fcb.ptr(), search_expression);
-                    } catch  (const boost::python::error_already_set&) {
-                        handle_pyerror();
-                    }
-                }
-                return r;
-            }
-            int store_cb(const ts_vector_t&tsv) {
-                int r{ 0 };
-                if (scb.ptr() != Py_None) {
-                    scoped_gil_aquire gil;
-                    try {
-                         boost::python::call<void>(scb.ptr(), tsv);
-                    } catch  (const boost::python::error_already_set&) {
-                        handle_pyerror();
-                    }
-                }
-                return r;
-            }
-            ts_vector_t fire_cb(id_vector_t const &ts_ids,core::utcperiod p) {
-                ats_vector r;
-                if (cb.ptr()!=Py_None) {
-                    scoped_gil_aquire gil;
-                    try {
-                        r = boost::python::call<ts_vector_t>(cb.ptr(), ts_ids, p);
-                    } catch  (const boost::python::error_already_set&) {
-                        handle_pyerror();
-                    }
+        void handle_pyerror() {
+            // from SO: https://stackoverflow.com/questions/1418015/how-to-get-python-exception-text
+            using namespace boost::python;
+            using namespace boost;
+            std::string msg{"unspecified error"};
+            if(PyErr_Occurred()) {
+                PyObject *exc,*val,*tb;
+                object formatted_list, formatted;
+                PyErr_Fetch(&exc,&val,&tb);
+                handle<> hexc(exc),hval(allow_null(val)),htb(allow_null(tb));
+                object traceback(import("traceback"));
+                if (!tb) {
+                    object format_exception_only{ traceback.attr("format_exception_only") };
+                    formatted_list = format_exception_only(hexc,hval);
                 } else {
-                    // for testing, just fill in constant values.
-                    gta_t ta(p.start, core::deltahours(1), p.timespan() / core::deltahours(1));
-                    for (size_t i = 0;i < ts_ids.size();++i)
-                        r.push_back(apoint_ts(ta, double(i), time_series::ts_point_fx::POINT_AVERAGE_VALUE));
+                    object format_exception{traceback.attr("format_exception")};
+                    if (format_exception) {
+                        try {
+                            formatted_list = format_exception(hexc, hval, htb);
+                        } catch (...) { // any error here, and we bail out, no crash please
+                            msg = "not able to extract exception info";
+                        }
+                    } else
+                        msg="not able to extract exception info";
                 }
-                return r;
+                if (formatted_list) {
+                    formatted = str("\n").join(formatted_list);
+                    msg = extract<std::string>(formatted);
+                }
             }
-            void process_messages(int msec) {
-                scoped_gil_release gil;
-                if(!is_running()) start_async();
-                std::this_thread::sleep_for(std::chrono::milliseconds(msec));
-            }
-        };
-        int py_server::msg_count = 0;
-        // need to wrap core client to unlock gil during processing
-        struct py_client {
-            client impl;
-            py_client(const std::string& host_port,bool ac,int timeout_ms):impl(host_port,ac,timeout_ms) {}
-            py_client(const vector<string>&host_ports, bool ac,int timeout_ms):impl(host_ports,ac,timeout_ms) {}
-            ~py_client() {
-                //std::cout << "~py_client" << std::endl;
-            }
-            py_client(py_client const&) = delete;
-            py_client(py_client &&) = delete;
-            py_client& operator=(py_client const&o) = delete;
+            handle_exception();
+            PyErr_Clear();
+            throw std::runtime_error(msg);
+        }
 
-            void close(int timeout_ms=1000) {
-                scoped_gil_release gil;
-                impl.close(timeout_ms);
+        static int msg_count ;
+        ts_info_vector_t find_cb(std::string search_expression) {
+            ts_info_vector_t r;
+            if (fcb.ptr() != Py_None) {
+                scoped_gil_aquire gil;
+                try {
+                    r = boost::python::call<ts_info_vector_t>(fcb.ptr(), search_expression);
+                } catch  (const boost::python::error_already_set&) {
+                    handle_pyerror();
+                }
             }
-            void reopen(int timeout_ms=1000) {
-                scoped_gil_release gil;
-                impl.reopen(timeout_ms);
+            return r;
+        }
+        int store_cb(const ts_vector_t&tsv) {
+            int r{ 0 };
+            if (scb.ptr() != Py_None) {
+                scoped_gil_aquire gil;
+                try {
+                     boost::python::call<void>(scb.ptr(), tsv);
+                } catch  (const boost::python::error_already_set&) {
+                    handle_pyerror();
+                }
             }
-            ts_vector_t percentiles(const ts_vector_t & tsv, core::utcperiod p,const gta_t &ta,const std::vector<int>& percentile_spec,bool use_ts_cached_read,bool update_ts_cache) {
-                scoped_gil_release gil;
-                std::vector<int64_t> p_spec;for(auto p:percentile_spec) p_spec.push_back(p);
-                return impl.percentiles(tsv,p,ta,p_spec,use_ts_cached_read,update_ts_cache);
+            return r;
+        }
+        ts_vector_t fire_cb(id_vector_t const &ts_ids,core::utcperiod p) {
+            ats_vector r;
+            if (cb.ptr()!=Py_None) {
+                scoped_gil_aquire gil;
+                try {
+                    r = boost::python::call<ts_vector_t>(cb.ptr(), ts_ids, p);
+                } catch  (const boost::python::error_already_set&) {
+                    handle_pyerror();
+                }
+            } else {
+                // for testing, just fill in constant values.
+                gta_t ta(p.start, core::deltahours(1), p.timespan() / core::deltahours(1));
+                for (size_t i = 0;i < ts_ids.size();++i)
+                    r.push_back(apoint_ts(ta, double(i), time_series::ts_point_fx::POINT_AVERAGE_VALUE));
             }
-            ts_vector_t evaluate(const ts_vector_t& tsv, core::utcperiod p,bool use_ts_cached_read,bool update_ts_cache) {
-                scoped_gil_release gil;
-                return ts_vector_t(impl.evaluate(tsv,p,use_ts_cached_read,update_ts_cache));
-            }
-            ts_info_vector_t find(const std::string& search_expression) {
-                scoped_gil_release gil;
-                return impl.find(search_expression);
-            }
-            void store_ts(const ts_vector_t&tsv, bool overwrite_on_write, bool cache_on_write) {
-                scoped_gil_release gil;
-                impl.store_ts(tsv, overwrite_on_write, cache_on_write);
-            }
-            void merge_store_ts(const ts_vector_t&tsv, bool cache_on_write) {
-                scoped_gil_release gil;
-                impl.merge_store_ts(tsv, cache_on_write);
-            }
+            return r;
+        }
+        void process_messages(int msec) {
+            scoped_gil_release gil;
+            if(!is_running()) start_async();
+            std::this_thread::sleep_for(std::chrono::milliseconds(msec));
+        }
+    };
+    int py_server::msg_count = 0;
+    // need to wrap core client to unlock gil during processing
+    struct py_client {
+        mutex mx; ///< to enforce just one thread active on this client object at a time
+        client impl;
+        py_client(const std::string& host_port,bool ac,int timeout_ms):impl(host_port,ac,timeout_ms) {}
+        py_client(const vector<string>&host_ports, bool ac,int timeout_ms):impl(host_ports,ac,timeout_ms) {}
+        ~py_client() {
+            //std::cout << "~py_client" << std::endl;
+        }
+        py_client(py_client const&) = delete;
+        py_client(py_client &&) = delete;
+        py_client& operator=(py_client const&o) = delete;
 
-            void cache_flush() {
-                scoped_gil_release gil;
-                return impl.cache_flush();
-            }
+        void close(int timeout_ms=1000) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            impl.close(timeout_ms);
+        }
+        void reopen(int timeout_ms=1000) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            impl.reopen(timeout_ms);
+        }
+        ts_vector_t percentiles(const ts_vector_t & tsv, core::utcperiod p,const gta_t &ta,const std::vector<int>& percentile_spec,bool use_ts_cached_read,bool update_ts_cache) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            std::vector<int64_t> p_spec;for(auto p:percentile_spec) p_spec.push_back(p);
+            return impl.percentiles(tsv,p,ta,p_spec,use_ts_cached_read,update_ts_cache);
+        }
+        ts_vector_t evaluate(const ts_vector_t& tsv, core::utcperiod p,bool use_ts_cached_read,bool update_ts_cache) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            return ts_vector_t(impl.evaluate(tsv,p,use_ts_cached_read,update_ts_cache));
+        }
+        ts_info_vector_t find(const std::string& search_expression) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            return impl.find(search_expression);
+        }
+        void store_ts(const ts_vector_t&tsv, bool overwrite_on_write, bool cache_on_write) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            impl.store_ts(tsv, overwrite_on_write, cache_on_write);
+        }
+        void merge_store_ts(const ts_vector_t&tsv, bool cache_on_write) {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            impl.merge_store_ts(tsv, cache_on_write);
+        }
 
-            cache_stats get_cache_stats() {
-                scoped_gil_release gil;
-                return impl.get_cache_stats();
-            }
-            bool get_compress_expressions() const {return impl.compress_expressions;}
-            void set_compress_expressions(bool v) {impl.compress_expressions=v;}
-        };
-    }
+        void cache_flush() {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            return impl.cache_flush();
+        }
+
+        cache_stats get_cache_stats() {
+            scoped_gil_release gil;
+            unique_lock<mutex> lck(mx);
+            return impl.get_cache_stats();
+        }
+        bool get_compress_expressions() const {return impl.compress_expressions;}
+        void set_compress_expressions(bool v) {impl.compress_expressions=v;}
+    };
+}
 }
 
 

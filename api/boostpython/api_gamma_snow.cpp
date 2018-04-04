@@ -10,7 +10,7 @@ namespace expose {
     namespace py=boost::python;
     void gamma_snow() {
         class_<parameter>("GammaSnowParameter")
-            .def(init<int,optional<double,double,double,double,double,double,double,double,double,double,double,double,double>>(
+            .def(init<int,py::optional<double,double,double,double,double,double,double,double,double,double,double,double,double>>(
               args("winter_end_day_of_year","initial_bare_ground_fraction","snow_cv","tx","wind_scale","wind_const","max_water","surface_magnitude","max_albedo","min_albedo","fast_albedo_decay_rate","slow_albedo_decay_rate","snowfall_reset_depth","glacier_albedo"),"specifying most of the parameters"))
              //Note: due to max arity of 15, the init function does not provide all the params, TODO: consider kwargs etc. instead
             .def_readwrite("winter_end_day_of_year", &parameter::winter_end_day_of_year,"Last day of accumulation season,default= 100")
@@ -36,7 +36,7 @@ namespace expose {
             .def("is_start_melt_season",&parameter::is_start_melt_season,(py::arg("self"),py::arg("t")),"true if specified interval t day of year is wind_end_day_of_year")
             ;
         class_<state>("GammaSnowState", "The state description of the GammaSnow routine")
-          .def(init<optional<double,double,double,double,double,double,double,double>>(args("albedo","lwc","surface_heat","alpha","sdc_melt_mean","acc_melt","iso_pot_energy","temp_swe"),"the description here ?"))
+          .def(init<py::optional<double,double,double,double,double,double,double,double>>(args("albedo","lwc","surface_heat","alpha","sdc_melt_mean","acc_melt","iso_pot_energy","temp_swe"),"the description here ?"))
           .def_readwrite("albedo",&state::albedo,"albedo (Broadband snow reflectivity fraction),default = 0.4")
           .def_readwrite("lwc",&state::lwc,"lwc (liquid water content) [mm],default = 0.1")
           .def_readwrite("surface_heat",&state::surface_heat,"surface_heat (Snow surface cold content) [J/m2],default = 30000.0")

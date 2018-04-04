@@ -29,6 +29,7 @@ coverage.xml
 *.a
 *.so
 *.bmarks
+.pytest_cache/
 
 api_wrap.cpp
 *.suo

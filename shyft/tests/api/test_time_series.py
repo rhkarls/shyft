@@ -523,6 +523,23 @@ class TimeSeries(unittest.TestCase):
         except RuntimeError as re:
             pass
 
+    def test_unbound_ts(self):
+        a = api.TimeSeries('a')
+        self.assertEqual(a.needs_bind(), True)
+        self.assertEqual(a.ts_id(), 'a')
+        with self.assertRaises(RuntimeError):
+            a.size()
+        with self.assertRaises(RuntimeError):
+            a.time_axis
+        with self.assertRaises(RuntimeError):
+            a.values
+        with self.assertRaises(RuntimeError):
+            a.point_interpretation()
+
+        s = api.ts_stringify(a*3.0 + 1.0)
+        self.assertGreater(len(s), 0)
+        pass
+
     def test_abs(self):
         c = api.Calendar()
         t0 = c.time(2016, 1, 1)
@@ -983,6 +1000,9 @@ class TimeSeries(unittest.TestCase):
                 3*ts.get(i).v if ts.get(i).v < 8 else 4*ts.get(i).v)
             self.assertEqual(rcsts_2.get(i).t, ts.get(i).t)
             self.assertEqual(rcsts_2.get(i).v, expected)
+
+
+
 
     def test_ice_packing_ts_parameters(self):
         p = api.IcePackingParameters(3600*24*7, -15.0)

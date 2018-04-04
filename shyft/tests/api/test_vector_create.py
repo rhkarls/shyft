@@ -9,7 +9,7 @@ from shyft.api import point_interpretation_policy as ts_point_fx
 from shyft.api import deltahours
 from shyft.api import GeoPointVector
 from shyft.api import GeoPoint
-from shyft.api import TemperatureSourceVector
+from shyft.api import TemperatureSourceVector, TemperatureSource
 from shyft.api import PrecipitationSourceVector
 from shyft.api import RelHumSourceVector
 from shyft.api import WindSpeedSourceVector
@@ -56,18 +56,29 @@ class VectorCreate(unittest.TestCase):
         a = np.array([[1.1, 1.2, 1.3], [2.1, 2.2, 2.3]], dtype=np.float64)
         ta = TimeAxis(0, deltahours(1), 3)
         gpv = GeoPointVector()
-        gpv[:] = [GeoPoint(1,2,3),GeoPoint(4,5,6)]
-        cfs =[(create_precipitation_source_vector_from_np_array,PrecipitationSourceVector),
-             (create_temperature_source_vector_from_np_array,TemperatureSourceVector),
-             (create_radiation_source_vector_from_np_array,RadiationSourceVector),
-             (create_rel_hum_source_vector_from_np_array,RelHumSourceVector),
-             (create_radiation_source_vector_from_np_array,RadiationSourceVector)]
+        gpv[:] = [GeoPoint(1, 2, 3), GeoPoint(4, 5, 6)]
+        cfs = [(create_precipitation_source_vector_from_np_array, PrecipitationSourceVector),
+               (create_temperature_source_vector_from_np_array, TemperatureSourceVector),
+               (create_radiation_source_vector_from_np_array, RadiationSourceVector),
+               (create_rel_hum_source_vector_from_np_array, RelHumSourceVector),
+               (create_radiation_source_vector_from_np_array, RadiationSourceVector)]
         # test all creation types:
         for cf in cfs:
-            r = cf[0](ta, gpv, a,ts_point_fx.POINT_AVERAGE_VALUE)  # act here
-            self.assertTrue(isinstance(r,cf[1])) # then the asserts
-            self.assertEqual(len(r),len(gpv))
+            r = cf[0](ta, gpv, a, ts_point_fx.POINT_AVERAGE_VALUE)  # act here
+            self.assertTrue(isinstance(r, cf[1]))  # then the asserts
+            self.assertEqual(len(r), len(gpv))
             for i in range(len(gpv)):
-                self.assertEqual(r[i].mid_point(),gpv[i])
-                self.assertTrue(np.allclose(r[i].ts.values.to_numpy(),a[i]))
-                self.assertEqual(r[i].ts.point_interpretation(),ts_point_fx.POINT_AVERAGE_VALUE)
+                self.assertEqual(r[i].mid_point(), gpv[i])
+                self.assertTrue(np.allclose(r[i].ts.values.to_numpy(), a[i]))
+                self.assertEqual(r[i].ts.point_interpretation(), ts_point_fx.POINT_AVERAGE_VALUE)
+
+    def test_create_xx_vector_from_list(self):
+        """ verify we can construct from list of xxSource"""
+        ts = TemperatureSource(
+            GeoPoint(1.0, 2.0, 3.0),
+            TimeSeries(TimeAxis(0, 3600, 10), fill_value=1.0, point_fx=ts_point_fx.POINT_AVERAGE_VALUE)
+        )
+        tsv = TemperatureSourceVector([ts])
+        self.assertEqual(len(tsv), 1)
+        self.assertEqual(len(TemperatureSourceVector([])), 0)
+        self.assertEqual(len(TemperatureSourceVector([ts, ts])), 2)
