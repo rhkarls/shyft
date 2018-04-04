@@ -83,7 +83,7 @@ if [ ! -d miniconda/bin ]; then
     else
 	source activate
     fi
-
+    conda config --set always_yes yes --set changeps1 no
     conda update conda
 
     new_conda_version=$(conda --version | sed "s/conda \(.*\)/\1/")
@@ -95,7 +95,6 @@ if [ ! -d miniconda/bin ]; then
 	conda activate
     fi
 
-    conda config --set always_yes yes --set changeps1 no
     conda install numpy
     conda create -n shyft_env python=3.6 pyyaml numpy libgfortran netcdf4 gdal matplotlib requests nose coverage pip shapely  pyproj
     ln -s ${WORKSPACE}/miniconda/include/python3.6m ${WORKSPACE}/miniconda/include/python3.6
