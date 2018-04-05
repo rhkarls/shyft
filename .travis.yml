@@ -71,6 +71,6 @@ script:
   - make install
   - source activate shyft_env
   - PYTHONPATH=.. python -c"import shyft; shyft.print_versions()"
-  - nosetests ../shyft/tests --with-coverage --cover-package=shyft.repository --cover-package=shyft.orchestration --cover-package=shyft.api
+  - travis_wait 30 nosetests ../shyft/tests --with-coverage --cover-package=shyft.repository --cover-package=shyft.orchestration --cover-package=shyft.api
 notifications:
   email: false
