@@ -13,6 +13,7 @@
 #include <functional>
 #include <cstring>
 #include <regex>
+#include <variant>
 
 #include "core_serialization.h"
 #include "expression_serialization.h"
@@ -21,7 +22,6 @@
 #include <boost/functional/hash.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/shared_ptr.hpp>
-#include <boost/variant.hpp>
 
 #include <dlib/server.h>
 #include <dlib/iosockstream.h>
@@ -81,7 +81,7 @@ struct container_wrapper {
     using gts_t = shyft::time_series::point_ts<gta_t>;
     using queries_t = std::map<std::string, std::string>;
     // -----
-    using container_adt = boost::variant<CIMPLs...>;
+    using container_adt = std::variant<std::unique_ptr<CIMPLs>... >;
     // -----
     container_adt _container;
 
@@ -89,9 +89,9 @@ struct container_wrapper {
     ~container_wrapper() = default;
     // -----
     template < class CIMPL >
-    container_wrapper(const CIMPL & c) : _container{ c } { }
+    container_wrapper(const std::unique_ptr<CIMPL> & c) : _container{ c } { }
     template < class CIMPL >
-    container_wrapper(CIMPL && c) : _container{ std::forward<CIMPL>(c) } { }
+    container_wrapper(std::unique_ptr<CIMPL> && c) : _container{ std::forward<std::unique_ptr<CIMPL>>(c) } { }
     // -----
     container_wrapper(const container_wrapper &) = default;
     container_wrapper & operator=(const container_wrapper &) = default;
@@ -110,8 +110,8 @@ public:
         bool overwrite = true,
         const queries_t & queries = queries_t{}
     ) {
-        boost::apply_visitor([&](auto && var) {
-            var.save(tsid, ts, overwrite, queries);
+        std::visit([&](auto && var) {
+            var->save(tsid, ts, overwrite, queries);
         }, _container);
     }
     /** Read a period from a time-series from the container. */
@@ -120,8 +120,8 @@ public:
         core::utcperiod period,
         const queries_t & queries = queries_t{}
     ) {
-        return boost::apply_visitor([&](auto && var) -> gts_t {
-            return var.read(tsid, period, queries);
+        return std::visit([&](auto && var) -> gts_t {
+            return var->read(tsid, period, queries);
         }, _container);
     }
     /** Remove a time-series from the container. */
@@ -129,8 +129,8 @@ public:
         const std::string & tsid,
         const queries_t & queries = queries_t{}
     ) {
-        boost::apply_visitor([&](auto && var) {
-            return var.remove(tsid, queries);
+        std::visit([&](auto && var) {
+            return var->remove(tsid, queries);
         }, _container);
     }
     /** Get minimal info about a time-series stored in the container. */
@@ -138,8 +138,8 @@ public:
         const std::string & tsid,
         const queries_t & queries = queries_t{}
     ) {
-        return boost::apply_visitor([&](auto && var) -> ts_info {
-            return var.get_ts_info(tsid, queries);
+        return std::visit([&](auto && var) -> ts_info {
+            return var->get_ts_info(tsid, queries);
         }, _container);
     }
     /** Find minimal information about all time-series stored in the container matching a regex pattern. */
@@ -147,8 +147,8 @@ public:
         const std::string & pattern,
         const queries_t & queries = queries_t{}
     ) {
-        return boost::apply_visitor([&](auto && var) -> std::vector<ts_info> {
-            return var.find(pattern, queries);
+        return std::visit([&](auto && var) -> std::vector<ts_info> {
+            return var->find(pattern, queries);
         }, _container);
     }
 };
@@ -187,7 +187,7 @@ struct server : dlib::server_iostream {
 
     // shyft-internal implementation
     mutex c_mx;///< container mutex
-    std::unordered_map<std::string, unique_ptr<cwrp_t>> container;  ///< mapping of internal shyft <container>
+    std::unordered_map<std::string, cwrp_t> container;  ///< mapping of internal shyft <container>
     ts_cache_t ts_cache{1000000};  // default 1 mill ts in cache
     bool cache_all_reads{false};
 
@@ -226,7 +226,7 @@ struct server : dlib::server_iostream {
         ContainerDispatcher::create_container(container_name, container_type, root_dir, *this);
     }
 
-    cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) const {
+    cwrp_t & internal(const std::string & container_name, const std::string & container_query = std::string{}) {
         return ContainerDispatcher::get_container(container_name, container_query, *this);
     }
 
@@ -309,27 +309,35 @@ struct standard_dtss_dispatcher {
         const std::string & root_path,
         dtss::server<standard_dtss_dispatcher> & dtss_server
     ) {
+        std::string server_container_name;
         if ( container_type.empty() || container_type == "ts_db" ) {
-            dtss_server.container[container_name] = std::make_unique<container_wrapper_t>(ts_db{ root_path });
+            server_container_name = container_name;
+            dtss_server.container[server_container_name] = container_wrapper_t{ std::make_unique<ts_db>( root_path ) };
         } else if ( container_type == "krls" ) {
-            dtss_server.container[std::string{"KRLS_"} + container_name] = std::make_unique<container_wrapper_t>( krls_pred_db{
-                root_path,
-                [&dtss_server](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
-                id_vector_t id_vec{ tsid };
-                return dtss_server.do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
-            }
-            }
-            );
+            server_container_name = std::string{"KRLS_"} + container_name;
+            dtss_server.container[server_container_name] = container_wrapper_t {
+                std::make_unique<krls_pred_db>(
+                    root_path,
+                    [&dtss_server](const std::string & tsid, utcperiod period, bool use_ts_cached_read, bool update_ts_cache) -> ts_vector_t {
+                        id_vector_t id_vec{ tsid };
+                        return dtss_server.do_read(id_vec, period, use_ts_cached_read, update_ts_cache);
+                    }
+                )
+            };
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
+        }
+
+        if ( dtss_server.container[container_name]._container.valueless_by_exception() ) {
+            throw std::runtime_error{"Container was constructed in an invalid state"};
         }
     }
 
     static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
-        const dtss::server<standard_dtss_dispatcher> & dtss_server
+        dtss::server<standard_dtss_dispatcher> & dtss_server
     ) {
-        decltype(dtss_server.container)::const_iterator f;
+        decltype(dtss_server.container)::iterator f;
         if ( container_query.empty() || container_query == "ts_db" ) {
             f = dtss_server.container.find(container_name);
         } else if ( container_query == "krls" ) {
@@ -339,7 +347,7 @@ struct standard_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string("Failed to find shyft container: ")+container_name);
 
-        return *(f->second);
+        return f->second;
     }
 };
 

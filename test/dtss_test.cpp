@@ -2350,7 +2350,7 @@ TEST_CASE("dtss_container_wrapping") {
         generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(tmpdir.string()) };
+        cwrp_t container{ std::make_unique<ts_db>(tmpdir.string()) };
 
         container.save(ts_name, ts);
         FAST_REQUIRE_UNARY( fs::is_regular_file(tmpdir/ts_name) );
@@ -2362,7 +2362,7 @@ TEST_CASE("dtss_container_wrapping") {
         generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(tmpdir.string()) };
+        cwrp_t container{ std::make_unique<ts_db>(tmpdir.string()) };
         
         container.save(ts_name, ts);
         FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
@@ -2377,7 +2377,7 @@ TEST_CASE("dtss_container_wrapping") {
         generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(tmpdir.string()) };
+        cwrp_t container{ std::make_unique<ts_db>(tmpdir.string()) };
 
         container.save(ts_name, ts);
         FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
@@ -2392,7 +2392,7 @@ TEST_CASE("dtss_container_wrapping") {
         generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(tmpdir.string()) };
+        cwrp_t container{ std::make_unique<ts_db>(tmpdir.string()) };
 
         container.save(ts_name, ts);
         FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
@@ -2407,7 +2407,7 @@ TEST_CASE("dtss_container_wrapping") {
         generic_dt ta{ utc.time(2002, 2, 2), calendar::HOUR, 24 };
         point_ts<generic_dt> ts{ ta, 15., shyft::time_series::ts_point_fx::POINT_INSTANT_VALUE };
 
-        cwrp_t container{ ts_db(tmpdir.string()) };
+        cwrp_t container{ std::make_unique<ts_db>(tmpdir.string()) };
 
         container.save(ts_name, ts);
         FAST_CHECK_UNARY( fs::is_regular_file(tmpdir/ts_name) );
@@ -2522,7 +2522,7 @@ struct query_test_dtss_dispatcher {
         shyft::dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "test" ) {
-            dtss_server.container[std::string{"TEST_"} + container_name] = std::make_unique<container_wrapper_t>(query_test_dtss_container{ root_path });
+            dtss_server.container[std::string{"TEST_"} + container_name] = container_wrapper_t{ std::make_unique<query_test_dtss_container>(root_path) };
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
@@ -2530,9 +2530,9 @@ struct query_test_dtss_dispatcher {
 
     static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
-        const dtss::server<query_test_dtss_dispatcher> & dtss_server
+        dtss::server<query_test_dtss_dispatcher> & dtss_server
     ) {
-        decltype(dtss_server.container)::const_iterator f;
+        decltype(dtss_server.container)::iterator f;
         if ( container_query.empty() || container_query == "test" ) {
             f = dtss_server.container.find(std::string{"TEST_"} + container_name);
         } else {
@@ -2542,7 +2542,7 @@ struct query_test_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
 
-        return *(f->second);
+        return f->second;
     }
 };
 
@@ -2703,9 +2703,9 @@ struct multicontainer_test_dtss_dispatcher {
         shyft::dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
     ) {
         if ( container_type.empty() || container_type == "first" ) {
-            dtss_server.container[std::string{"FIRST_"} + container_name] = std::make_unique<container_wrapper_t>(multicontainer_test_dtss_container<0>{ root_path });
+            dtss_server.container[std::string{"FIRST_"} + container_name] = container_wrapper_t{ std::make_unique<multicontainer_test_dtss_container<0>>(root_path) };
         } else if ( container_type == "second" ) {
-            dtss_server.container[std::string{"SECOND_"} + container_name] = std::make_unique<container_wrapper_t>(multicontainer_test_dtss_container<1>{ root_path });
+            dtss_server.container[std::string{"SECOND_"} + container_name] = container_wrapper_t{ std::make_unique<multicontainer_test_dtss_container<1>>(root_path) };
         } else {
             throw std::runtime_error{ std::string{"Cannot construct unknown container type: "} + container_type };
         }
@@ -2713,9 +2713,9 @@ struct multicontainer_test_dtss_dispatcher {
      
     static container_wrapper_t & get_container(
         const std::string & container_name, const std::string & container_query,
-        const dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
+        dtss::server<multicontainer_test_dtss_dispatcher> & dtss_server
     ) {
-        decltype(dtss_server.container)::const_iterator f;
+        decltype(dtss_server.container)::iterator f;
         if ( container_query.empty() || container_query == "first" ) {
             f = dtss_server.container.find(std::string{"FIRST_"} + container_name);
         } else if ( container_query == "second" ) {
@@ -2727,7 +2727,7 @@ struct multicontainer_test_dtss_dispatcher {
         if( f == std::end(dtss_server.container) )
             throw runtime_error(std::string{"Failed to find shyft container: "} + container_name);
 
-        return *(f->second);
+        return f->second;
     }
 };
 
